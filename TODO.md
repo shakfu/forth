@@ -18,6 +18,11 @@
 - [x] Alternatives (`c4|e4|g4,`)
 - [x] Dynamics (`ppp` through `fff`)
 - [x] Explicit brackets (`[1 c4 100 500],`)
+- [x] Relative intervals (`+N`, `-N`)
+- [x] Octave shifts (`^`, `v`)
+- [x] Program change (`pc`)
+- [x] Removed legacy note words (`C`, `D`, etc., `note-on`, `octave`)
+- [x] Error recovery (stack checks, `clear` word)
 
 ---
 
@@ -122,14 +127,14 @@ mf c4, e4, ff g4,
 
 ---
 
-## Priority 3: Convenience
+## Priority 3: Convenience (COMPLETE)
 
 Quality of life improvements.
 
 ### Relative Intervals
 
-- [ ] Track "current pitch" state
-- [ ] Implement `+N` and `-N` for semitone movement
+- [x] Track "current pitch" state
+- [x] Implement `+N` and `-N` for semitone movement
 
 ```forth
 c4, +2, +2, +1,         \ C D E F
@@ -137,8 +142,8 @@ c4, +2, +2, +1,         \ C D E F
 
 ### Octave Shifts
 
-- [ ] Implement `^` (up octave) and `v` (down octave)
-- [ ] Operates on current pitch
+- [x] Implement `^` (up octave) and `v` (down octave)
+- [x] Operates on current pitch
 
 ```forth
 c4, ^, v,               \ C4, C5, C4
@@ -146,7 +151,7 @@ c4, ^, v,               \ C4, C5, C4
 
 ### Program Change
 
-- [ ] Implement `pc` word for program/instrument change
+- [x] Implement `pc` word for program/instrument change
 
 ```forth
 1 0 pc                  \ Channel 1, program 0 (piano)
@@ -204,12 +209,12 @@ c4>,                    \ Accent
 
 ---
 
-## Refactoring / Technical Debt
+## Refactoring / Technical Debt (COMPLETE)
 
-- [ ] Remove redundant old note name words (`C`, `D`, etc.) - superseded by pitch parsing
-- [ ] Consider removing `note-on` word - superseded by `,` notation
-- [ ] Unify packed note system with new notation
-- [ ] Add error recovery (don't leave stack in bad state)
+- [x] Remove redundant old note name words (`C`, `D`, etc.) - superseded by pitch parsing
+- [x] Removed `note-on` word - superseded by `,` notation
+- [x] Unified packed note system with new notation (`note!` updates `current_pitch`)
+- [x] Added error recovery (stack depth checks, cleanup on errors, `clear` word)
 
 ---
 

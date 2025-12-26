@@ -123,6 +123,7 @@ int out_port_count = 0;
 int default_channel = 1;      // 1-16
 int default_velocity = 80;    // 0-127
 int default_duration = 500;   // milliseconds
+int current_pitch = 60;       // Track last played pitch for relative intervals
 
 // Chord marker (sentinel value on stack)
 #define CHORD_MARKER 0x7FFFFFFF
@@ -249,6 +250,10 @@ void op_dup(Stack* stack) {
 
 void op_drop(Stack* stack) {
     pop(stack);
+}
+
+void op_clear(Stack* stack) {
+    stack->top = -1;
 }
 
 void op_over(Stack* stack) {
@@ -531,85 +536,12 @@ void op_midi_close(Stack* stack) {
     }
 }
 
-// note-on ( ch pitch vel dur -- ) play note with duration in ms, auto note-off
-void op_note_on(Stack* stack) {
-    int32_t duration = pop(stack);
-    int32_t velocity = pop(stack);
-    int32_t pitch = pop(stack);
-    int32_t channel = pop(stack);
-
-    if (midi_out == NULL) {
-        printf("No MIDI output open\n");
-        return;
-    }
-
-    if (channel < 1 || channel > 16) {
-        printf("Channel must be 1-16\n");
-        return;
-    }
-    if (pitch < 0 || pitch > 127) {
-        printf("Pitch must be 0-127\n");
-        return;
-    }
-    if (velocity < 0 || velocity > 127) {
-        printf("Velocity must be 0-127\n");
-        return;
-    }
-
-    unsigned char msg[3];
-
-    // Note on
-    msg[0] = 0x90 | ((channel - 1) & 0x0F);
-    msg[1] = pitch & 0x7F;
-    msg[2] = velocity & 0x7F;
-    int ret = libremidi_midi_out_send_message(midi_out, msg, 3);
-    if (ret != 0) {
-        printf("Failed to send note on\n");
-        return;
-    }
-
-    // Wait for duration
-    if (duration > 0) {
-        usleep(duration * 1000);
-    }
-
-    // Note off
-    msg[0] = 0x80 | ((channel - 1) & 0x0F);
-    msg[2] = 0;
-    libremidi_midi_out_send_message(midi_out, msg, 3);
-}
-
-void op_note_off(Stack* stack) {
-    int32_t velocity = pop(stack);
-    int32_t pitch = pop(stack);
-    int32_t channel = pop(stack);
-
-    if (midi_out == NULL) {
-        printf("No MIDI output open\n");
-        return;
-    }
-
-    if (channel < 1 || channel > 16) {
-        printf("Channel must be 1-16\n");
-        return;
-    }
-    if (pitch < 0 || pitch > 127) {
-        printf("Pitch must be 0-127\n");
-        return;
-    }
-
-    unsigned char msg[3];
-    msg[0] = 0x80 | ((channel - 1) & 0x0F);  // Note Off
-    msg[1] = pitch & 0x7F;
-    msg[2] = velocity & 0x7F;
-
-    int ret = libremidi_midi_out_send_message(midi_out, msg, 3);
-    if (ret != 0) {
-        printf("Failed to send note off\n");
-    }
-}
-
 void op_cc(Stack* stack) {
+    if (stack->top < 2) {
+        printf("cc needs 3 values: channel cc# value\n");
+        return;
+    }
+
     int32_t value = pop(stack);
     int32_t cc_num = pop(stack);
     int32_t channel = pop(stack);
@@ -778,8 +710,54 @@ void op_f(Stack* stack)   { (void)stack; default_velocity = 96; }
 void op_ff(Stack* stack)  { (void)stack; default_velocity = 112; }
 void op_fff(Stack* stack) { (void)stack; default_velocity = 127; }
 
+// Octave shifts - push current pitch shifted by octave
+void op_octave_up(Stack* stack) {
+    int new_pitch = current_pitch + 12;
+    if (new_pitch > 127) new_pitch = 127;
+    push(stack, new_pitch);
+}
+
+void op_octave_down(Stack* stack) {
+    int new_pitch = current_pitch - 12;
+    if (new_pitch < 0) new_pitch = 0;
+    push(stack, new_pitch);
+}
+
+// Program change ( ch prog -- )
+void op_program_change(Stack* stack) {
+    if (stack->top < 1) {
+        printf("pc needs channel and program\n");
+        return;
+    }
+
+    int program = pop(stack);
+    int channel = pop(stack);
+
+    if (channel < 1 || channel > 16) {
+        printf("Channel must be 1-16\n");
+        return;
+    }
+    if (program < 0 || program > 127) {
+        printf("Program must be 0-127\n");
+        return;
+    }
+
+    if (midi_out == NULL) {
+        printf("No MIDI output open\n");
+        return;
+    }
+
+    unsigned char msg[2];
+    msg[0] = 0xC0 | ((channel - 1) & 0x0F);
+    msg[1] = program & 0x7F;
+    libremidi_midi_out_send_message(midi_out, msg, 2);
+}
+
 // Helper: play a single note with given params
 static void play_single_note(int channel, int pitch, int velocity, int duration) {
+    // Always track current pitch for relative intervals
+    current_pitch = pitch;
+
     if (midi_out == NULL) {
         printf("No MIDI output open\n");
         return;
@@ -819,6 +797,11 @@ static void play_single_note(int channel, int pitch, int velocity, int duration)
 
 // Helper: play chord with given params
 static void play_chord_notes(int* pitches, int count, int channel, int velocity, int duration) {
+    // Always track current pitch (use highest note in chord)
+    if (count > 0) {
+        current_pitch = pitches[count - 1];
+    }
+
     if (midi_out == NULL) {
         printf("No MIDI output open\n");
         return;
@@ -958,6 +941,8 @@ void op_comma(Stack* stack) {
 
         if (pitch_count > 16) {
             printf("Too many notes in chord (max 16)\n");
+            // Clean up: remove all items and marker
+            while (stack->top >= chord_pos) pop(stack);
             return;
         }
 
@@ -1019,6 +1004,8 @@ void op_comma(Stack* stack) {
             play_single_note(channel, pitch, velocity, duration);
         } else {
             printf("Invalid note: expected 1 (pitch) or 4 (ch pitch vel dur) items, got %d\n", count);
+            // Clean up: remove all items
+            for (int i = 0; i < count; i++) pop(stack);
         }
     }
 }
@@ -1086,15 +1073,18 @@ void op_transpose(Stack* stack) {
 void op_note_play(Stack* stack) {
     int32_t n = pop(stack);
 
-    if (midi_out == NULL) {
-        printf("No MIDI output open\n");
-        return;
-    }
-
     int pitch = note_pitch(n);
     int vel = note_vel(n);
     int ch = note_ch(n);
     int dur = note_dur(n);
+
+    // Update current pitch for relative intervals (unify with concise notation)
+    current_pitch = pitch;
+
+    if (midi_out == NULL) {
+        printf("No MIDI output open\n");
+        return;
+    }
 
     // Convert ticks to ms: (ticks / PPQ) * (60000 / BPM)
     int ms = (dur * 60000) / (TICKS_PER_QUARTER * global_bpm);
@@ -1555,23 +1545,6 @@ void op_arp_to_seq(Stack* stack) {
     }
 }
 
-// Note name helpers: c d e f g a b push MIDI note numbers (octave 4 = middle)
-void op_note_c(Stack* stack) { push(stack, 60); }
-void op_note_d(Stack* stack) { push(stack, 62); }
-void op_note_e(Stack* stack) { push(stack, 64); }
-void op_note_f(Stack* stack) { push(stack, 65); }
-void op_note_g(Stack* stack) { push(stack, 67); }
-void op_note_a(Stack* stack) { push(stack, 69); }
-void op_note_b(Stack* stack) { push(stack, 71); }
-
-// octave ( note oct -- note ) set octave (0-9, middle C = octave 4)
-void op_octave(Stack* stack) {
-    int32_t oct = pop(stack);
-    int32_t note = pop(stack);
-    int pc = note % 12;  // pitch class
-    push(stack, pc + (oct + 1) * 12);
-}
-
 // Forward declaration for execute_line (defined later)
 void execute_line(const char* input);
 
@@ -1613,6 +1586,7 @@ void init_dictionary(void) {
     add_word("swap", op_swap, 1);
     add_word("dup", op_dup, 1);
     add_word("drop", op_drop, 1);
+    add_word("clear", op_clear, 1);
     add_word("over", op_over, 1);
     add_word("rot", op_rot, 1);
     add_word(".s", op_dot_s, 1);
@@ -1642,7 +1616,6 @@ void init_dictionary(void) {
     add_word("midi-open", op_midi_open, 1);
     add_word("midi-virtual", op_midi_open_virtual, 1);
     add_word("midi-close", op_midi_close, 1);
-    add_word("note-on", op_note_on, 1);
     add_word("cc", op_cc, 1);
     add_word("panic", op_all_notes_off, 1);
 
@@ -1671,6 +1644,11 @@ void init_dictionary(void) {
     add_word("f", op_f, 1);
     add_word("ff", op_ff, 1);
     add_word("fff", op_fff, 1);
+
+    // Priority 3: Convenience
+    add_word("^", op_octave_up, 1);
+    add_word("v", op_octave_down, 1);
+    add_word("pc", op_program_change, 1);
 
     // Phase 1: Packed notes
     add_word("note", op_note, 1);
@@ -1717,16 +1695,6 @@ void init_dictionary(void) {
     add_word("play-chord", op_play_chord, 1);
     add_word("chord>seq", op_chord_to_seq, 1);
     add_word("arp>seq", op_arp_to_seq, 1);
-
-    // Note names (octave 4)
-    add_word("C", op_note_c, 1);
-    add_word("D", op_note_d, 1);
-    add_word("E", op_note_e, 1);
-    add_word("F", op_note_f, 1);
-    add_word("G", op_note_g, 1);
-    add_word("A", op_note_a, 1);
-    add_word("B", op_note_b, 1);
-    add_word("octave", op_octave, 1);
 }
 
 // Parse pitch name like c4, C#4, Db5, etc.
@@ -1778,6 +1746,21 @@ void execute_word(const char* word) {
     int index = find_word(word);
 
     if (index == -1) {
+        // Try to parse as relative interval (+N or -N) FIRST
+        // This must come before number parsing since +2 is a valid number
+        if ((word[0] == '+' || word[0] == '-') && strlen(word) > 1) {
+            char* end;
+            long interval = strtol(word, &end, 10);
+            if (*end == '\0') {
+                // Valid interval - apply to current pitch
+                int new_pitch = current_pitch + (int)interval;
+                if (new_pitch < 0) new_pitch = 0;
+                if (new_pitch > 127) new_pitch = 127;
+                push(&stack, (int32_t)new_pitch);
+                return;
+            }
+        }
+
         // Try to parse as a number
         char* endptr;
         long num = strtol(word, &endptr, 10);
@@ -1966,6 +1949,15 @@ void print_help(void) {
     printf("\nDynamics:\n");
     printf("  ppp pp p mp mf f ff fff Set velocity (16-127)\n");
     printf("  mf c4, ff g4,           Change dynamics inline\n");
+
+    printf("\nConvenience:\n");
+    printf("  +N                      Relative up N semitones\n");
+    printf("  -N                      Relative down N semitones\n");
+    printf("  c4, +2, +2, +1,         Plays C D E F\n");
+    printf("  ^                       Octave up from current pitch\n");
+    printf("  v                       Octave down from current pitch\n");
+    printf("  c4, ^, v,               Plays C4, C5, C4\n");
+    printf("  pc ( ch prog -- )       Program/instrument change\n");
 
     printf("\nMIDI Output:\n");
     printf("  midi-list               List available MIDI output ports\n");
