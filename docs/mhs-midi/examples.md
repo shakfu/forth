@@ -405,6 +405,7 @@ printPorts i n
 ## REPL Session Examples
 
 Start the REPL:
+
 ```bash
 ./scripts/mhs-midi-repl
 ```

@@ -450,6 +450,7 @@ The `mhs-midi` binary provides an interactive Haskell REPL with MIDI FFI support
 This wrapper sets up paths and enables caching for fast startup.
 
 In the REPL (IO actions need `>>= print` or `>> return ()`):
+
 ```haskell
 > import Midi
 > midiOpenVirtual "TestPort" >>= print
@@ -461,11 +462,13 @@ True
 ```
 
 Run Haskell files (interpreted):
+
 ```bash
 ./scripts/mhs-midi-repl -r MyMidiProgram.hs
 ```
 
 Or compile to a standalone executable:
+
 ```bash
 ./scripts/mhs-midi-compile MyMidiProgram.hs -o my_program
 ./my_program
@@ -720,6 +723,7 @@ A Lisp/Scheme approach to MIDI using s7 (a lightweight embeddable Scheme interpr
 ### Quick Example
 
 Using convenience functions:
+
 ```scheme
 (open)                          ; Open virtual MIDI port
 (n c4)                          ; Play middle C
@@ -729,6 +733,7 @@ Using convenience functions:
 ```
 
 Or with explicit port management:
+
 ```scheme
 (define m (midi-open))
 (midi-note m c4 mf quarter)
@@ -868,44 +873,62 @@ sixteenth  ; 125
 
 ## lua_midi: Lua MIDI Language
 
-A Lua-based MIDI language using Lua 5.5, providing a simple and expressive approach to MIDI programming.
+A Lua-based MIDI language using Lua 5.5, providing a simple and expressive approach to MIDI programming with concise syntax.
 
 ### Running
 
 ```bash
 ./build/lua_midi              # Start Lua REPL with MIDI support
 ./build/lua_midi script.lua   # Run a Lua script
-./build/lua_midi -e 'print(midi.c4)'  # Evaluate expression
+./build/lua_midi -e 'print(c4)'  # Evaluate expression
 ```
 
 ### Quick Example
 
 Using convenience functions (recommended for REPL):
+
 ```lua
 > open()                        -- Open virtual MIDI port
-> n(midi.c4)                    -- Play middle C
-> ch(midi.major(60))            -- Play C major chord
-> arp(midi.min7(57), midi.mf, midi.sixteenth)  -- Arpeggiate
+> n(c4)                         -- Play middle C
+> ch(major(c4))                 -- Play C major chord
+> arp(min7(a3), mf, sixteenth)  -- Arpeggiate
 > close()
 ```
 
 Or with explicit port management (use global, not `local`):
+
 ```lua
 > m = midi.open()               -- Global variable (no 'local'!)
-> m:note(midi.c4, midi.mf, midi.quarter)
-> m:chord(midi.major(60), midi.mf, midi.half)
+> m:note(c4, mf, quarter)
+> m:chord(major(c4), mf, half)
 > m:close()
 ```
 
 **Note:** In the REPL, each line is a separate chunk, so `local` variables don't persist. Use global assignment (`m = ...`) or the convenience functions.
 
+### Global Constants
+
+All constants are available as globals for concise syntax:
+
+```lua
+-- Pitches: c0-b8, cs0-cs8 (sharps), db0-bb8 (flats)
+c4, e4, g4, cs4, db4, etc.
+
+-- Dynamics: ppp, pp, p, mp, mf, f, ff, fff
+-- Durations: whole, half, quarter, eighth, sixteenth
+-- Chord builders: major, minor, dim, aug, dom7, maj7, min7
+-- Utilities: transpose, octave_up, octave_down, dotted, rest, sleep
+```
+
+The `midi.` prefix also works: `midi.c4`, `midi.mf`, etc.
+
 ### API Reference
 
 ```lua
--- Port management (assign result to variable: m = midi.open())
+-- Port management
 midi.list_ports()           -- List available MIDI ports
-midi.open()                 -- Virtual port (default name "luaMIDI")
-midi.open("CustomName")     -- Virtual port with custom name
+midi.open()                 -- Virtual port "luaMIDI"
+midi.open("Name")           -- Named virtual port
 midi.open(0)                -- Hardware port by index
 m:close()                   -- Close port
 m:is_open()                 -- Check if open
@@ -922,46 +945,15 @@ m:cc(control, value, [ch])  -- Control change
 m:program(prog, [ch])       -- Program change
 m:all_notes_off([ch])       -- All notes off
 
--- Pitch helpers
-midi.note("C4")             -- Parse note name to MIDI number
-midi.c4, midi.cs4, etc.     -- Pitch constants (c0-c8, sharps: cs, ds, fs, gs, as)
-midi.transpose(pitch, n)    -- Transpose by semitones
-midi.octave_up(pitch)       -- Transpose up one octave
-midi.octave_down(pitch)     -- Transpose down one octave
-
--- Chord builders
-midi.major(root)            -- Major triad
-midi.minor(root)            -- Minor triad
-midi.dim(root)              -- Diminished triad
-midi.aug(root)              -- Augmented triad
-midi.dom7(root)             -- Dominant 7th
-midi.maj7(root)             -- Major 7th
-midi.min7(root)             -- Minor 7th
-
--- Dynamics (velocity values)
-midi.ppp, midi.pp, midi.p, midi.mp  -- 16, 33, 49, 64
-midi.mf, midi.f, midi.ff, midi.fff  -- 80, 96, 112, 127
-
--- Durations (milliseconds at 120 BPM)
-midi.whole, midi.half, midi.quarter  -- 2000, 1000, 500
-midi.eighth, midi.sixteenth          -- 250, 125
-midi.dotted(dur)                     -- 1.5x duration
-
 -- Tempo
 midi.set_tempo(bpm)         -- Set tempo (updates duration constants)
 midi.get_tempo()            -- Get current tempo
-midi.bpm(tempo)             -- Quarter note ms at tempo
 
--- Timing
-midi.sleep(ms)              -- Sleep for milliseconds
-midi.rest([dur])            -- Rest for duration (default quarter)
-
--- REPL convenience functions (use global port)
-open([arg])                 -- Open port, set as default
-close()                     -- Close default port
-n(pitch, [vel], [dur], [ch])   -- Play note on default port
-ch(pitches, [vel], [dur], [ch]) -- Play chord on default port
-arp(pitches, [vel], [dur], [ch]) -- Arpeggiate on default port
+-- REPL convenience (use global port)
+open(), close()             -- Open/close default port
+n(pitch, [vel], [dur], [ch])   -- Play note
+ch(pitches, [vel], [dur], [ch]) -- Play chord
+arp(pitches, [vel], [dur], [ch]) -- Arpeggiate
 ```
 
 ### Example: Simple Melody (script)
@@ -969,8 +961,8 @@ arp(pitches, [vel], [dur], [ch]) -- Arpeggiate on default port
 ```lua
 -- melody.lua
 local m = midi.open()
-for _, p in ipairs({midi.c4, midi.d4, midi.e4, midi.f4, midi.g4}) do
-    m:note(p, midi.mf, midi.quarter)
+for _, p in ipairs({c4, d4, e4, f4, g4}) do
+    m:note(p, mf, quarter)
 end
 m:close()
 ```
@@ -979,10 +971,10 @@ m:close()
 
 ```lua
 > open()
-> ch(midi.major(60), midi.mf, midi.half)   -- I
-> ch(midi.major(65), midi.mf, midi.half)   -- IV
-> ch(midi.major(67), midi.f, midi.half)    -- V
-> ch(midi.major(60), midi.mf, midi.whole)  -- I
+> ch(major(c4), mf, half)   -- I
+> ch(major(f3), mf, half)   -- IV
+> ch(major(g3), f, half)    -- V
+> ch(major(c4), mf, whole)  -- I
 > close()
 ```
 
@@ -999,9 +991,9 @@ local function random_note(chord)
 end
 
 -- Play 16 random notes from C major 7
-local chord = midi.maj7(60)
+local chord = maj7(c4)
 for i = 1, 16 do
-    m:note(random_note(chord), midi.mf, midi.sixteenth)
+    m:note(random_note(chord), mf, sixteenth)
 end
 
 m:close()

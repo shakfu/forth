@@ -4,7 +4,7 @@ This document explains how mhs-midi integrates MicroHs with MIDI functionality.
 
 ## Overview
 
-```
+```text
 +------------------+     +------------------+     +------------------+
 |    Midi.hs       | --> |  midi_ffi.c      | --> |   libremidi      |
 |  (Haskell API)   |     | (C FFI bindings) |     | (MIDI backend)   |
@@ -58,6 +58,7 @@ void midi_close(void);
 Location: `thirdparty/libremidi/`
 
 Cross-platform MIDI library supporting:
+
 - macOS: CoreMIDI
 - Linux: ALSA
 - Windows: WinMM
@@ -79,6 +80,7 @@ from_t mhs_midi_note_on(int s) {
 ```
 
 Key concepts:
+
 - `s` is the stack pointer
 - `mhs_to_Int(s, n)` extracts the nth argument
 - `mhs_from_Int(s, arity, result)` returns the result
@@ -109,7 +111,7 @@ const struct ffi_entry *xffi_table = midi_ffi_table;
 
 ### REPL Build (`mhs-midi`)
 
-```
+```text
 generated/mhs.c (MicroHs compiler)
          +
      eval.c (runtime)
@@ -128,7 +130,7 @@ The build strips the default `xffi_table` from `generated/mhs.c` and substitutes
 
 ### Compiled Program Build
 
-```
+```text
 MyProgram.hs + Midi.hs
          |
          v (mhs -C)
@@ -186,7 +188,7 @@ The `mhs-midi-repl` script enables caching by default.
 
 ## File Locations
 
-```
+```text
 projects/mhs_midi/
   lib/
     Midi.hs              # Haskell API

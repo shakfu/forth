@@ -17,7 +17,7 @@ Analysis of possible data structures for representing MIDI sequences in MIDI For
 
 Encode a note event in a single 32-bit value:
 
-```
+```text
 Bits 0-6:   pitch (0-127)
 Bits 7-13:  velocity (0-127)
 Bits 14-17: channel (0-15)
@@ -25,6 +25,7 @@ Bits 18-31: duration in ticks (0-16383)
 ```
 
 **Proposed words:**
+
 ```forth
 60 100 1 480 note>packed    \ pitch vel ch dur -- packed
 dup pitch@ .                \ extract pitch
@@ -32,12 +33,14 @@ dup pitch@ .                \ extract pitch
 ```
 
 **Pros:**
+
 - Fits on stack naturally
 - Simple transformations (bit manipulation)
 - Cache-friendly
 - No memory management
 
 **Cons:**
+
 - Limited duration range (max ~16k ticks)
 - No CC or other event types
 - Rigid format, hard to extend
@@ -59,6 +62,7 @@ typedef struct {
 ```
 
 **Proposed words:**
+
 ```forth
 event-new ( time type ch d1 d2 -- event-handle )
 event-time@ ( event -- time )
@@ -70,11 +74,13 @@ event-free ( event -- )
 ```
 
 **Pros:**
+
 - Flexible, supports all MIDI message types
 - Extensible to MIDI 2.0, sysex, etc.
 - Natural event representation
 
 **Cons:**
+
 - Requires memory management
 - Indirection overhead
 - Need to track allocations
@@ -94,6 +100,7 @@ typedef struct Event {
 ```
 
 **Proposed words:**
+
 ```forth
 seq-new ( -- seq )
 seq-add ( seq event -- seq )
@@ -103,11 +110,13 @@ seq-cons ( event seq -- seq )
 ```
 
 **Pros:**
+
 - Easy insert/delete at any position
 - Natural recursive structure for Forth
 - No reallocation needed
 
 **Cons:**
+
 - Poor cache locality
 - O(n) to access by index
 - More memory per event (pointer overhead)
@@ -127,6 +136,7 @@ typedef struct {
 ```
 
 **Proposed words:**
+
 ```forth
 seq-new ( -- seq )
 seq-append ( seq time type ch d1 d2 -- )
@@ -138,12 +148,14 @@ seq-reverse ( seq -- seq )
 ```
 
 **Pros:**
+
 - O(1) random access
 - Good cache locality for playback
 - Easy to sort by time
 - Simple iteration
 
 **Cons:**
+
 - O(n) insert in middle
 - Needs reallocation when growing
 - Fixed event size
@@ -167,6 +179,7 @@ Higher-level abstraction where patterns are generators that produce events:
 ```
 
 **Alternative syntax:**
+
 ```forth
 \ Pattern literal syntax
 pat[ 0 60 100 480 | 0 64 100 480 | 0 67 100 480 ]pat
@@ -174,12 +187,14 @@ pat[ 0 60 100 480 | 0 64 100 480 | 0 67 100 480 ]pat
 ```
 
 **Pros:**
+
 - Composable and reusable
 - Musical abstractions (chords, scales, arpeggios)
 - Good for live coding - modify pattern, hear changes
 - Compact representation
 
 **Cons:**
+
 - More complex implementation
 - Patterns need interpretation/compilation step
 - Less direct control over individual events
@@ -202,6 +217,7 @@ typedef struct {
 ```
 
 **Proposed words:**
+
 ```forth
 pool-alloc ( -- event-index )
 pool-free ( event-index -- )
@@ -212,12 +228,14 @@ seq-deep-clone ( seq -- seq2 )      \ copies events too
 ```
 
 **Pros:**
+
 - Events can belong to multiple sequences
 - Easy to create variations without duplicating data
 - Efficient cloning for live manipulation
 - Pool allocation is fast
 
 **Cons:**
+
 - Two-level indirection
 - More bookkeeping
 - Need to track reference counts or accept leaks
@@ -244,6 +262,7 @@ Given the goals of polyphonic sequences, live coding, and transformations:
 ### Phase 1: Packed Integers (Notes Only)
 
 Start simple with packed note representation:
+
 - Works with existing stack
 - Sufficient for basic melodies and chords
 - Easy transformations via bit manipulation
@@ -257,6 +276,7 @@ Start simple with packed note representation:
 ### Phase 2: Heap-Allocated Sequences (Array-Based)
 
 Add sequence storage in a memory region:
+
 - Sequence handles on stack
 - Array storage for events
 - Basic operations: append, play, transform
@@ -272,6 +292,7 @@ seq-play                  \ play the chord
 ### Phase 3: Pattern DSL
 
 Build musical abstractions on top:
+
 - User-defined words generate sequences
 - Chord/scale/arpeggio helpers
 - Live-friendly pattern manipulation
@@ -305,6 +326,7 @@ int sequence_count = 0;
 ### Tick Resolution
 
 Standard MIDI files use 480 or 960 ticks per quarter note (PPQ). Suggest:
+
 - Default: 480 PPQ
 - Tempo stored separately (microseconds per quarter note)
 - Conversion words: `ms>ticks`, `ticks>ms`, `bpm!`
@@ -312,6 +334,7 @@ Standard MIDI files use 480 or 960 ticks per quarter note (PPQ). Suggest:
 ### Playback Model
 
 For live coding, maintain:
+
 - Current tick position
 - Tempo/BPM
 - Playing flag

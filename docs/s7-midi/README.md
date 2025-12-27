@@ -28,6 +28,7 @@ make
 ### 3. Play some notes
 
 Using convenience functions:
+
 ```scheme
 > (open)
 #<midi-out virtual "s7MIDI">
@@ -37,6 +38,7 @@ Using convenience functions:
 ```
 
 Or using explicit port management:
+
 ```scheme
 > (define m (midi-open))
 #<midi-out virtual "s7MIDI">
@@ -90,6 +92,7 @@ Type `(help)` for available functions, `(quit)` to exit.
 ```
 
 Run with:
+
 ```bash
 ./build/s7_midi melody.scm
 ```

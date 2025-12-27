@@ -91,7 +91,7 @@ MIDI open
 
 ---
 
-# Midi Module
+## Midi Module
 
 ```haskell
 import Midi
@@ -277,6 +277,7 @@ type Channel  = Int   -- 1-16
 ### Pitch Constants
 
 All pitches follow the pattern `<note><octave>` where:
+
 - Note: `c`, `d`, `e`, `f`, `g`, `a`, `b`
 - Sharps: `cs`, `ds`, `fs`, `gs`, `as`
 - Octave: 0-8

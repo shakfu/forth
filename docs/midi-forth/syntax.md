@@ -6,7 +6,7 @@ MIDI Forth is a Forth-like language for MIDI sequencing and live performance. Th
 
 ---
 
-# Implemented Features
+## Implemented Features
 
 ## Note Notation
 
@@ -21,6 +21,7 @@ Format: `[note][accidental][octave]`
 | Octave | `0` - `9` (middle C = C4 = MIDI 60) |
 
 Examples:
+
 - `c4` = 60 (middle C)
 - `a4` = 69 (A440)
 - `c#4` = 61
@@ -60,6 +61,7 @@ Parentheses group notes to play simultaneously:
 ```
 
 Inside parentheses:
+
 - Whitespace separates pitches
 - No commas needed (all notes share same parameters)
 - `)` closes the group, `,` triggers playback
@@ -140,7 +142,7 @@ bpm@                    \ Get current BPM
 
 ---
 
-# Planned Extensions
+## Planned Extensions
 
 ## Priority 1: Core
 
@@ -160,6 +162,7 @@ melody                  \ Play the melody
 ```
 
 **Implementation notes:**
+
 - Requires compile mode vs interpret mode
 - Store word body as token list
 - Execute by interpreting stored tokens
@@ -264,11 +267,13 @@ c4|r,                   \ 50% C4, 50% silence (equivalent to c4 50%,)
 | `c4\|r,` | Same as `c4 50%,` |
 
 Use cases:
+
 - Generative/algorithmic composition
 - Humanization (slight randomness)
 - Evolving patterns
 
 **Implementation**:
+
 - `%` pops probability (0-100), plays if `random() < probability`, else silence
 - `|` requires tokenizer change to treat `|` as separator; picks one alternative at random
 
@@ -362,11 +367,12 @@ If word definitions feel too heavy for one-off patterns:
 
 ---
 
-# Implementation Notes
+## Implementation Notes
 
 ## Tokenizer
 
 The characters `,`, `(`, `)` are treated as word boundaries:
+
 - `c4,` tokenizes as `c4` `,`
 - `(c4 e4)` tokenizes as `(` `c4` `e4` `)`
 
@@ -439,7 +445,7 @@ The `,` word inspects the stack to determine mode:
 
 ---
 
-# Examples
+## Examples
 
 ## Simple Melody
 
@@ -481,7 +487,7 @@ arp 4 times
 
 ---
 
-# Complex Composition (future)
+## Complex Composition (future)
 
 This section demonstrates advanced composition techniques using nested definitions and all bracket types.
 
@@ -717,7 +723,7 @@ Use `{ }` for quick variations without defining words:
 
 ## Summary: Composition Hierarchy
 
-```
+```text
 Song
  +-- Section (intro, verse, chorus)
       +-- Phrase

@@ -4,7 +4,7 @@ This document explains how s7-midi integrates the s7 Scheme interpreter with MID
 
 ## Overview
 
-```
+```text
 +------------------+     +------------------+     +------------------+
 |   Scheme Code    | --> |  midi_module.c   | --> |   libremidi      |
 | (user scripts)   |     | (s7 FFI bindings)|     | (MIDI backend)   |
@@ -32,6 +32,7 @@ Location: `thirdparty/s7/s7.c`, `thirdparty/s7/s7.h`
 s7 is a Scheme interpreter designed for embedding in C applications. Originally created for the Snd sound editor, it's a mature, well-documented implementation.
 
 Key features:
+
 - Full R5RS Scheme with extensions
 - Easy C FFI via `s7_define_function`
 - Custom C types via `s7_make_c_type`
@@ -62,6 +63,7 @@ static s7_int midi_out_tag = 0;
 ```
 
 The `midi-out` type wraps a libremidi output handle with:
+
 - Automatic cleanup via `free_midi_out`
 - String representation via `midi_out_to_string`
 - Type predicate via `is_midi_out`
@@ -71,6 +73,7 @@ The `midi-out` type wraps a libremidi output handle with:
 Location: `thirdparty/libremidi/`
 
 Cross-platform MIDI library supporting:
+
 - macOS: CoreMIDI
 - Linux: ALSA
 - Windows: WinMM
@@ -258,7 +261,7 @@ void s7_midi_init(s7_scheme *sc) {
 
 ## File Structure
 
-```
+```text
 projects/s7_midi/
   main.c              # Entry point, REPL
   midi_module.c       # s7 FFI bindings (~870 lines)
@@ -282,7 +285,7 @@ docs/s7-midi/
 
 ## Build Process
 
-```
+```text
 s7.c + midi_module.c + main.c
            +
       libremidi.a
@@ -319,7 +322,7 @@ static s7_pointer g_new_func(s7_scheme *sc, s7_pointer args) {
 }
 ```
 
-2. Register it in `s7_midi_init`:
+1. Register it in `s7_midi_init`:
 
 ```c
 s7_define_function(sc, "new-func", g_new_func, 1, 0, false,
@@ -339,6 +342,7 @@ static const char *scheme_prelude =
 ```
 
 This is preferred for:
+
 - Pure Scheme logic
 - Helper functions
 - Constants

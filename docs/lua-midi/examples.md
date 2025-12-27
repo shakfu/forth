@@ -9,8 +9,8 @@ Play a C major scale:
 ```lua
 m = midi.open()
 
-for _, p in ipairs({midi.c4, midi.d4, midi.e4, midi.f4, midi.g4, midi.a4, midi.b4, midi.c5}) do
-    m:note(p, midi.mf, midi.quarter)
+for _, p in ipairs({c4, d4, e4, f4, g4, a4, b4, c5}) do
+    m:note(p, mf, quarter)
 end
 
 m:close()
@@ -27,7 +27,7 @@ m:note(midi.note("C4"))
 m:note(midi.note("D4"))
 m:note(midi.note("E4"))
 m:note(midi.note("F4"))
-m:note(midi.note("G4"), midi.f, midi.half)  -- Louder, longer
+m:note(midi.note("G4"), f, half)  -- Louder, longer
 
 m:close()
 ```
@@ -40,16 +40,16 @@ Play a I-IV-V-I progression:
 m = midi.open()
 
 -- I - C major
-m:chord(midi.major(midi.c4), midi.mf, midi.half)
+m:chord(major(c4), mf, half)
 
 -- IV - F major
-m:chord(midi.major(midi.f3), midi.mf, midi.half)
+m:chord(major(f3), mf, half)
 
 -- V - G major
-m:chord(midi.major(midi.g3), midi.mf, midi.half)
+m:chord(major(g3), mf, half)
 
 -- I - C major
-m:chord(midi.major(midi.c4), midi.f, midi.whole)
+m:chord(major(c4), f, whole)
 
 m:close()
 ```
@@ -60,19 +60,19 @@ m:close()
 m = midi.open()
 
 -- Crescendo
-m:note(midi.c4, midi.pp, midi.quarter)
-m:note(midi.d4, midi.p, midi.quarter)
-m:note(midi.e4, midi.mp, midi.quarter)
-m:note(midi.f4, midi.mf, midi.quarter)
-m:note(midi.g4, midi.f, midi.quarter)
-m:note(midi.a4, midi.ff, midi.half)
+m:note(c4, pp, quarter)
+m:note(d4, p, quarter)
+m:note(e4, mp, quarter)
+m:note(f4, mf, quarter)
+m:note(g4, f, quarter)
+m:note(a4, ff, half)
 
 -- Decrescendo
-m:note(midi.g4, midi.f, midi.quarter)
-m:note(midi.f4, midi.mf, midi.quarter)
-m:note(midi.e4, midi.mp, midi.quarter)
-m:note(midi.d4, midi.p, midi.quarter)
-m:note(midi.c4, midi.pp, midi.whole)
+m:note(g4, f, quarter)
+m:note(f4, mf, quarter)
+m:note(e4, mp, quarter)
+m:note(d4, p, quarter)
+m:note(c4, pp, whole)
 
 m:close()
 ```
@@ -87,21 +87,21 @@ m:close()
 m = midi.open()
 
 -- Arpeggiate C major up and down
-m:arpeggio({midi.c4, midi.e4, midi.g4, midi.c5}, midi.mf, midi.eighth)
-m:arpeggio({midi.c5, midi.g4, midi.e4, midi.c4}, midi.mf, midi.eighth)
+m:arpeggio({c4, e4, g4, c5}, mf, eighth)
+m:arpeggio({c5, g4, e4, c4}, mf, eighth)
 
-midi.rest(midi.quarter)
+rest(quarter)
 
 -- Arpeggiate A minor
-m:arpeggio(midi.minor(midi.a4), midi.ff, midi.sixteenth)
+m:arpeggio(minor(a4), ff, sixteenth)
 
 -- Reverse using table manipulation
-local am = midi.minor(midi.a4)
+local am = minor(a4)
 local reversed = {}
 for i = #am, 1, -1 do
     table.insert(reversed, am[i])
 end
-m:arpeggio(reversed, midi.ff, midi.sixteenth)
+m:arpeggio(reversed, ff, sixteenth)
 
 m:close()
 ```
@@ -114,21 +114,21 @@ midi.set_tempo(60)
 
 m = midi.open()
 
-m:note(midi.c4, midi.mf, midi.quarter)  -- 1000ms at 60 BPM
-m:note(midi.e4, midi.mf, midi.quarter)
-m:note(midi.g4, midi.mf, midi.quarter)
+m:note(c4, mf, quarter)  -- 1000ms at 60 BPM
+m:note(e4, mf, quarter)
+m:note(g4, mf, quarter)
 
 -- Speed up
 midi.set_tempo(120)
-m:note(midi.c5, midi.mf, midi.quarter)  -- 500ms at 120 BPM
-m:note(midi.e5, midi.mf, midi.quarter)
-m:note(midi.g5, midi.mf, midi.quarter)
+m:note(c5, mf, quarter)  -- 500ms at 120 BPM
+m:note(e5, mf, quarter)
+m:note(g5, mf, quarter)
 
 -- Even faster
 midi.set_tempo(180)
-m:note(midi.c6, midi.mf, midi.quarter)  -- ~333ms at 180 BPM
-m:note(midi.e6, midi.mf, midi.quarter)
-m:note(midi.g6, midi.mf, midi.quarter)
+m:note(c6, mf, quarter)  -- ~333ms at 180 BPM
+m:note(e6, mf, quarter)
+m:note(g6, mf, quarter)
 
 m:close()
 ```
@@ -139,11 +139,11 @@ m:close()
 m = midi.open()
 
 -- Dotted quarter - eighth pattern
-m:note(midi.c4, midi.mf, midi.dotted(midi.quarter))
-m:note(midi.d4, midi.mf, midi.eighth)
-m:note(midi.e4, midi.mf, midi.dotted(midi.quarter))
-m:note(midi.f4, midi.mf, midi.eighth)
-m:note(midi.g4, midi.f, midi.half)
+m:note(c4, mf, dotted(quarter))
+m:note(d4, mf, eighth)
+m:note(e4, mf, dotted(quarter))
+m:note(f4, mf, eighth)
+m:note(g4, f, half)
 
 m:close()
 ```
@@ -152,20 +152,20 @@ m:close()
 
 ```lua
 m = midi.open()
-local root = midi.c4
+local root = c4
 
 -- Triads
-m:chord(midi.major(root), midi.mf, midi.half)
-m:chord(midi.minor(root), midi.mf, midi.half)
-m:chord(midi.dim(root), midi.mf, midi.half)
-m:chord(midi.aug(root), midi.mf, midi.half)
+m:chord(major(root), mf, half)
+m:chord(minor(root), mf, half)
+m:chord(dim(root), mf, half)
+m:chord(aug(root), mf, half)
 
-midi.rest(midi.quarter)
+rest(quarter)
 
 -- Seventh chords
-m:chord(midi.dom7(root), midi.mf, midi.half)
-m:chord(midi.maj7(root), midi.mf, midi.half)
-m:chord(midi.min7(root), midi.mf, midi.half)
+m:chord(dom7(root), mf, half)
+m:chord(maj7(root), mf, half)
+m:chord(min7(root), mf, half)
 
 m:close()
 ```
@@ -189,15 +189,15 @@ function make_player(velocity, duration)
 end
 
 -- Define different "instruments"
-local loud_short = make_player(midi.fff, midi.sixteenth)
-local soft_long = make_player(midi.pp, midi.half)
+local loud_short = make_player(fff, sixteenth)
+local soft_long = make_player(pp, half)
 
 -- Use them
-for _, p in ipairs({midi.c4, midi.e4, midi.g4, midi.c5}) do
+for _, p in ipairs({c4, e4, g4, c5}) do
     loud_short(p)
 end
 
-for _, p in ipairs({midi.c5, midi.g4, midi.e4, midi.c4}) do
+for _, p in ipairs({c5, g4, e4, c4}) do
     soft_long(p)
 end
 
@@ -211,10 +211,10 @@ m = midi.open()
 
 -- Define a pattern as a function
 function pattern1()
-    m:note(midi.c4, midi.mf, midi.eighth)
-    m:note(midi.e4, midi.mf, midi.eighth)
-    m:note(midi.g4, midi.mf, midi.eighth)
-    m:note(midi.e4, midi.mf, midi.eighth)
+    m:note(c4, mf, eighth)
+    m:note(e4, mf, eighth)
+    m:note(g4, mf, eighth)
+    m:note(e4, mf, eighth)
 end
 
 -- Repeat it 4 times
@@ -239,23 +239,23 @@ m:close()
 ```lua
 m = midi.open()
 
-local melody = {midi.c4, midi.d4, midi.e4, midi.f4, midi.g4}
+local melody = {c4, d4, e4, f4, g4}
 
 -- Original
 for _, p in ipairs(melody) do
-    m:note(p, midi.mf, midi.eighth)
+    m:note(p, mf, eighth)
 end
-midi.rest(midi.quarter)
+rest(quarter)
 
 -- Up a perfect fifth
 for _, p in ipairs(melody) do
-    m:note(midi.transpose(p, 7), midi.mf, midi.eighth)
+    m:note(transpose(p, 7), mf, eighth)
 end
-midi.rest(midi.quarter)
+rest(quarter)
 
 -- Down an octave
 for _, p in ipairs(melody) do
-    m:note(midi.octave_down(p), midi.mf, midi.eighth)
+    m:note(octave_down(p), mf, eighth)
 end
 
 m:close()
@@ -273,26 +273,26 @@ m:cc(7, 100)
 m:cc(64, 127)
 
 -- Play notes with sustain
-m:note(midi.c4, midi.mf, midi.quarter)
-m:note(midi.e4, midi.mf, midi.quarter)
-m:note(midi.g4, midi.mf, midi.quarter)
+m:note(c4, mf, quarter)
+m:note(e4, mf, quarter)
+m:note(g4, mf, quarter)
 
 -- Release sustain
 m:cc(64, 0)
 
-midi.rest(midi.quarter)
+rest(quarter)
 
 -- Modulation sweep
-m:note_on(midi.c4, 80)
+m:note_on(c4, 80)
 for i = 0, 127, 8 do
     m:cc(1, i)
-    midi.sleep(50)
+    sleep(50)
 end
 for i = 127, 0, -8 do
     m:cc(1, i)
-    midi.sleep(50)
+    sleep(50)
 end
-m:note_off(midi.c4)
+m:note_off(c4)
 
 m:close()
 ```
@@ -304,17 +304,17 @@ m = midi.open()
 
 -- Piano (program 0)
 m:program(0)
-m:note(midi.c4, midi.mf, midi.quarter)
-m:note(midi.e4, midi.mf, midi.quarter)
-m:note(midi.g4, midi.mf, midi.quarter)
+m:note(c4, mf, quarter)
+m:note(e4, mf, quarter)
+m:note(g4, mf, quarter)
 
 -- Strings (program 48)
 m:program(48)
-m:chord(midi.major(midi.c4), midi.mp, midi.whole)
+m:chord(major(c4), mp, whole)
 
 -- Brass (program 61)
 m:program(61)
-m:note(midi.c5, midi.ff, midi.half)
+m:note(c5, ff, half)
 
 m:close()
 ```
@@ -336,12 +336,12 @@ function random_velocity(min, max)
 end
 
 -- Play 32 random notes from C major 7
-local chord = midi.maj7(midi.c4)
+local chord = maj7(c4)
 for i = 1, 32 do
     m:note(
         random_element(chord),
         random_velocity(60, 100),
-        midi.sixteenth
+        sixteenth
     )
 end
 
@@ -356,17 +356,17 @@ m = midi.open()
 -- Play note with probability
 function maybe_play(pitch, prob)
     if math.random(100) < prob then
-        m:note(pitch, midi.mf, midi.sixteenth)
+        m:note(pitch, mf, sixteenth)
     else
-        midi.rest(midi.sixteenth)
+        rest(sixteenth)
     end
 end
 
 -- Sparse texture
 for i = 1, 32 do
-    maybe_play(midi.c4, 30)   -- 30% chance
-    maybe_play(midi.e4, 50)   -- 50% chance
-    maybe_play(midi.g4, 70)   -- 70% chance
+    maybe_play(c4, 30)   -- 30% chance
+    maybe_play(e4, 50)   -- 50% chance
+    maybe_play(g4, 70)   -- 70% chance
 end
 
 m:close()
@@ -389,10 +389,10 @@ end
 -- Simple bass line and melody
 function bar()
     -- Bass note (channel 2, plays first)
-    play_on_channel(2, midi.c2, 100, midi.half)
+    play_on_channel(2, c2, 100, half)
     -- Melody notes (channel 1)
-    play_on_channel(1, midi.c4, 80, midi.quarter)
-    play_on_channel(1, midi.e4, 80, midi.quarter)
+    play_on_channel(1, c4, 80, quarter)
+    play_on_channel(1, e4, 80, quarter)
 end
 
 -- Play 4 bars
@@ -408,6 +408,7 @@ m:close()
 ## REPL Session Examples
 
 Start the REPL:
+
 ```bash
 ./build/lua_midi
 ```
@@ -419,11 +420,11 @@ The simplest way to use lua-midi interactively:
 ```lua
 > open()
 MidiOut(virtual, "luaMIDI")
-> n(midi.c4)
-> n(midi.e4)
-> n(midi.g4)
-> ch(midi.major(midi.c4))
-> arp(midi.min7(midi.a3), midi.mf, midi.sixteenth)
+> n(c4)
+> n(e4)
+> n(g4)
+> ch(major(c4))
+> arp(min7(a3), mf, sixteenth)
 > close()
 ```
 
@@ -432,9 +433,9 @@ MidiOut(virtual, "luaMIDI")
 ```lua
 > m = midi.open()
 MidiOut(virtual, "luaMIDI")
-> m:note(midi.c4)
-> m:note(midi.e4)
-> m:note(midi.g4)
+> m:note(c4)
+> m:note(e4)
+> m:note(g4)
 > m:close()
 ```
 
@@ -442,9 +443,9 @@ MidiOut(virtual, "luaMIDI")
 
 ```lua
 > m = midi.open()
-> m:chord(midi.major(midi.c4))
-> m:chord(midi.minor(midi.a3))
-> m:chord(midi.dom7(midi.g3))
+> m:chord(major(c4))
+> m:chord(minor(a3))
+> m:chord(dom7(g3))
 > m:close()
 ```
 
@@ -452,9 +453,9 @@ MidiOut(virtual, "luaMIDI")
 
 ```lua
 > m = midi.open()
-> m:note(midi.c4, midi.ppp)   -- Very soft
-> m:note(midi.c4, midi.mf)    -- Medium
-> m:note(midi.c4, midi.fff)   -- Very loud
+> m:note(c4, ppp)   -- Very soft
+> m:note(c4, mf)    -- Medium
+> m:note(c4, fff)   -- Very loud
 > m:close()
 ```
 
@@ -468,13 +469,13 @@ MidiOut(virtual, "luaMIDI")
 ### Checking Values
 
 ```lua
-> midi.c4
+> c4
 60
-> midi.major(midi.c4)
+> major(c4)
 {60, 64, 67}
-> midi.mf
+> mf
 80
-> midi.quarter
+> quarter
 500
 > midi.bpm(60)
 1000

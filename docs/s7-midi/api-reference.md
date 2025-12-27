@@ -192,6 +192,7 @@ Send Control Change message.
 ```
 
 Common CC numbers:
+
 - 1: Modulation wheel
 - 7: Channel volume
 - 10: Pan
@@ -436,7 +437,7 @@ Returns 1.5x the given duration.
 
 ## Tempo
 
-### set-tempo!
+### set-tempo
 
 ```scheme
 (set-tempo! bpm)

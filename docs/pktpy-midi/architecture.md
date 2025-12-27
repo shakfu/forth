@@ -4,7 +4,7 @@ This document explains how pktpy-midi integrates PocketPy with MIDI functionalit
 
 ## Overview
 
-```
+```text
 +------------------+     +------------------+     +------------------+
 |   Python Code    | --> |  midi_module.c   | --> |   libremidi      |
 | (user scripts)   |     | (C bindings)     |     | (MIDI backend)   |
@@ -30,6 +30,7 @@ This document explains how pktpy-midi integrates PocketPy with MIDI functionalit
 Location: `projects/pktpy_midi/pocketpy.c`, `pocketpy.h`
 
 PocketPy v2.1.6 is an embeddable Python interpreter written in C. Key features:
+
 - Small footprint (~250KB compiled)
 - CPython-compatible subset
 - Easy C API for extensions
@@ -54,6 +55,7 @@ typedef struct {
 ```
 
 The `MidiOut` type wraps a libremidi output handle with:
+
 - Destructor for cleanup (`MidiOut_dtor`)
 - Methods bound via `py_bindmethod`
 - Properties via `py_bindproperty`
@@ -64,6 +66,7 @@ The `MidiOut` type wraps a libremidi output handle with:
 Location: `thirdparty/libremidi/`
 
 Cross-platform MIDI library supporting:
+
 - macOS: CoreMIDI
 - Linux: ALSA
 - Windows: WinMM
@@ -191,7 +194,7 @@ uint8_t pc[2] = {
 
 ## File Structure
 
-```
+```text
 projects/pktpy_midi/
   main.c              # Entry point, calls py_initialize and module init
   midi_module.c       # MIDI module implementation
@@ -214,7 +217,7 @@ docs/pktpy-midi/
 
 ## Build Process
 
-```
+```text
 pocketpy.c + midi_module.c + main.c
                 +
            libremidi.a
@@ -246,7 +249,7 @@ static bool midi_new_func(int argc, py_StackRef argv) {
 }
 ```
 
-2. Bind it in `pk_midi_module_init`:
+1. Bind it in `pk_midi_module_init`:
 
 ```c
 py_bindfunc(mod, "new_func", midi_new_func);
@@ -265,7 +268,7 @@ static bool MidiOut_new_method(int argc, py_StackRef argv) {
 }
 ```
 
-2. Bind it:
+1. Bind it:
 
 ```c
 py_bindmethod(tp_MidiOut, "new_method", MidiOut_new_method);
@@ -285,6 +288,7 @@ static const char* prelude =
 ```
 
 This is preferred for:
+
 - Pure Python logic
 - Helper functions
 - Constants

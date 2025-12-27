@@ -5,6 +5,7 @@ The sequence system allows building MIDI patterns that can be played back, trans
 ## Overview
 
 Sequences store MIDI events (note-on, note-off, CC) with tick-based timing. They can be:
+
 - Built up note by note
 - Transformed (transpose, reverse, stretch)
 - Played back at any tempo
@@ -146,7 +147,8 @@ seq-show
 ```
 
 Output:
-```
+
+```text
 Sequence 0: 6 events, bpm=120
   t=   0 ON  ch=1 d1= 60 d2= 80
   t= 480 OFF ch=1 d1= 60 d2=  0

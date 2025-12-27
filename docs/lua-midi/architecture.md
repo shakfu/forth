@@ -4,7 +4,7 @@ This document explains how lua-midi integrates the Lua 5.5 interpreter with MIDI
 
 ## Overview
 
-```
+```text
 +------------------+     +------------------+     +------------------+
 |    Lua Code      | --> |  midi_module.c   | --> |   libremidi      |
 | (user scripts)   |     | (Lua C bindings) |     | (MIDI backend)   |
@@ -32,6 +32,7 @@ Location: `thirdparty/lua-5.5.0/src/`
 Lua 5.5 is the latest version of the Lua scripting language, designed for embedding in C applications.
 
 Key features:
+
 - Compact, efficient implementation (~25K lines)
 - Clean C API for extension
 - Userdata with metatables for custom types
@@ -62,6 +63,7 @@ typedef struct {
 ```
 
 The `MidiOut` type wraps a libremidi output handle with:
+
 - Automatic cleanup via `__gc` metamethod
 - String representation via `__tostring` metamethod
 - Method dispatch via `__index` metamethod
@@ -71,6 +73,7 @@ The `MidiOut` type wraps a libremidi output handle with:
 Location: `thirdparty/libremidi/`
 
 Cross-platform MIDI library supporting:
+
 - macOS: CoreMIDI
 - Linux: ALSA
 - Windows: WinMM
@@ -277,7 +280,7 @@ int luaopen_midi(lua_State *L) {
 
 ## File Structure
 
-```
+```text
 projects/lua_midi/
   main.c              # Entry point, REPL with readline
   midi_module.c       # Lua C bindings (~900 lines)
@@ -301,7 +304,7 @@ docs/lua-midi/
 
 ## Build Process
 
-```
+```text
 lua-5.5.0/*.c + midi_module.c + main.c
                    +
               libremidi.a
@@ -348,7 +351,7 @@ static int l_new_func(lua_State *L) {
 }
 ```
 
-2. Register it in `midi_funcs`:
+1. Register it in `midi_funcs`:
 
 ```c
 static const luaL_Reg midi_funcs[] = {
@@ -372,6 +375,7 @@ static const char *lua_prelude =
 ```
 
 This is preferred for:
+
 - Pure Lua logic
 - Helper functions
 - Constants

@@ -19,6 +19,7 @@ midi_forth is a Forth-flavored DSL, not a full Forth. Several missing features w
 **What it is**: A second stack used for control flow, loop indices, and temporary storage. Words like `>R`, `R>`, `R@` move values between data and return stacks.
 
 **Standard Forth usage**:
+
 ```forth
 : example  5 >R  R@ .  R> . ;   \ Push 5 to return stack, fetch, pop
 ```
@@ -34,6 +35,7 @@ midi_forth is a Forth-flavored DSL, not a full Forth. Several missing features w
 **What it is**: Fetch (`@`) reads from a memory address; store (`!`) writes to it. Foundation for variables and data structures.
 
 **Standard Forth usage**:
+
 ```forth
 VARIABLE counter
 5 counter !      \ Store 5 in counter
@@ -43,6 +45,7 @@ counter @ .      \ Fetch and print: 5
 **Relevance to midi_forth**: Medium-high for the variable use case, low for raw memory access.
 
 Musicians would benefit from named state:
+
 ```forth
 VARIABLE transpose
 -2 transpose !
@@ -60,6 +63,7 @@ But raw pointer arithmetic (`1000 @`) has no musical meaning.
 **What it is**: `VARIABLE name` allocates storage; `CONSTANT name` creates an immutable binding.
 
 **Standard Forth usage**:
+
 ```forth
 VARIABLE tempo
 120 tempo !
@@ -70,12 +74,14 @@ VARIABLE tempo
 **Relevance to midi_forth**: High. Currently there's no way to store persistent state across word invocations except through global defaults (`ch!`, `vel!`, etc.).
 
 **Use cases**:
+
 - Store a transposition offset
 - Count loop iterations
 - Toggle between modes (e.g., major/minor)
 - Store a root note for chord progressions
 
 **Implementation approach**:
+
 ```c
 // Add to Word struct:
 int32_t value;      // For variables/constants
@@ -93,6 +99,7 @@ int is_variable;    // 1=variable, 2=constant
 **What it is**: Metaprogramming primitives. `CREATE` makes a new dictionary entry. `DOES>` defines runtime behavior for words created by a defining word.
 
 **Standard Forth usage**:
+
 ```forth
 : CONSTANT  CREATE , DOES> @ ;
 : ARRAY  CREATE CELLS ALLOT DOES> SWAP CELLS + ;
@@ -109,6 +116,7 @@ int is_variable;    // 1=variable, 2=constant
 **What it is**: Marks a word to execute at compile time rather than being compiled into definitions.
 
 **Standard Forth usage**:
+
 ```forth
 : [CHAR]  CHAR POSTPONE LITERAL ; IMMEDIATE
 ```
@@ -126,6 +134,7 @@ int is_variable;    // 1=variable, 2=constant
 **What it is**: `'` returns the execution token (address) of the following word. `EXECUTE` runs a token from the stack.
 
 **Standard Forth usage**:
+
 ```forth
 ' dup EXECUTE   \ Same as: dup
 : apply  ' EXECUTE ;
@@ -139,6 +148,7 @@ int is_variable;    // 1=variable, 2=constant
 ```
 
 However, anonymous blocks (`{ ... }`) already provide deferred execution:
+
 ```forth
 { 2 + } c4 e4 g4 3 apply-to-each
 ```
@@ -152,6 +162,7 @@ However, anonymous blocks (`{ ... }`) already provide deferred execution:
 **What it is**: Standard loop constructs.
 
 **Standard Forth usage**:
+
 ```forth
 : scale  8 0 DO  I 60 + ,  LOOP ;           \ Chromatic scale
 : wait-for-note  BEGIN key? UNTIL ;          \ Poll until keypress
@@ -159,15 +170,18 @@ However, anonymous blocks (`{ ... }`) already provide deferred execution:
 ```
 
 **Current midi_forth alternatives**:
+
 - `N times` repeats the previous word N times
 - `{ ... } N *` repeats a block N times
 
 **Gaps**:
+
 - No loop index access (`I`, `J`)
 - No conditional exit (`LEAVE`)
 - No indefinite loops (repeat until condition)
 
 **Use cases**:
+
 ```forth
 \ With DO/LOOP:
 : arpeggio  4 0 DO  I 4 * 60 + ,  200 ms  LOOP ;
@@ -179,6 +193,7 @@ However, anonymous blocks (`{ ... }`) already provide deferred execution:
 **Recommendation**: Add. High value for generative/algorithmic music. Start with `DO`/`LOOP` (bounded iteration with index), then consider `BEGIN`/`UNTIL` for reactive/conditional patterns.
 
 **Implementation sketch**:
+
 - `DO`: Push limit and index to a loop stack
 - `I`: Push current index
 - `LOOP`: Increment index, branch back if < limit
@@ -191,6 +206,7 @@ However, anonymous blocks (`{ ... }`) already provide deferred execution:
 **What it is**: Linear memory allocation. `HERE` returns the next free address. `ALLOT` reserves space. `CELLS` converts count to bytes.
 
 **Standard Forth usage**:
+
 ```forth
 CREATE buffer 100 CELLS ALLOT
 buffer 10 + @ .   \ Read 10th cell
@@ -209,6 +225,7 @@ The existing sequence system (`seq-new`, `seq-note`, `seq-play`) demonstrates th
 **What it is**: Calls the word currently being defined (since the word isn't in the dictionary yet during compilation).
 
 **Standard Forth usage**:
+
 ```forth
 : factorial  DUP 1 > IF DUP 1- RECURSE * THEN ;
 ```
@@ -234,6 +251,7 @@ However, deep recursion could cause issues with the current string-reparsing exe
 **What it is**: String literals and output.
 
 **Standard Forth usage**:
+
 ```forth
 : greet  ." Hello, musician!" CR ;
 S" filename.mid" SAVE-MIDI

@@ -381,6 +381,7 @@ Use Scheme's functional features for musical patterns:
 ## REPL Session Examples
 
 Start the REPL:
+
 ```bash
 ./build/s7_midi
 ```
