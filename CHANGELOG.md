@@ -12,6 +12,10 @@ All notable changes to midi-langs are documented in this file.
   - `./scripts/mhs-midi-compile File.hs -o output` - Compile to standalone executable
   - Enables `import Midi` for interactive MIDI programming
   - Uses MicroHs `xffi_table` extension mechanism for FFI injection
+  - Documentation in `docs/mhs-midi/`:
+    - API reference with all functions and types
+    - Examples from basic to advanced
+    - Architecture overview of FFI integration
 
 ## [0.2.0]
 
