@@ -3,7 +3,7 @@
 A couple of mini MIDI-capable languages for generating and transforming MIDI sequences:
 
 - **midi_forth** - A Forth-like interpreter with concise musical notation
-- **mhs-midi** - A Haskell-based MIDI language using MicroHs
+- **mhs-midi** - A Haskell-based MIDI language using the marvelous [MicroHs](https://github.com/augustss/MicroHs)
 
 ## Building
 
@@ -573,4 +573,4 @@ ppp, pp, p, mp, mf, ff, fff  -- Velocity values 16..112
 
 - **Dependencies**:
   - libremidi v5.3.1 (auto-built from `thirdparty/libremidi/`)
-  - MicroHs (in `thirdparty/MicroHs/`)
+  - [MicroHs](https://github.com/augustss/MicroHs) (in `thirdparty/MicroHs/`)

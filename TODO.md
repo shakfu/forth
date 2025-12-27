@@ -1,244 +1,123 @@
-# MIDI Forth TODO
+# Future Improvements
 
-## Implemented
-
-- [x] Pitch names (`c4`, `C#4`, `Db5`, MIDI numbers)
-- [x] Comma as play trigger (`,`)
-- [x] Chords with parentheses (`(c4 e4 g4),`)
-- [x] Explicit parameters (`1 c4 100 500,`)
-- [x] Context variables (`ch!`, `vel!`, `dur!`)
-- [x] Tokenizer handles `,` `(` `)` as word boundaries
-- [x] MIDI output (virtual and hardware ports)
-- [x] Control change messages (`cc`)
-- [x] Panic / all notes off
-- [x] Word definitions (`: name ... ;`)
-- [x] Rests (`r`, `r 250,`)
-- [x] Loops (`name N times`)
-- [x] Probability (`c4 75%,`)
-- [x] Alternatives (`c4|e4|g4,`)
-- [x] Dynamics (`ppp` through `fff`)
-- [x] Explicit brackets (`[1 c4 100 500],`)
-- [x] Relative intervals (`+N`, `-N`)
-- [x] Octave shifts (`^`, `v`)
-- [x] Program change (`pc`)
-- [x] Removed legacy note words (`C`, `D`, etc., `note-on`, `octave`)
-- [x] Error recovery (stack checks, `clear` word)
-- [x] Articulation suffixes (`c4.` staccato, `c4>` accent, `c4-` tenuto)
-- [x] Pitch bend (`pb`)
-- [x] Random number generator (`random`)
-- [x] Anonymous blocks (`{ ... } N *`)
-- [x] Conditionals (`if` `else` `then`)
+Ideas for extending both MIDI implementations.
 
 ---
 
-## Priority 1: Core (COMPLETE)
+## midi_forth
 
-Foundation for composition and reuse.
+### Sequencer / Timing
 
-### Word Definitions
+- [ ] Non-blocking sequences with absolute timing
+- [ ] Tempo changes mid-sequence (`bpm` word)
+- [ ] Swing/shuffle timing modifier
+- [ ] Polyrhythms (independent time divisions)
 
-- [x] Implement `: ... ;` colon definitions
-- [x] Compile mode vs interpret mode
-- [x] Store word body as token list
-- [x] Execute user-defined words by interpreting stored tokens
-- [x] Warn if stack not empty after `;` (runtime check when word is executed)
+### Patterns
 
-```forth
-: cmaj (c4 e4 g4), ;
-: melody c4, e4, g4, c5, ;
-cmaj melody
+- [ ] Named pattern storage (`pattern! pattern@`)
+- [ ] Pattern transformations (reverse, invert, retrograde)
+- [ ] Euclidean rhythms (`euclidean` word)
+- [ ] Markov chains for generative sequences
 
-: broken c4, e4, g4, c5 ;
-broken
-Note: 'broken' left 1 item(s) on stack
-```
+### Scales / Harmony
 
-### Rests
+- [ ] Scale definitions (major, minor, modes)
+- [ ] Scale-constrained random (`scale-random`)
+- [ ] Chord symbols (`Cmaj7`, `Dm`, `G7`)
+- [ ] Automatic voice leading
 
-- [x] Implement `r` as rest (silence for default duration)
-- [x] Support explicit duration: `r 250,`
+### MIDI Input
 
-```forth
-c4, r, e4, r, g4,
-```
+- [ ] MIDI input handling (note triggers)
+- [ ] Live looping / overdub
+- [ ] MIDI learn for CC mapping
 
-### Loops
+### Control Flow
 
-- [x] Implement `times` word
-- [x] Works with user-defined words
+- [ ] `do ... loop` counted loops
+- [ ] `begin ... until` / `begin ... while ... repeat`
+- [ ] Variables (`variable`, `!`, `@`)
+- [ ] Local variables in word definitions
 
-```forth
-: phrase c4, e4, g4, ;
-phrase 4 times
-```
+### File I/O
 
----
-
-## Priority 2: Generative / Expression (COMPLETE)
-
-Enable generative music and expressive notation.
-
-### Probability with `%`
-
-- [x] Implement `%` as probabilistic play trigger
-- [x] Pops probability (0-100), plays if random < probability
-
-```forth
-c4 75%,                 \ 75% chance to play
-c4, e4 50%, g4,         \ C always, E maybe, G always
-```
-
-### Alternatives with `|`
-
-- [x] Tokenizer treats `|` as word boundary
-- [x] Implement alternative selection (equal probability)
-
-```forth
-c4|e4,                  \ 50% C4, 50% E4
-c4|e4|g4,               \ 33.33% each
-c4|r,                   \ 50% play, 50% silence
-```
-
-### Dynamics
-
-- [x] Implement velocity presets: `ppp` `pp` `p` `mp` `mf` `f` `ff` `fff`
-- [x] Each sets `default_velocity`
-
-```forth
-mf c4, e4, ff g4,
-```
-
-| Symbol | Velocity |
-|--------|----------|
-| `ppp`  | 16       |
-| `pp`   | 32       |
-| `p`    | 48       |
-| `mp`   | 64       |
-| `mf`   | 80       |
-| `f`    | 96       |
-| `ff`   | 112      |
-| `fff`  | 127      |
-
-### Square Brackets for Explicit Form
-
-- [x] Tokenizer treats `[` `]` as word boundaries
-- [x] `[` pushes marker, `]` is no-op
-- [x] `,` detects bracket marker for explicit params
-
-```forth
-[1 c4 100 500],
-[(c4 e4 g4) 1 80 500],
-```
+- [ ] Load/save word definitions
+- [ ] MIDI file export
+- [ ] Import patterns from files
 
 ---
 
-## Priority 3: Convenience (COMPLETE)
+## mhs-midi
 
-Quality of life improvements.
+### Music Module Enhancements
 
-### Relative Intervals
+- [ ] `reverse :: Music -> Music` - play backwards
+- [ ] `invert :: Pitch -> Music -> Music` - melodic inversion around pivot
+- [ ] `retrograde :: Music -> Music` - reverse pitch order, keep rhythm
+- [ ] `augment :: Rational -> Music -> Music` - fractional tempo scaling
+- [ ] `diminish :: Rational -> Music -> Music`
+- [ ] `cut :: Duration -> Music -> Music` - truncate to duration
+- [ ] `remove :: Duration -> Music -> Music` - skip initial duration
 
-- [x] Track "current pitch" state
-- [x] Implement `+N` and `-N` for semitone movement
+### Parallel Sequences
 
-```forth
-c4, +2, +2, +1,         \ C D E F
-```
+- [ ] True concurrent playback using threads
+- [ ] `forkMusic :: Music -> IO ThreadId`
+- [ ] Synchronized start for multiple voices
 
-### Octave Shifts
+### Timing Abstractions
 
-- [x] Implement `^` (up octave) and `v` (down octave)
-- [x] Operates on current pitch
+- [ ] `Tempo` type with BPM
+- [ ] `withTempo :: Tempo -> Music -> Music`
+- [ ] Metric modulation helpers
+- [ ] Rubato / tempo curves
 
-```forth
-c4, ^, v,               \ C4, C5, C4
-```
+### Scales and Chords
 
-### Program Change
+- [ ] `Scale` type (root + intervals)
+- [ ] `scaleNote :: Scale -> Int -> Pitch` - scale degree to pitch
+- [ ] `ChordType` (maj, min, dim, aug, 7th, etc.)
+- [ ] `chordPitches :: Pitch -> ChordType -> [Pitch]`
 
-- [x] Implement `pc` word for program/instrument change
+### Alternative Interpreters
 
-```forth
-1 0 pc                  \ Channel 1, program 0 (piano)
-```
+- [ ] `toMidiFile :: Music -> ByteString` - export to MIDI file
+- [ ] `toEvents :: Music -> [(Time, MidiEvent)]` - timed event list
+- [ ] `duration :: Music -> Duration` - compute total duration (pure)
+- [ ] `pitches :: Music -> [Pitch]` - extract all pitches (pure)
 
----
+### MIDI Input
 
-## Priority 4: Advanced (COMPLETE)
+- [ ] Input port support in FFI
+- [ ] `onNoteOn :: (Pitch -> Velocity -> IO ()) -> IO ()`
+- [ ] Live reactive programming
 
-Extended features for complex compositions.
+### MidiRepl Enhancements
 
-### Articulation
-
-- [x] Staccato (reduced duration) - suffix `.` on pitch name
-- [x] Accent (increased velocity) - suffix `>` on pitch name
-- [x] Tenuto (full duration) - suffix `-` on pitch name
-
-```forth
-c4.,                    \ Staccato (50% duration)
-c4>,                    \ Accent (+20 velocity)
-c4-,                    \ Tenuto (full duration)
-```
-
-### Pitch Bend
-
-- [x] Implement `pb` word for pitch bend messages
-
-```forth
-1 8192 pb               \ Center
-1 16383 pb              \ Full bend up
-```
-
-### Anonymous Blocks
-
-- [x] Implement `{ ... }` for deferred execution
-- [x] Combine with `*` for repetition
-
-```forth
-{ c4, e4, g4, } 4 *
-```
-
-### Conditionals
-
-- [x] Implement `if` `else` `then`
-- [x] Implement `random` word
-
-```forth
-: maybe-play
-    random 50 > if c4, else r, then
-;
-```
+- [ ] `openPort :: Int -> IO ()` - open hardware port by index
+- [ ] `program :: Int -> IO ()` - quick program change
+- [ ] `cc :: Int -> Int -> IO ()` - quick control change
+- [ ] `bend :: Int -> IO ()` - quick pitch bend
 
 ---
 
-## Refactoring / Technical Debt (COMPLETE)
+## Both Implementations
 
-- [x] Remove redundant old note name words (`C`, `D`, etc.) - superseded by pitch parsing
-- [x] Removed `note-on` word - superseded by `,` notation
-- [x] Unified packed note system with new notation (`note!` updates `current_pitch`)
-- [x] Added error recovery (stack depth checks, cleanup on errors, `clear` word)
+### Testing
 
----
+- [ ] Property-based testing for Music transformations
+- [ ] MIDI output verification (mock port)
+- [ ] Performance benchmarks
 
-## Documentation (COMPLETE)
+### Documentation
 
-- [x] `docs/syntax.md` - syntax reference
-- [x] Update `CLAUDE.md` with new notation examples
-- [x] `docs/tutorial.md` - getting started guide
-- [x] `docs/sequences.md` - sequence system documentation
+- [ ] Video tutorials
+- [ ] Example compositions
+- [ ] Comparison guide (when to use which)
 
----
+### Integration
 
-## Testing (COMPLETE)
-
-- [x] Test infrastructure (`tests/test_midi_forth.sh`)
-- [x] Pitch parsing tests (notes, accidentals, octaves, articulation)
-- [x] Stack and arithmetic tests
-- [x] Word definition tests
-- [x] Conditional tests (if/else/then, nesting)
-- [x] Anonymous block tests
-- [x] Loop tests (times)
-- [x] Random and probability tests (statistical)
-- [x] Alternatives tests (using `pick` word)
-- [x] Packed note tests
-- [x] Error handling tests
+- [ ] OSC support for external control
+- [ ] Ableton Link for tempo sync
+- [ ] Jack audio connection kit support (Linux)

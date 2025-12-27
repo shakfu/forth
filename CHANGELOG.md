@@ -21,7 +21,7 @@ All notable changes to midi-langs are documented in this file.
 
 ### Added
 
-- **mhs-midi**: New Haskell-based MIDI language using MicroHs
+- **mhs-midi**: New Haskell-based MIDI language using [MicroHs](https://github.com/augustss/MicroHs)
   - `projects/mhs_midi/` - Complete project structure
   - `midi_ffi.c/h` - C FFI bindings wrapping libremidi
   - `lib/Midi.hs` - High-level Haskell MIDI library with:
