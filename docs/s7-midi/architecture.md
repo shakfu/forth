@@ -41,7 +41,7 @@ Key features:
 
 ### 2. midi_module.c - FFI Bindings
 
-Location: `projects/s7_midi/midi_module.c`
+Location: `projects/s7-midi/midi_module.c`
 
 The core C module providing MIDI functionality to Scheme:
 
@@ -262,7 +262,7 @@ void s7_midi_init(s7_scheme *sc) {
 ## File Structure
 
 ```text
-projects/s7_midi/
+projects/s7-midi/
   main.c              # Entry point, REPL
   midi_module.c       # s7 FFI bindings (~870 lines)
   CMakeLists.txt      # Build configuration
@@ -350,7 +350,7 @@ This is preferred for:
 
 ## Comparison with Other Implementations
 
-| Aspect | s7_midi | pktpy_midi | midi_forth |
+| Aspect | s7-midi | pktpy-midi | forth-midi |
 |--------|---------|------------|------------|
 | Language | Scheme | Python | Forth |
 | Paradigm | Functional | Object-oriented | Stack-based |

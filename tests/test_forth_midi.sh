@@ -1,7 +1,7 @@
 #!/bin/bash
-# Test suite for midi_forth
+# Test suite for forth_midi
 
-MIDI_FORTH="${1:-./midi_forth}"
+MIDI_FORTH="${1:-./forth_midi}"
 PASSED=0
 FAILED=0
 TOTAL=0

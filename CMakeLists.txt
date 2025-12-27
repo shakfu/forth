@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(midi_forth_suite VERSION 1.0.0 LANGUAGES C CXX)
+project(midi_langs_project VERSION 1.0.0 LANGUAGES C CXX)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
@@ -38,11 +38,11 @@ add_subdirectory(thirdparty/libremidi)
 
 # Add project subdirectories
 add_subdirectory(projects/forth)
-add_subdirectory(projects/midi_forth)
-add_subdirectory(projects/mhs_midi)
-add_subdirectory(projects/pktpy_midi)
-add_subdirectory(projects/s7_midi)
-add_subdirectory(projects/lua_midi)
+add_subdirectory(projects/forth-midi)
+add_subdirectory(projects/mhs-midi)
+add_subdirectory(projects/pktpy-midi)
+add_subdirectory(projects/s7-midi)
+add_subdirectory(projects/lua-midi)
 
 # Enable testing
 enable_testing()

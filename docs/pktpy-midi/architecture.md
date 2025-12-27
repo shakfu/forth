@@ -27,7 +27,7 @@ This document explains how pktpy-midi integrates PocketPy with MIDI functionalit
 
 ### 1. PocketPy - Python Interpreter
 
-Location: `projects/pktpy_midi/pocketpy.c`, `pocketpy.h`
+Location: `projects/pktpy-midi/pocketpy.c`, `pocketpy.h`
 
 PocketPy v2.1.6 is an embeddable Python interpreter written in C. Key features:
 
@@ -37,7 +37,7 @@ PocketPy v2.1.6 is an embeddable Python interpreter written in C. Key features:
 
 ### 2. midi_module.c - C Bindings
 
-Location: `projects/pktpy_midi/midi_module.c`
+Location: `projects/pktpy-midi/midi_module.c`
 
 The core C module providing MIDI functionality. Contains:
 
@@ -195,7 +195,7 @@ uint8_t pc[2] = {
 ## File Structure
 
 ```text
-projects/pktpy_midi/
+projects/pktpy-midi/
   main.c              # Entry point, calls py_initialize and module init
   midi_module.c       # MIDI module implementation
   pocketpy.c          # PocketPy interpreter

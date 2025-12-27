@@ -1,6 +1,6 @@
 # pktpy-midi
 
-A Python-based MIDI language using [PocketPy](https://pocketpy.dev), providing a Pythonic API for MIDI programming.
+A Python-based MIDI language using [PocketPy](https://pocketpy.dev), a portable Python 3.x interpreter in C for game scripting, providing a Pythonic API for MIDI programming.
 
 ## Features
 

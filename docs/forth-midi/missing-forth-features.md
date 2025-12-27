@@ -1,10 +1,10 @@
 # Missing Forth Features Analysis
 
-This document catalogs features that standard Forth implementations provide but midi_forth lacks, and analyzes whether adding them would benefit the MIDI composition use case.
+This document catalogs features that standard Forth implementations provide but forth-midi lacks, and analyzes whether adding them would benefit the MIDI composition use case.
 
 ## Executive Summary
 
-midi_forth is a Forth-flavored DSL, not a full Forth. Several missing features would genuinely enhance musical expressiveness (variables, loops, recursion). Others are implementation machinery that would add complexity without clear benefit for the target users (musicians, not language implementers).
+forth-midi is a Forth-flavored DSL, not a full Forth. Several missing features would genuinely enhance musical expressiveness (variables, loops, recursion). Others are implementation machinery that would add complexity without clear benefit for the target users (musicians, not language implementers).
 
 **Recommended additions**: Variables, `DO`/`LOOP`, `BEGIN`/`UNTIL`, recursion support.
 
@@ -24,7 +24,7 @@ midi_forth is a Forth-flavored DSL, not a full Forth. Several missing features w
 : example  5 >R  R@ .  R> . ;   \ Push 5 to return stack, fetch, pop
 ```
 
-**Relevance to midi_forth**: Low. The return stack's primary purpose is supporting nested word calls and loop control. midi_forth's interpreted approach (storing word bodies as strings and re-parsing) sidesteps the need for explicit return address management.
+**Relevance to forth-midi**: Low. The return stack's primary purpose is supporting nested word calls and loop control. forth-midi's interpreted approach (storing word bodies as strings and re-parsing) sidesteps the need for explicit return address management.
 
 **Recommendation**: Skip. Would require significant architectural changes for marginal benefit. If `DO`/`LOOP` is added, loop indices can be managed differently.
 
@@ -42,7 +42,7 @@ VARIABLE counter
 counter @ .      \ Fetch and print: 5
 ```
 
-**Relevance to midi_forth**: Medium-high for the variable use case, low for raw memory access.
+**Relevance to forth-midi**: Medium-high for the variable use case, low for raw memory access.
 
 Musicians would benefit from named state:
 
@@ -71,7 +71,7 @@ VARIABLE tempo
 60 CONSTANT middle-c
 ```
 
-**Relevance to midi_forth**: High. Currently there's no way to store persistent state across word invocations except through global defaults (`ch!`, `vel!`, etc.).
+**Relevance to forth-midi**: High. Currently there's no way to store persistent state across word invocations except through global defaults (`ch!`, `vel!`, etc.).
 
 **Use cases**:
 
@@ -105,7 +105,7 @@ int is_variable;    // 1=variable, 2=constant
 : ARRAY  CREATE CELLS ALLOT DOES> SWAP CELLS + ;
 ```
 
-**Relevance to midi_forth**: Low. This is language-implementation machinery. Musicians don't need to define new defining words.
+**Relevance to forth-midi**: Low. This is language-implementation machinery. Musicians don't need to define new defining words.
 
 **Recommendation**: Skip. The complexity-to-benefit ratio is poor for the target audience. If specific patterns emerge (e.g., "I need arrays"), implement them directly in C rather than exposing the meta-level.
 
@@ -121,7 +121,7 @@ int is_variable;    // 1=variable, 2=constant
 : [CHAR]  CHAR POSTPONE LITERAL ; IMMEDIATE
 ```
 
-**Relevance to midi_forth**: Low. The current compile mode is simple (accumulate tokens as a string). Immediate words would require distinguishing compile-time vs. runtime execution during definition parsing.
+**Relevance to forth-midi**: Low. The current compile mode is simple (accumulate tokens as a string). Immediate words would require distinguishing compile-time vs. runtime execution during definition parsing.
 
 **Potential use case**: Compile-time computation of pitch values. But this optimization is unnecessary given the interpreted approach.
 
@@ -140,7 +140,7 @@ int is_variable;    // 1=variable, 2=constant
 : apply  ' EXECUTE ;
 ```
 
-**Relevance to midi_forth**: Medium. Could enable higher-order patterns:
+**Relevance to forth-midi**: Medium. Could enable higher-order patterns:
 
 ```forth
 : map-notes  ( xt n1 n2 n3 -- ) ... ;
@@ -169,7 +169,7 @@ However, anonymous blocks (`{ ... }`) already provide deferred execution:
 : countdown  10 BEGIN DUP . 1- DUP 0= UNTIL DROP ;
 ```
 
-**Current midi_forth alternatives**:
+**Current forth-midi alternatives**:
 
 - `N times` repeats the previous word N times
 - `{ ... } N *` repeats a block N times
@@ -212,7 +212,7 @@ CREATE buffer 100 CELLS ALLOT
 buffer 10 + @ .   \ Read 10th cell
 ```
 
-**Relevance to midi_forth**: Low. Musicians don't think in terms of memory addresses. Specific data structures (sequences, note arrays) are better exposed as high-level abstractions.
+**Relevance to forth-midi**: Low. Musicians don't think in terms of memory addresses. Specific data structures (sequences, note arrays) are better exposed as high-level abstractions.
 
 The existing sequence system (`seq-new`, `seq-note`, `seq-play`) demonstrates this approach: structured data without exposing memory layout.
 
@@ -230,7 +230,7 @@ The existing sequence system (`seq-new`, `seq-note`, `seq-play`) demonstrates th
 : factorial  DUP 1 > IF DUP 1- RECURSE * THEN ;
 ```
 
-**Relevance to midi_forth**: Medium. Recursive patterns are natural for musical structures:
+**Relevance to forth-midi**: Medium. Recursive patterns are natural for musical structures:
 
 ```forth
 : fractal-melody  DUP 0> IF
@@ -257,7 +257,7 @@ However, deep recursion could cause issues with the current string-reparsing exe
 S" filename.mid" SAVE-MIDI
 ```
 
-**Current midi_forth status**: Has `\` comments and implicit string handling in `load` and `save` commands.
+**Current forth-midi status**: Has `\` comments and implicit string handling in `load` and `save` commands.
 
 **Relevance**: Low-medium. Could improve user feedback and file operations, but not core to music generation.
 
@@ -286,7 +286,7 @@ S" filename.mid" SAVE-MIDI
 
 Forth's power comes from its ability to extend itself - to define new control structures, new data types, new syntax. This is valuable when building systems software or when the language must adapt to unforeseen requirements.
 
-midi_forth has a narrower, well-defined purpose: expressive MIDI composition. The missing features fall into two categories:
+forth-midi has a narrower, well-defined purpose: expressive MIDI composition. The missing features fall into two categories:
 
 1. **User-facing gaps**: Variables, loops, recursion. These limit what musicians can express. Add them.
 

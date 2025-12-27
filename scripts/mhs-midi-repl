@@ -12,7 +12,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
 MHS_DIR="$PROJECT_DIR/thirdparty/MicroHs"
-MIDI_LIB="$PROJECT_DIR/projects/mhs_midi/lib"
+MIDI_LIB="$PROJECT_DIR/projects/mhs-midi/lib"
 MHS_MIDI="$PROJECT_DIR/build/mhs-midi"
 
 if [ ! -f "$MHS_MIDI" ]; then

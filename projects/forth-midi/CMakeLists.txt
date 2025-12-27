@@ -1,0 +1,32 @@
+add_executable(forth_midi forth_midi.c)
+
+target_compile_options(forth_midi PRIVATE -Wall -Wextra)
+
+# Link with libremidi
+target_link_libraries(forth_midi PRIVATE libremidi)
+
+# Link with readline
+find_library(READLINE_LIBRARY readline)
+if(READLINE_LIBRARY)
+    target_link_libraries(forth_midi PRIVATE ${READLINE_LIBRARY})
+else()
+    message(FATAL_ERROR "readline library not found")
+endif()
+
+# Platform-specific dependencies
+if(APPLE)
+    target_link_libraries(forth_midi PRIVATE
+        "-framework CoreMIDI"
+        "-framework CoreFoundation"
+        "-framework CoreAudio"
+    )
+elseif(UNIX)
+    find_package(ALSA)
+    if(ALSA_FOUND)
+        target_link_libraries(forth_midi PRIVATE ${ALSA_LIBRARIES})
+    endif()
+endif()
+
+add_strip_command(forth_midi)
+
+install(TARGETS forth_midi RUNTIME DESTINATION bin)

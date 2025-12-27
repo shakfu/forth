@@ -41,7 +41,7 @@ Key features:
 
 ### 2. midi_module.c - Lua C Bindings
 
-Location: `projects/lua_midi/midi_module.c`
+Location: `projects/lua-midi/midi_module.c`
 
 The core C module providing MIDI functionality to Lua:
 
@@ -281,7 +281,7 @@ int luaopen_midi(lua_State *L) {
 ## File Structure
 
 ```text
-projects/lua_midi/
+projects/lua-midi/
   main.c              # Entry point, REPL with readline
   midi_module.c       # Lua C bindings (~900 lines)
   CMakeLists.txt      # Build configuration
@@ -383,7 +383,7 @@ This is preferred for:
 
 ## Comparison with Other Implementations
 
-| Aspect | lua_midi | s7_midi | pktpy_midi | midi_forth |
+| Aspect | lua-midi | s7-midi | pktpy-midi | forth-midi |
 |--------|----------|---------|------------|------------|
 | Language | Lua | Scheme | Python | Forth |
 | Paradigm | Imperative | Functional | Object-oriented | Stack-based |

@@ -4,6 +4,8 @@ All notable changes to midi-langs are documented in this file.
 
 ## [Unreleased]
 
+## [0.1.4]
+
 ### Added
 
 - **lua_midi**: New Lua-based MIDI language using [Lua 5.5](https://www.lua.org/)
@@ -111,7 +113,7 @@ All notable changes to midi-langs are documented in this file.
     - Examples from basic to advanced
     - Architecture overview of FFI integration
 
-## [0.2.0]
+## [0.1.3]
 
 ### Added
 

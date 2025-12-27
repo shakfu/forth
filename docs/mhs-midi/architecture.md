@@ -27,7 +27,7 @@ This document explains how mhs-midi integrates MicroHs with MIDI functionality.
 
 ### 1. Midi.hs - Haskell API
 
-Location: `projects/mhs_midi/lib/Midi.hs`
+Location: `projects/mhs-midi/lib/Midi.hs`
 
 The high-level Haskell module that users import. Contains:
 
@@ -43,7 +43,7 @@ foreign import ccall "midi_ffi.h midi_note_on"
 
 ### 2. midi_ffi.c - C FFI Bindings
 
-Location: `projects/mhs_midi/midi_ffi.c`
+Location: `projects/mhs-midi/midi_ffi.c`
 
 C wrapper around libremidi providing a simple interface:
 
@@ -65,7 +65,7 @@ Cross-platform MIDI library supporting:
 
 ### 4. midi_ffi_wrappers.c - MicroHs FFI Glue
 
-Location: `projects/mhs_midi/midi_ffi_wrappers.c`
+Location: `projects/mhs-midi/midi_ffi_wrappers.c`
 
 Bridges between MicroHs runtime and midi_ffi.c. MicroHs FFI uses a specific calling convention:
 
@@ -189,7 +189,7 @@ The `mhs-midi-repl` script enables caching by default.
 ## File Locations
 
 ```text
-projects/mhs_midi/
+projects/mhs-midi/
   lib/
     Midi.hs              # Haskell API
   examples/

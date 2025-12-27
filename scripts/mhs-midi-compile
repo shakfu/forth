@@ -15,8 +15,8 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 MHS_DIR="$PROJECT_DIR/thirdparty/MicroHs"
 MHS_COMPILER="$MHS_DIR/bin/mhs"
 MHS_RUNTIME="$MHS_DIR/src/runtime"
-MIDI_LIB="$PROJECT_DIR/projects/mhs_midi/lib"
-MIDI_SRC="$PROJECT_DIR/projects/mhs_midi"
+MIDI_LIB="$PROJECT_DIR/projects/mhs-midi/lib"
+MIDI_SRC="$PROJECT_DIR/projects/mhs-midi"
 BUILD_DIR="$PROJECT_DIR/build"
 
 # Check prerequisites

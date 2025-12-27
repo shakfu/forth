@@ -2,11 +2,11 @@
 
 A collection of mini MIDI-capable languages for generating and transforming MIDI sequences:
 
-- **midi_forth** - A Forth-like interpreter with concise musical notation
+- **forth-midi** - A Forth-like interpreter with concise musical notation
 - **mhs-midi** - A Haskell-based MIDI language using [MicroHs](https://github.com/augustss/MicroHs)
-- **pktpy_midi** - A Python-based MIDI language using [PocketPy](https://pocketpy.dev)
-- **s7_midi** - A Scheme-based MIDI language using [s7](https://ccrma.stanford.edu/software/snd/snd/s7.html)
-- **lua_midi** - A Lua-based MIDI language using [Lua 5.5](https://www.lua.org/)
+- **pktpy-midi** - A Python-based MIDI language using [PocketPy](https://pocketpy.dev)
+- **s7-midi** - A Scheme-based MIDI language using [s7](https://ccrma.stanford.edu/software/snd/snd/s7.html)
+- **lua-midi** - A Lua-based MIDI language using [Lua 5.5](https://www.lua.org/)
 
 ## Building
 
@@ -21,7 +21,7 @@ Requires GCC/Clang and CMake 3.16+. First build compiles libremidi automatically
 ## Running
 
 ```bash
-./build/midi_forth      # Start MIDI Forth REPL
+./build/forth_midi      # Start MIDI Forth REPL
 ```
 
 Type `help` for commands, `quit` to exit.
@@ -561,15 +561,15 @@ ppp, pp, p, mp, mf, ff, fff  -- Velocity values 16..112
 
 ---
 
-## pktpy_midi: Python MIDI Language
+## pktpy-midi: Python MIDI Language
 
 A Pythonic approach to MIDI using PocketPy (a lightweight embeddable Python interpreter).
 
 ### Running
 
 ```bash
-./build/pktpy_midi              # Start Python REPL with MIDI support
-./build/pktpy_midi script.py    # Run a Python script
+./build/pktpy_midi      # Start Python REPL with MIDI support
+./build/pktpy_midi script.py  # Run a Python script
 ```
 
 ### Quick Example
@@ -708,16 +708,16 @@ with midi.open() as m:
 
 ---
 
-## s7_midi: Scheme MIDI Language
+## s7-midi: Scheme MIDI Language
 
 A Lisp/Scheme approach to MIDI using s7 (a lightweight embeddable Scheme interpreter from the Snd project).
 
 ### Running
 
 ```bash
-./build/s7_midi              # Start Scheme REPL with MIDI support
-./build/s7_midi script.scm   # Run a Scheme file
-./build/s7_midi -e '(+ 1 2)' # Evaluate expression
+./build/s7_midi      # Start Scheme REPL with MIDI support
+./build/s7_midi script.scm  # Run a Scheme file
+./build/s7_midi -e '(+ 1 2)'  # Evaluate expression
 ```
 
 ### Quick Example
@@ -871,15 +871,15 @@ sixteenth  ; 125
 
 ---
 
-## lua_midi: Lua MIDI Language
+## lua-midi: Lua MIDI Language
 
 A Lua-based MIDI language using Lua 5.5, providing a simple and expressive approach to MIDI programming with concise syntax.
 
 ### Running
 
 ```bash
-./build/lua_midi              # Start Lua REPL with MIDI support
-./build/lua_midi script.lua   # Run a Lua script
+./build/lua_midi      # Start Lua REPL with MIDI support
+./build/lua_midi script.lua  # Run a Lua script
 ./build/lua_midi -e 'print(c4)'  # Evaluate expression
 ```
 
@@ -1003,7 +1003,7 @@ m:close()
 
 ## Architecture
 
-- **projects/midi_forth/midi_forth.c** (~2700 lines)
+- **projects/forth-midi/forth_midi.c** (~2700 lines)
   - Concise notation system with comma trigger
   - 32-bit packed note format
   - Sequence storage (256 events/seq, 64 sequences)
@@ -1012,22 +1012,22 @@ m:close()
 
 - **projects/forth/forth.c** - Basic Forth interpreter
 
-- **projects/mhs_midi/** - MicroHs MIDI language
+- **projects/mhs-midi/** - MicroHs MIDI language
   - `midi_ffi.c/h` - C FFI bindings for libremidi
   - `lib/Midi.hs` - High-level Haskell MIDI library
   - `examples/` - Example programs
 
-- **projects/pktpy_midi/** - PocketPy MIDI language
+- **projects/pktpy-midi/** - PocketPy MIDI language
   - `midi_module.c` - C bindings for libremidi with Pythonic API
   - `pocketpy.c/h` - PocketPy v2.1.6 interpreter
   - Context manager support, note name parsing
 
-- **projects/s7_midi/** - s7 Scheme MIDI language
+- **projects/s7-midi/** - s7 Scheme MIDI language
   - `midi_module.c` - s7 FFI bindings for libremidi
   - Scheme prelude with pitch constants, chord builders, tempo
   - Full Scheme programming (closures, macros, etc.)
 
-- **projects/lua_midi/** - Lua 5.5 MIDI language
+- **projects/lua-midi/** - Lua 5.5 MIDI language
   - `midi_module.c` - Lua FFI bindings for libremidi
   - Lua prelude with pitch constants, chord builders, tempo
   - Full Lua programming with tables, closures, metatables
@@ -1035,6 +1035,6 @@ m:close()
 - **Dependencies**:
   - libremidi v5.3.1 (auto-built from `thirdparty/libremidi/`)
   - [MicroHs](https://github.com/augustss/MicroHs) (in `thirdparty/MicroHs/`)
-  - [PocketPy](https://pocketpy.dev) v2.1.6 (embedded in `projects/pktpy_midi/`)
+  - [PocketPy](https://pocketpy.dev) v2.1.6 (embedded in `projects/pktpy-midi/`)
   - [s7 Scheme](https://ccrma.stanford.edu/software/snd/snd/s7.html) (in `thirdparty/s7/`)
   - [Lua 5.5](https://www.lua.org/) (in `thirdparty/lua-5.5.0/`)

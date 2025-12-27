@@ -7,8 +7,8 @@ A getting started guide for MIDI Forth - a Forth-like language for MIDI sequenci
 Build and run:
 
 ```bash
-make midi_forth
-./midi_forth
+make
+./build/forth_midi
 ```
 
 You'll see a prompt: `>`. Type `help` for a command reference, `quit` to exit.
