@@ -436,6 +436,38 @@ make                    # Builds all including mhs-midi
 ./build/list_ports      # List available MIDI ports
 ```
 
+### Interactive REPL
+
+The `mhs-midi` binary provides an interactive Haskell REPL with MIDI FFI support:
+
+```bash
+./scripts/mhs-midi-repl
+```
+
+This wrapper sets up paths and enables caching for fast startup.
+
+In the REPL (IO actions need `>>= print` or `>> return ()`):
+```haskell
+> import Midi
+> midiOpenVirtual "TestPort" >>= print
+True
+> midiNoteOn 1 60 100 >> return ()
+> midiSleep 500 >> return ()
+> midiNoteOff 1 60 >> return ()
+> midiClose >> return ()
+```
+
+Run Haskell files (interpreted):
+```bash
+./scripts/mhs-midi-repl -r MyMidiProgram.hs
+```
+
+Or compile to a standalone executable:
+```bash
+./scripts/mhs-midi-compile MyMidiProgram.hs -o my_program
+./my_program
+```
+
 ### Example: Playing Notes
 
 ```haskell

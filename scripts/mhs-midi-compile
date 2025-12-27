@@ -1,0 +1,127 @@
+#!/bin/bash
+# mhs-midi-compile - Compile a Haskell file using Midi.hs to a standalone executable
+#
+# Usage: mhs-midi-compile MyProgram.hs [-o output_name]
+#
+# Example:
+#   ./scripts/mhs-midi-compile examples/MyMelody.hs -o my_melody
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+
+# Paths
+MHS_DIR="$PROJECT_DIR/thirdparty/MicroHs"
+MHS_COMPILER="$MHS_DIR/bin/mhs"
+MHS_RUNTIME="$MHS_DIR/src/runtime"
+MIDI_LIB="$PROJECT_DIR/projects/mhs_midi/lib"
+MIDI_SRC="$PROJECT_DIR/projects/mhs_midi"
+BUILD_DIR="$PROJECT_DIR/build"
+
+# Check prerequisites
+if [ ! -f "$MHS_COMPILER" ]; then
+    echo "Error: MicroHs compiler not found. Run 'make' first."
+    exit 1
+fi
+
+if [ ! -d "$BUILD_DIR" ]; then
+    echo "Error: Build directory not found. Run 'make' first."
+    exit 1
+fi
+
+# Parse arguments
+INPUT_FILE=""
+OUTPUT_NAME=""
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -o)
+            OUTPUT_NAME="$2"
+            shift 2
+            ;;
+        -h|--help)
+            echo "Usage: mhs-midi-compile <file.hs> [-o output_name]"
+            echo ""
+            echo "Compiles a Haskell file using Midi.hs to a standalone executable."
+            echo ""
+            echo "Options:"
+            echo "  -o NAME    Output executable name (default: module name)"
+            echo "  -h         Show this help"
+            echo ""
+            echo "Example:"
+            echo "  ./scripts/mhs-midi-compile MyMelody.hs -o my_melody"
+            exit 0
+            ;;
+        *)
+            INPUT_FILE="$1"
+            shift
+            ;;
+    esac
+done
+
+if [ -z "$INPUT_FILE" ]; then
+    echo "Error: No input file specified"
+    echo "Usage: mhs-midi-compile <file.hs> [-o output_name]"
+    exit 1
+fi
+
+if [ ! -f "$INPUT_FILE" ]; then
+    echo "Error: File not found: $INPUT_FILE"
+    exit 1
+fi
+
+# Extract module name from file
+MODULE_NAME=$(basename "$INPUT_FILE" .hs)
+INPUT_DIR=$(cd "$(dirname "$INPUT_FILE")" && pwd)
+
+if [ -z "$OUTPUT_NAME" ]; then
+    OUTPUT_NAME="$MODULE_NAME"
+fi
+
+# Temporary C file
+C_FILE="/tmp/${MODULE_NAME}_$$.c"
+
+echo "Compiling $INPUT_FILE..."
+
+# Step 1: Compile Haskell to C
+MHSDIR="$MHS_DIR" "$MHS_COMPILER" \
+    -i"$MIDI_LIB" \
+    -i"$INPUT_DIR" \
+    "$MODULE_NAME" \
+    -C \
+    -o"$C_FILE"
+
+echo "Generated C code: $C_FILE"
+
+# Step 2: Compile C to executable
+# Detect platform for linking
+if [ "$(uname)" = "Darwin" ]; then
+    PLATFORM_LIBS="-framework CoreMIDI -framework CoreFoundation -framework CoreAudio"
+else
+    PLATFORM_LIBS="-lasound"
+fi
+
+echo "Linking executable..."
+
+cc -O2 \
+    -I"$MHS_RUNTIME" \
+    -I"$MHS_RUNTIME/unix" \
+    -I"$MIDI_SRC" \
+    -I"$PROJECT_DIR/thirdparty/libremidi/include" \
+    "$C_FILE" \
+    "$MHS_RUNTIME/eval.c" \
+    "$MHS_RUNTIME/main.c" \
+    "$MIDI_SRC/midi_ffi.c" \
+    "$BUILD_DIR/thirdparty/libremidi/liblibremidi.a" \
+    -lm \
+    -lstdc++ \
+    $PLATFORM_LIBS \
+    -o "$OUTPUT_NAME"
+
+# Cleanup
+rm -f "$C_FILE"
+
+echo "Created: $OUTPUT_NAME"
+echo ""
+echo "Run with: ./$OUTPUT_NAME"

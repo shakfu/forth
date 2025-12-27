@@ -111,3 +111,53 @@ add_mhs_midi_example(list_ports ListPorts)
 add_custom_target(mhs-midi-examples
     DEPENDS hello_midi chords melody_example arpeggio list_ports
 )
+
+# ============================================
+# mhs-midi: Interactive REPL with MIDI support
+# ============================================
+
+# Strip xffi_table definition from mhs.c to avoid multiple definition error
+# Our midi_ffi_wrappers.c provides its own xffi_table with MIDI FFI functions
+add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/mhs_repl.c
+    COMMAND sed -e "s/const struct ffi_entry .xffi_table = imp_table;/\\/\\/ xffi_table defined in midi_ffi_wrappers.c/"
+            ${MHS_DIR}/generated/mhs.c > ${CMAKE_CURRENT_BINARY_DIR}/mhs_repl.c
+    DEPENDS ${MHS_DIR}/generated/mhs.c
+    COMMENT "Creating mhs_repl.c with xffi_table removed"
+    VERBATIM
+)
+
+# Build the mhs-midi REPL executable
+add_executable(mhs-midi
+    ${CMAKE_CURRENT_BINARY_DIR}/mhs_repl.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/mhs_midi_main.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/midi_ffi_wrappers.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/midi_ffi.c
+    ${MHS_RUNTIME}/eval.c
+)
+
+target_include_directories(mhs-midi PRIVATE
+    ${MHS_RUNTIME}
+    ${MHS_RUNTIME}/unix
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/thirdparty/libremidi/include
+)
+
+target_link_libraries(mhs-midi PRIVATE
+    libremidi
+    m
+)
+
+# Platform-specific dependencies
+if(APPLE)
+    target_link_libraries(mhs-midi PRIVATE
+        "-framework CoreMIDI"
+        "-framework CoreFoundation"
+        "-framework CoreAudio"
+    )
+elseif(UNIX)
+    find_package(ALSA)
+    if(ALSA_FOUND)
+        target_link_libraries(mhs-midi PRIVATE ${ALSA_LIBRARIES})
+    endif()
+endif()

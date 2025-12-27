@@ -3,6 +3,9 @@
 # Build directory
 build/
 
+# cache
+.mhscache
+
 # Prerequisites
 *.d
 

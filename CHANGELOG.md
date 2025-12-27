@@ -4,6 +4,15 @@ All notable changes to midi-langs are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **mhs-midi REPL**: Interactive Haskell REPL with MIDI FFI support
+  - `./scripts/mhs-midi-repl` - Start REPL with caching for fast startup
+  - `./scripts/mhs-midi-repl -r File.hs` - Run a Haskell file (interpreted)
+  - `./scripts/mhs-midi-compile File.hs -o output` - Compile to standalone executable
+  - Enables `import Midi` for interactive MIDI programming
+  - Uses MicroHs `xffi_table` extension mechanism for FFI injection
+
 ## [0.2.0]
 
 ### Added

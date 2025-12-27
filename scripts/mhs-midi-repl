@@ -1,0 +1,23 @@
+#!/bin/bash
+# mhs-midi-repl - Start the mhs-midi interactive REPL with MIDI support
+#
+# Usage: mhs-midi-repl [mhs options...]
+#
+# Automatically sets up:
+#   - MHSDIR for MicroHs standard library
+#   - Module path for Midi.hs
+#   - Compilation cache for fast startup
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+
+MHS_DIR="$PROJECT_DIR/thirdparty/MicroHs"
+MIDI_LIB="$PROJECT_DIR/projects/mhs_midi/lib"
+MHS_MIDI="$PROJECT_DIR/build/mhs-midi"
+
+if [ ! -f "$MHS_MIDI" ]; then
+    echo "Error: mhs-midi not found. Run 'make' first."
+    exit 1
+fi
+
+exec env MHSDIR="$MHS_DIR" "$MHS_MIDI" -C -i"$MIDI_LIB" "$@"
