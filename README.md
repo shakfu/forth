@@ -1035,7 +1035,7 @@ m:close()
   - Full Lua programming with tables, closures, metatables
 
 - **Dependencies**:
-  - libremidi v5.3.1 (auto-built from `thirdparty/libremidi/`)
+  - [libremidi](https://github.com/celtera/libremidi) v5.3.1 (auto-built from `thirdparty/libremidi/`)
   - [MicroHs](https://github.com/augustss/MicroHs) (in `thirdparty/MicroHs/`)
   - [PocketPy](https://pocketpy.dev) v2.1.6 (embedded in `projects/pktpy-midi/`)
   - [s7 Scheme](https://ccrma.stanford.edu/software/snd/snd/s7.html) (in `thirdparty/s7/`)
