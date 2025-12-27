@@ -54,7 +54,7 @@ function(add_mhs_midi_example NAME MODULE)
             ${MODULE}
             -C
             -o${C_OUTPUT}
-        DEPENDS ${HS_SOURCE} ${MIDI_LIB_DIR}/Midi.hs
+        DEPENDS ${HS_SOURCE} ${MIDI_LIB_DIR}/Midi.hs ${MIDI_LIB_DIR}/MidiPrelude.hs
         WORKING_DIRECTORY ${MHS_DIR}
         COMMENT "Compiling ${MODULE}.hs with MicroHs"
         VERBATIM

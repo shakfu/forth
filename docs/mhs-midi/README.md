@@ -27,12 +27,13 @@ make
 ### 3. Play some notes
 
 ```haskell
-> import Midi
-> midiOpenVirtual "MyPort" >>= print
+> import MidiPrelude
+> open >>= print
 True
-> playNote c4 quarter >> return ()
-> chord [c4, e4, g4] half >> return ()
-> midiClose >> return ()
+> n c4
+> mapM_ n [c4, e4, g4]
+> ch [c4, e4, g4]
+> close
 ```
 
 ## Usage Modes
@@ -43,7 +44,7 @@ True
 ./scripts/mhs-midi-repl
 ```
 
-Note: IO actions in the REPL need `>>= print` or `>> return ()` suffix since MicroHs doesn't auto-execute IO like GHCi.
+Note: IO actions in the REPL need `>> return ()` suffix (or `>>= print` for results). Use `MidiPrelude` for ergonomic functions.
 
 ### Run Haskell File (Interpreted)
 
@@ -62,19 +63,44 @@ Note: IO actions in the REPL need `>>= print` or `>> return ()` suffix since Mic
 
 ```haskell
 module MyMelody(main) where
-import Midi
+import MidiPrelude
 
 main :: IO ()
 main = do
-    midiOpenVirtual "MyMelody"
+    open
 
-    -- Play a simple melody
-    playNote c4 quarter
-    playNote e4 quarter
-    playNote g4 quarter
-    chord [c4, e4, g4] half
+    -- Play a melody using mapM_
+    mapM_ n [c4, e4, g4]
 
-    midiClose
+    -- Play a chord
+    ch [c4, e4, g4]
+
+    close
+```
+
+### Partial Application
+
+The pitch-last parameter order enables partial application:
+
+```haskell
+module Expressive(main) where
+import MidiPrelude
+
+-- Define custom note functions
+loud = note 1 fff quarter
+soft = note 1 pp half
+fast = note 1 mf sixteenth
+
+main :: IO ()
+main = do
+    open
+
+    -- Use them with just pitch
+    mapM_ loud [c4, e4, g4]
+    mapM_ soft [c5, g4, e4]
+    mapM_ fast [c4, d4, e4, f4, g4, a4, b4, c5]
+
+    close
 ```
 
 ## Documentation

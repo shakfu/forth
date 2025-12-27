@@ -1,6 +1,90 @@
-# Midi.hs API Reference
+# API Reference
 
-## Module Import
+## MidiPrelude (Recommended)
+
+```haskell
+import MidiPrelude
+```
+
+MidiPrelude re-exports everything from Midi and adds ergonomic pitch-last functions for partial application.
+
+### note
+
+```haskell
+note :: Channel -> Velocity -> Duration -> Pitch -> IO ()
+```
+
+Play a single note. Pitch is last for partial application.
+
+```haskell
+note 1 mf quarter c4
+
+-- Partial application
+loud = note 1 fff quarter
+soft = note 1 pp half
+loud c4
+mapM_ soft [c4, e4, g4]
+```
+
+### notes
+
+```haskell
+notes :: Channel -> Velocity -> Duration -> [Pitch] -> IO ()
+```
+
+Play a chord. Pitches last for partial application.
+
+```haskell
+notes 1 mf quarter [c4, e4, g4]
+
+-- Partial application
+bigChord = notes 1 ff whole
+bigChord [c3, g3, c4, e4, g4]
+```
+
+### n
+
+```haskell
+n :: Pitch -> IO ()
+```
+
+Default note: channel 1, mf velocity, quarter duration.
+
+```haskell
+n c4
+mapM_ n [c4, e4, g4]
+```
+
+### ch
+
+```haskell
+ch :: [Pitch] -> IO ()
+```
+
+Default chord: channel 1, mf velocity, quarter duration.
+
+```haskell
+ch [c4, e4, g4]
+```
+
+### open / close
+
+```haskell
+open :: IO Bool
+close :: IO ()
+```
+
+Quick setup: `open` creates virtual port "MicroHs", `close` closes it.
+
+```haskell
+open
+mapM_ n [c4, e4, g4]
+close
+```
+
+---
+
+# Midi Module
 
 ```haskell
 import Midi

@@ -1,6 +1,82 @@
 # mhs-midi Examples
 
-## Basic Examples
+## MidiPrelude Examples
+
+### Hello MIDI with MidiPrelude
+
+Play a C major scale using `mapM_`:
+
+```haskell
+module HelloMidi(main) where
+import MidiPrelude
+
+main :: IO ()
+main = do
+    open
+    mapM_ n [c4, d4, e4, f4, g4, a4, b4, c5]
+    close
+```
+
+### Partial Application
+
+Define reusable note functions:
+
+```haskell
+module PartialApp(main) where
+import MidiPrelude
+
+-- Pitch-last allows partial application
+loud = note 1 fff quarter
+soft = note 1 pp half
+fast = note 1 mf sixteenth
+bass = note 2 ff quarter
+
+main :: IO ()
+main = do
+    open
+
+    -- Ascending loud
+    mapM_ loud [c4, e4, g4]
+
+    -- Descending soft
+    mapM_ soft [c5, g4, e4, c4]
+
+    -- Fast scale
+    mapM_ fast [c4, d4, e4, f4, g4, a4, b4, c5]
+
+    -- Bass line on channel 2
+    mapM_ bass [c2, g2, c2, g2]
+
+    close
+```
+
+### Chords with MidiPrelude
+
+```haskell
+module ChordsPrelude(main) where
+import MidiPrelude
+
+-- Custom chord function
+bigChord = notes 1 ff whole
+
+main :: IO ()
+main = do
+    open
+
+    -- Default chord (quarter, mf)
+    ch [c4, e4, g4]
+    ch [f4, a4, c5]
+    ch [g4, b4, d5]
+
+    -- Big finale chord
+    bigChord [c3, g3, c4, e4, g4, c5]
+
+    close
+```
+
+---
+
+## Basic Examples (using Midi module)
 
 ### Hello MIDI
 
@@ -333,50 +409,63 @@ Start the REPL:
 ./scripts/mhs-midi-repl
 ```
 
-### Quick Note Test
+### Quick Note Test (MidiPrelude)
 
 ```haskell
-> import Midi
-> midiOpenVirtual "Test" >>= print
+> import MidiPrelude
+> open >>= print
 True
-> playNote c4 quarter >> return ()
-> midiClose >> return ()
+> n c4 >> return ()
+> mapM_ n [c4, e4, g4] >> return ()
+> close >> return ()
+```
+
+### Partial Application in REPL
+
+```haskell
+> import MidiPrelude
+> open >>= print
+True
+
+-- Define custom note functions
+> let loud = note 1 fff quarter
+> let soft = note 1 pp half
+
+-- Use them
+> loud c4 >> return ()
+> mapM_ loud [c4, e4, g4] >> return ()
+> mapM_ soft [c5, g4, e4] >> return ()
+
+> close >> return ()
 ```
 
 ### Interactive Chord Exploration
 
 ```haskell
-> import Midi
-> midiOpenVirtual "Chords" >>= print
+> import MidiPrelude
+> open >>= print
 True
 
--- Major chords
-> chord [c4, e4, g4] half >> return ()
-> chord [f4, a4, c5] half >> return ()
-> chord [g4, b4, d5] half >> return ()
+-- Major chords using ch
+> ch [c4, e4, g4] >> return ()
+> ch [f4, a4, c5] >> return ()
+> ch [g4, b4, d5] >> return ()
 
--- Minor chords
-> chord [a4, c5, e5] half >> return ()
-> chord [d4, f4, a4] half >> return ()
-> chord [e4, g4, b4] half >> return ()
+-- Custom chord function
+> let bigChord = notes 1 ff whole
+> bigChord [c3, g3, c4, e4, g4] >> return ()
 
-> midiClose >> return ()
+> close >> return ()
 ```
 
-### Experimenting with Velocities
+### Low-level Midi Module
 
 ```haskell
 > import Midi
-> midiOpenVirtual "Vel" >>= print
+> midiOpenVirtual "Test" >>= print
 True
-
 > play c4 ppp quarter >> return ()
-> play c4 pp quarter >> return ()
-> play c4 p quarter >> return ()
-> play c4 mp quarter >> return ()
 > play c4 mf quarter >> return ()
-> play c4 ff quarter >> return ()
 > play c4 fff quarter >> return ()
-
 > midiClose >> return ()
 ```
