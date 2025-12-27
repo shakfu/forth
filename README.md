@@ -2,11 +2,13 @@
 
 A collection of mini MIDI-capable languages for generating and transforming MIDI sequences:
 
-- **forth-midi** - A Forth-like interpreter with concise musical notation
+- **forth-midi** - A Forth-like MIDI interpreter with concise musical notation
 - **mhs-midi** - A Haskell-based MIDI language using [MicroHs](https://github.com/augustss/MicroHs)
 - **pktpy-midi** - A Python-based MIDI language using [PocketPy](https://pocketpy.dev)
 - **s7-midi** - A Scheme-based MIDI language using [s7](https://ccrma.stanford.edu/software/snd/snd/s7.html)
 - **lua-midi** - A Lua-based MIDI language using [Lua 5.5](https://www.lua.org/)
+
+All of the above use [libremidi](https://github.com/celtera/libremidi), a modern cross-platform C++ MIDI 1 / MIDI 2 real-time & file I/O library.
 
 ## Building
 
