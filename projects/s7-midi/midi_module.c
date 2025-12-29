@@ -589,6 +589,176 @@ static s7_pointer g_midi_sleep(s7_scheme *sc, s7_pointer args) {
     return s7_unspecified(sc);
 }
 
+/* ============================================================================
+ * Scale functions - using common music_theory library
+ * ============================================================================ */
+
+/* Helper to read interval list from s7 list */
+static int get_intervals_from_list(s7_scheme *sc, s7_pointer lst, int* intervals, int max_size) {
+    int count = 0;
+    s7_pointer p = lst;
+    while (p != s7_nil(sc) && count < max_size) {
+        if (s7_is_integer(s7_car(p))) {
+            intervals[count++] = (int)s7_integer(s7_car(p));
+        }
+        p = s7_cdr(p);
+    }
+    return count;
+}
+
+/* (build-scale root intervals) -> list of pitches */
+static s7_pointer g_build_scale(s7_scheme *sc, s7_pointer args) {
+    int root = get_pitch(sc, s7_car(args));
+    if (root < 0 || root > 127) {
+        return s7_error(sc, s7_make_symbol(sc, "out-of-range"),
+                        s7_list(sc, 1, s7_make_string(sc, "Invalid root pitch")));
+    }
+    args = s7_cdr(args);
+
+    s7_pointer intervals_list = s7_car(args);
+    if (!s7_is_list(sc, intervals_list)) {
+        return s7_wrong_type_error(sc, s7_make_symbol(sc, "build-scale"), 2,
+                                   intervals_list, s7_make_string(sc, "list"));
+    }
+
+    int intervals[16];
+    int num_intervals = get_intervals_from_list(sc, intervals_list, intervals, 16);
+    if (num_intervals == 0) {
+        return s7_nil(sc);
+    }
+
+    int pitches[16];
+    int count = music_build_scale(root, intervals, num_intervals, pitches);
+
+    /* Build result list */
+    s7_pointer result = s7_nil(sc);
+    for (int i = count - 1; i >= 0; i--) {
+        result = s7_cons(sc, s7_make_integer(sc, pitches[i]), result);
+    }
+    return result;
+}
+
+/* (scale-degree root intervals degree) -> pitch */
+static s7_pointer g_scale_degree(s7_scheme *sc, s7_pointer args) {
+    int root = get_pitch(sc, s7_car(args));
+    if (root < 0 || root > 127) {
+        return s7_error(sc, s7_make_symbol(sc, "out-of-range"),
+                        s7_list(sc, 1, s7_make_string(sc, "Invalid root pitch")));
+    }
+    args = s7_cdr(args);
+
+    s7_pointer intervals_list = s7_car(args);
+    if (!s7_is_list(sc, intervals_list)) {
+        return s7_wrong_type_error(sc, s7_make_symbol(sc, "scale-degree"), 2,
+                                   intervals_list, s7_make_string(sc, "list"));
+    }
+    args = s7_cdr(args);
+
+    int degree = (int)s7_integer(s7_car(args));
+
+    int intervals[16];
+    int num_intervals = get_intervals_from_list(sc, intervals_list, intervals, 16);
+    if (num_intervals == 0) {
+        return s7_error(sc, s7_make_symbol(sc, "invalid-scale"),
+                        s7_list(sc, 1, s7_make_string(sc, "Empty intervals list")));
+    }
+
+    int pitch = music_scale_degree(root, intervals, num_intervals, degree);
+    if (pitch < 0) {
+        return s7_error(sc, s7_make_symbol(sc, "out-of-range"),
+                        s7_list(sc, 1, s7_make_string(sc, "Scale degree out of range")));
+    }
+    return s7_make_integer(sc, pitch);
+}
+
+/* (in-scale? pitch root intervals) -> boolean */
+static s7_pointer g_in_scale(s7_scheme *sc, s7_pointer args) {
+    int pitch = get_pitch(sc, s7_car(args));
+    if (pitch < 0 || pitch > 127) {
+        return s7_f(sc);
+    }
+    args = s7_cdr(args);
+
+    int root = get_pitch(sc, s7_car(args));
+    if (root < 0 || root > 127) {
+        return s7_f(sc);
+    }
+    args = s7_cdr(args);
+
+    s7_pointer intervals_list = s7_car(args);
+    if (!s7_is_list(sc, intervals_list)) {
+        return s7_wrong_type_error(sc, s7_make_symbol(sc, "in-scale?"), 3,
+                                   intervals_list, s7_make_string(sc, "list"));
+    }
+
+    int intervals[16];
+    int num_intervals = get_intervals_from_list(sc, intervals_list, intervals, 16);
+    if (num_intervals == 0) {
+        return s7_f(sc);
+    }
+
+    int result = music_in_scale(pitch, root, intervals, num_intervals);
+    return s7_make_boolean(sc, result);
+}
+
+/* (quantize-to-scale pitch root intervals) -> pitch */
+static s7_pointer g_quantize_to_scale(s7_scheme *sc, s7_pointer args) {
+    int pitch = get_pitch(sc, s7_car(args));
+    if (pitch < 0 || pitch > 127) {
+        return s7_error(sc, s7_make_symbol(sc, "out-of-range"),
+                        s7_list(sc, 1, s7_make_string(sc, "Invalid pitch")));
+    }
+    args = s7_cdr(args);
+
+    int root = get_pitch(sc, s7_car(args));
+    if (root < 0 || root > 127) {
+        return s7_error(sc, s7_make_symbol(sc, "out-of-range"),
+                        s7_list(sc, 1, s7_make_string(sc, "Invalid root pitch")));
+    }
+    args = s7_cdr(args);
+
+    s7_pointer intervals_list = s7_car(args);
+    if (!s7_is_list(sc, intervals_list)) {
+        return s7_wrong_type_error(sc, s7_make_symbol(sc, "quantize-to-scale"), 3,
+                                   intervals_list, s7_make_string(sc, "list"));
+    }
+
+    int intervals[16];
+    int num_intervals = get_intervals_from_list(sc, intervals_list, intervals, 16);
+    if (num_intervals == 0) {
+        return s7_make_integer(sc, pitch);
+    }
+
+    int result = music_quantize_to_scale(pitch, root, intervals, num_intervals);
+    return s7_make_integer(sc, result);
+}
+
+/* (midi-pitch-bend m cents [channel]) - send pitch bend for microtonal */
+static s7_pointer g_midi_pitch_bend(s7_scheme *sc, s7_pointer args) {
+    GET_MIDI_OUT(args);
+    args = s7_cdr(args);
+
+    int cents = (int)s7_integer(s7_car(args));
+    args = s7_cdr(args);
+
+    int channel = 1;
+    if (args != s7_nil(sc)) {
+        channel = (int)s7_integer(s7_car(args));
+    }
+
+    if (channel < 1 || channel > 16) channel = 1;
+
+    int bend = music_cents_to_bend(cents);
+    uint8_t msg[3] = {
+        0xE0 | ((channel - 1) & 0x0F),
+        bend & 0x7F,
+        (bend >> 7) & 0x7F
+    };
+    libremidi_midi_out_send_message(data->handle, msg, 3);
+
+    return s7_unspecified(sc);
+}
+
 /* (help) */
 static s7_pointer g_help(s7_scheme *sc, s7_pointer args) {
     (void)args;
@@ -626,6 +796,18 @@ static s7_pointer g_help(s7_scheme *sc, s7_pointer args) {
         "Chord builders:\n"
         "  (major root) (minor root) (dim root) (aug root)\n"
         "  (dom7 root) (maj7 root) (min7 root)\n"
+        "\n"
+        "Scale functions:\n"
+        "  (build-scale root intervals)      Build scale pitches\n"
+        "  (scale-degree root intervals n)   Get nth scale degree\n"
+        "  (in-scale? pitch root intervals)  Check if pitch in scale\n"
+        "  (quantize-to-scale pitch root intervals) Snap to scale\n"
+        "  (midi-pitch-bend m cents [ch])    Pitch bend (microtonal)\n"
+        "\n"
+        "Scale helpers (via prelude):\n"
+        "  (scale root name)        Build scale, e.g. (scale c4 'major)\n"
+        "  (degree root name n)     Get scale degree\n"
+        "  scale-major, scale-minor, scale-dorian, scale-blues, etc.\n"
         "\n"
         "Example:\n"
         "  (define m (midi-open))\n"
@@ -692,6 +874,22 @@ void s7_midi_init(s7_scheme *sc) {
 
     s7_define_function(sc, "midi-sleep", g_midi_sleep, 1, 0, false,
                        "(midi-sleep ms) sleeps for given milliseconds");
+
+    /* Scale functions */
+    s7_define_function(sc, "build-scale", g_build_scale, 2, 0, false,
+                       "(build-scale root intervals) builds a scale from root and interval list");
+
+    s7_define_function(sc, "scale-degree", g_scale_degree, 3, 0, false,
+                       "(scale-degree root intervals n) returns the nth degree of the scale");
+
+    s7_define_function(sc, "in-scale?", g_in_scale, 3, 0, false,
+                       "(in-scale? pitch root intervals) returns #t if pitch is in scale");
+
+    s7_define_function(sc, "quantize-to-scale", g_quantize_to_scale, 3, 0, false,
+                       "(quantize-to-scale pitch root intervals) snaps pitch to nearest scale tone");
+
+    s7_define_function(sc, "midi-pitch-bend", g_midi_pitch_bend, 2, 1, false,
+                       "(midi-pitch-bend m cents [channel]) sends pitch bend for microtonal");
 
     s7_define_function(sc, "help", g_help, 0, 0, false,
                        "(help) displays available functions");

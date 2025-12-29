@@ -6,7 +6,10 @@ A Scheme-based MIDI language using [s7](https://ccrma.stanford.edu/software/snd/
 
 - Full Scheme programming language (closures, macros, first-class functions)
 - Musical abstractions: pitches, durations, velocities, chords
-- Low-level MIDI control: note on/off, CC, program change
+- **55 built-in scales** (modes, pentatonics, blues, exotic, Arabic Maqamat, Indian Ragas)
+- **10 microtonal scales** with quarter-tone support via pitch bend
+- Scale functions: build scales, get degrees, quantize pitches
+- Low-level MIDI control: note on/off, CC, program change, pitch bend
 - Virtual and hardware MIDI port support
 - Chord builders and transpose helpers
 - Tempo-aware duration constants

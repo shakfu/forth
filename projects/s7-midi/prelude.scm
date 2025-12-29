@@ -79,7 +79,209 @@
 (define fs8 114) (define gb8 114) (define g8 115) (define gs8 116)
 (define ab8 116) (define a8 117) (define as8 118) (define bb8 118) (define b8 119)
 
+;; ============================================================================
+;; Scale intervals (semitones from root)
+;; ============================================================================
+
+;; Diatonic modes
+(define scale-major '(0 2 4 5 7 9 11))
+(define scale-ionian scale-major)
+(define scale-dorian '(0 2 3 5 7 9 10))
+(define scale-phrygian '(0 1 3 5 7 8 10))
+(define scale-lydian '(0 2 4 6 7 9 11))
+(define scale-mixolydian '(0 2 4 5 7 9 10))
+(define scale-minor '(0 2 3 5 7 8 10))
+(define scale-aeolian scale-minor)
+(define scale-locrian '(0 1 3 5 6 8 10))
+
+;; Other minor scales
+(define scale-harmonic-minor '(0 2 3 5 7 8 11))
+(define scale-melodic-minor '(0 2 3 5 7 9 11))
+
+;; Pentatonic
+(define scale-pentatonic '(0 2 4 7 9))
+(define scale-pentatonic-major scale-pentatonic)
+(define scale-pentatonic-minor '(0 3 5 7 10))
+
+;; Blues
+(define scale-blues '(0 3 5 6 7 10))
+
+;; Symmetric
+(define scale-whole-tone '(0 2 4 6 8 10))
+(define scale-chromatic '(0 1 2 3 4 5 6 7 8 9 10 11))
+(define scale-diminished-hw '(0 1 3 4 6 7 9 10))
+(define scale-diminished-wh '(0 2 3 5 6 8 9 11))
+(define scale-augmented '(0 3 4 7 8 11))
+
+;; Bebop
+(define scale-bebop-dominant '(0 2 4 5 7 9 10 11))
+(define scale-bebop-major '(0 2 4 5 7 8 9 11))
+(define scale-bebop-minor '(0 2 3 5 7 8 9 10))
+
+;; Exotic/World
+(define scale-hungarian-minor '(0 2 3 6 7 8 11))
+(define scale-double-harmonic '(0 1 4 5 7 8 11))
+(define scale-neapolitan-major '(0 1 3 5 7 9 11))
+(define scale-neapolitan-minor '(0 1 3 5 7 8 11))
+(define scale-phrygian-dominant '(0 1 4 5 7 8 10))
+(define scale-persian '(0 1 4 5 6 8 11))
+(define scale-altered '(0 1 3 4 6 8 10))
+(define scale-enigmatic '(0 1 4 6 8 10 11))
+
+;; Japanese
+(define scale-hirajoshi '(0 2 3 7 8))
+(define scale-in-sen '(0 1 5 7 10))
+(define scale-iwato '(0 1 5 6 10))
+(define scale-kumoi '(0 2 3 7 9))
+
+;; Other world scales
+(define scale-egyptian '(0 2 5 7 10))
+(define scale-romanian-minor '(0 2 3 6 7 9 10))
+(define scale-spanish-8-tone '(0 1 3 4 5 6 8 10))
+
+;; Arabic Maqamat (12-TET approximations)
+(define scale-maqam-hijaz '(0 1 4 5 7 8 10))
+(define scale-maqam-nahawand '(0 2 3 5 7 8 11))
+(define scale-maqam-nikriz '(0 2 3 6 7 9 10))
+(define scale-maqam-athar-kurd '(0 1 3 5 6 8 10))
+(define scale-maqam-shawq-afza '(0 2 3 6 7 9 11))
+(define scale-maqam-jiharkah '(0 2 4 5 7 9 10))
+
+;; Indian Ragas (12-TET approximations)
+(define scale-raga-bhairav '(0 1 4 5 7 8 11))
+(define scale-raga-todi '(0 1 3 6 7 8 11))
+(define scale-raga-marwa '(0 1 4 6 7 9 11))
+(define scale-raga-purvi '(0 1 4 6 7 8 11))
+(define scale-raga-charukeshi '(0 2 4 5 7 8 10))
+(define scale-raga-asavari '(0 2 3 5 7 8 10))
+(define scale-raga-bilawal '(0 2 4 5 7 9 11))
+(define scale-raga-khamaj '(0 2 4 5 7 9 10))
+(define scale-raga-kalyan '(0 2 4 6 7 9 11))
+(define scale-raga-bhimpalasi '(0 3 5 7 10))
+(define scale-raga-darbari '(0 2 3 5 7 8 9))
+
+;; ============================================================================
+;; Microtonal scales (cents-based, for use with pitch-bend)
+;; ============================================================================
+
+;; Arabic Maqamat with quarter tones
+(define scale-maqam-bayati-cents '(0 150 300 500 700 800 1000))
+(define scale-maqam-rast-cents '(0 200 350 500 700 900 1050))
+(define scale-maqam-saba-cents '(0 150 300 400 500 700 800))
+(define scale-maqam-sikah-cents '(0 150 350 500 650 850 1000))
+(define scale-maqam-huzam-cents '(0 150 350 500 700 850 1050))
+(define scale-maqam-iraq-cents '(0 150 350 500 700 850 1000))
+(define scale-maqam-bastanikar-cents '(0 150 350 500 700 800 1000))
+
+;; Turkish Makamlar
+(define scale-makam-ussak-cents '(0 150 300 500 700 800 1000))
+(define scale-makam-huseyni-cents '(0 150 300 500 700 900 1000))
+
+;; Indian 22-Shruti scale
+(define scale-shruti-cents '(0 90 112 182 204 294 316 386 408 498 520 590
+                             612 702 792 814 884 906 996 1018 1088 1110))
+
+;; ============================================================================
+;; Scale name lookup table
+;; ============================================================================
+
+(define *scales*
+  (list
+    (cons 'major scale-major)
+    (cons 'ionian scale-ionian)
+    (cons 'dorian scale-dorian)
+    (cons 'phrygian scale-phrygian)
+    (cons 'lydian scale-lydian)
+    (cons 'mixolydian scale-mixolydian)
+    (cons 'minor scale-minor)
+    (cons 'aeolian scale-aeolian)
+    (cons 'locrian scale-locrian)
+    (cons 'harmonic-minor scale-harmonic-minor)
+    (cons 'melodic-minor scale-melodic-minor)
+    (cons 'pentatonic scale-pentatonic)
+    (cons 'pentatonic-major scale-pentatonic-major)
+    (cons 'pentatonic-minor scale-pentatonic-minor)
+    (cons 'blues scale-blues)
+    (cons 'whole-tone scale-whole-tone)
+    (cons 'chromatic scale-chromatic)
+    (cons 'diminished-hw scale-diminished-hw)
+    (cons 'diminished-wh scale-diminished-wh)
+    (cons 'augmented scale-augmented)
+    (cons 'bebop-dominant scale-bebop-dominant)
+    (cons 'bebop-major scale-bebop-major)
+    (cons 'bebop-minor scale-bebop-minor)
+    (cons 'hungarian-minor scale-hungarian-minor)
+    (cons 'double-harmonic scale-double-harmonic)
+    (cons 'neapolitan-major scale-neapolitan-major)
+    (cons 'neapolitan-minor scale-neapolitan-minor)
+    (cons 'phrygian-dominant scale-phrygian-dominant)
+    (cons 'persian scale-persian)
+    (cons 'altered scale-altered)
+    (cons 'enigmatic scale-enigmatic)
+    (cons 'hirajoshi scale-hirajoshi)
+    (cons 'in-sen scale-in-sen)
+    (cons 'iwato scale-iwato)
+    (cons 'kumoi scale-kumoi)
+    (cons 'egyptian scale-egyptian)
+    (cons 'romanian-minor scale-romanian-minor)
+    (cons 'spanish-8-tone scale-spanish-8-tone)
+    (cons 'maqam-hijaz scale-maqam-hijaz)
+    (cons 'maqam-nahawand scale-maqam-nahawand)
+    (cons 'maqam-nikriz scale-maqam-nikriz)
+    (cons 'maqam-athar-kurd scale-maqam-athar-kurd)
+    (cons 'maqam-shawq-afza scale-maqam-shawq-afza)
+    (cons 'maqam-jiharkah scale-maqam-jiharkah)
+    (cons 'raga-bhairav scale-raga-bhairav)
+    (cons 'raga-todi scale-raga-todi)
+    (cons 'raga-marwa scale-raga-marwa)
+    (cons 'raga-purvi scale-raga-purvi)
+    (cons 'raga-charukeshi scale-raga-charukeshi)
+    (cons 'raga-asavari scale-raga-asavari)
+    (cons 'raga-bilawal scale-raga-bilawal)
+    (cons 'raga-khamaj scale-raga-khamaj)
+    (cons 'raga-kalyan scale-raga-kalyan)
+    (cons 'raga-bhimpalasi scale-raga-bhimpalasi)
+    (cons 'raga-darbari scale-raga-darbari)))
+
+;; ============================================================================
+;; Scale helper functions
+;; ============================================================================
+
+(define (get-scale name)
+  "Look up scale intervals by name symbol"
+  (let ((entry (assq name *scales*)))
+    (if entry (cdr entry)
+        (error 'unknown-scale "Unknown scale name" name))))
+
+(define (scale root name)
+  "Build a scale from root and scale name. E.g. (scale c4 'major)"
+  (build-scale root (get-scale name)))
+
+(define (degree root name n)
+  "Get the nth degree of a named scale. E.g. (degree c4 'major 5)"
+  (scale-degree root (get-scale name) n))
+
+(define (in-scale-named? pitch root name)
+  "Check if pitch is in named scale. E.g. (in-scale-named? e4 c4 'major)"
+  (in-scale? pitch root (get-scale name)))
+
+(define (quantize pitch root name)
+  "Quantize pitch to named scale. E.g. (quantize fs4 c4 'major)"
+  (quantize-to-scale pitch root (get-scale name)))
+
+;; Microtonal helper: convert cents interval to note + bend
+(define (cents-to-note root cents)
+  "Convert cents interval to (note . bend-cents) pair"
+  (let* ((semitones (floor (/ cents 100)))
+         (bend-cents (modulo cents 100)))
+    (if (> bend-cents 50)
+        (cons (+ root semitones 1) (- bend-cents 100))
+        (cons (+ root semitones) bend-cents))))
+
+;; ============================================================================
 ;; Chord builders
+;; ============================================================================
+
 (define (major root)
   (let ((r (if (number? root) root (note root))))
     (list r (+ r 4) (+ r 7))))

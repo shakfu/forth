@@ -408,6 +408,230 @@ Build minor 7th chord.
 
 ---
 
+## Scale Functions
+
+### build-scale
+
+```scheme
+(build-scale root intervals) -> list
+```
+
+Build a scale from a root pitch and list of semitone intervals.
+
+```scheme
+(build-scale c4 '(0 2 4 5 7 9 11))  ; => (60 62 64 65 67 69 71) - C major
+(build-scale c4 scale-minor)        ; => (60 62 63 65 67 68 70) - C minor
+```
+
+### scale (helper)
+
+```scheme
+(scale root name) -> list
+```
+
+Build a scale using a scale name symbol. Looks up intervals from `*scales*`.
+
+```scheme
+(scale c4 'major)         ; C major scale
+(scale a4 'minor)         ; A natural minor
+(scale c4 'blues)         ; C blues scale
+(scale d4 'maqam-hijaz)   ; D Hijaz (Arabic)
+(scale c4 'raga-bhairav)  ; C Bhairav (Indian)
+```
+
+### scale-degree
+
+```scheme
+(scale-degree root intervals degree) -> integer
+```
+
+Get a specific scale degree. Degrees are 1-based (1 = root). Supports extended degrees beyond the octave.
+
+```scheme
+(scale-degree c4 scale-major 1)   ; => 60 (root)
+(scale-degree c4 scale-major 3)   ; => 64 (third)
+(scale-degree c4 scale-major 5)   ; => 67 (fifth)
+(scale-degree c4 scale-major 9)   ; => 74 (ninth = 2nd + octave)
+```
+
+### degree (helper)
+
+```scheme
+(degree root name n) -> integer
+```
+
+Get a scale degree using a scale name symbol.
+
+```scheme
+(degree c4 'major 3)    ; => 64 (E4, third of C major)
+(degree c4 'major 5)    ; => 67 (G4, fifth of C major)
+(degree c4 'minor 7)    ; => 70 (Bb4, seventh of C minor)
+(degree c4 'major 9)    ; => 74 (D5, ninth)
+```
+
+### in-scale?
+
+```scheme
+(in-scale? pitch root intervals) -> boolean
+```
+
+Check if a pitch belongs to a scale (in any octave).
+
+```scheme
+(in-scale? e4 c4 scale-major)   ; => #t (E is in C major)
+(in-scale? fs4 c4 scale-major)  ; => #f (F# is not in C major)
+(in-scale? 76 60 scale-major)   ; => #t (E5 is in C major)
+```
+
+### in-scale-named? (helper)
+
+```scheme
+(in-scale-named? pitch root name) -> boolean
+```
+
+Check if a pitch is in a named scale.
+
+```scheme
+(in-scale-named? e4 c4 'major)    ; => #t
+(in-scale-named? fs4 c4 'major)   ; => #f
+```
+
+### quantize-to-scale
+
+```scheme
+(quantize-to-scale pitch root intervals) -> integer
+```
+
+Quantize (snap) a pitch to the nearest tone in a scale.
+
+```scheme
+(quantize-to-scale fs4 c4 scale-major)   ; => 65 (F# -> F or G)
+```
+
+### quantize (helper)
+
+```scheme
+(quantize pitch root name) -> integer
+```
+
+Quantize to a named scale.
+
+```scheme
+(quantize fs4 c4 'major)       ; Snap F# to C major
+(quantize 61 c4 'pentatonic)   ; Snap C# to C pentatonic
+```
+
+### Scale Constants
+
+All scales are available as variables with the `scale-` prefix:
+
+```scheme
+;; Diatonic modes
+scale-major          ; (0 2 4 5 7 9 11)
+scale-dorian         ; (0 2 3 5 7 9 10)
+scale-phrygian       ; (0 1 3 5 7 8 10)
+scale-lydian         ; (0 2 4 6 7 9 11)
+scale-mixolydian     ; (0 2 4 5 7 9 10)
+scale-minor          ; (0 2 3 5 7 8 10)
+scale-locrian        ; (0 1 3 5 6 8 10)
+
+;; Other scales
+scale-harmonic-minor ; (0 2 3 5 7 8 11)
+scale-melodic-minor  ; (0 2 3 5 7 9 11)
+scale-pentatonic     ; (0 2 4 7 9)
+scale-blues          ; (0 3 5 6 7 10)
+scale-whole-tone     ; (0 2 4 6 8 10)
+
+;; Exotic scales
+scale-hungarian-minor
+scale-double-harmonic
+scale-phrygian-dominant
+scale-hirajoshi      ; Japanese
+scale-in-sen         ; Japanese
+
+;; Arabic Maqamat (12-TET approximations)
+scale-maqam-hijaz
+scale-maqam-nahawand
+scale-maqam-nikriz
+
+;; Indian Ragas (12-TET approximations)
+scale-raga-bhairav
+scale-raga-todi
+scale-raga-marwa
+```
+
+See `*scales*` alist for all 55 available scales by name.
+
+---
+
+## Microtonal / Pitch Bend
+
+### midi-pitch-bend
+
+```scheme
+(midi-pitch-bend m cents [channel])
+```
+
+Send a pitch bend message. Cents are relative to the current note.
+
+```scheme
+(midi-pitch-bend m 0)       ; Center (no bend)
+(midi-pitch-bend m 100)     ; Bend up 1 semitone
+(midi-pitch-bend m -50)     ; Bend down quarter tone
+(midi-pitch-bend m 50 2)    ; Quarter tone up on channel 2
+```
+
+### cents-to-note
+
+```scheme
+(cents-to-note root cents) -> pair
+```
+
+Convert a cents interval to a `(note . bend-cents)` pair.
+
+```scheme
+(cents-to-note c4 150)    ; => (61 . 50) - C#4 + 50 cents
+(cents-to-note c4 350)    ; => (63 . 50) - Eb4 + 50 cents
+```
+
+### Microtonal Scale Constants
+
+For scales with quarter tones, use the `-cents` variants:
+
+```scheme
+;; Arabic Maqamat with quarter tones
+scale-maqam-bayati-cents   ; (0 150 300 500 700 800 1000)
+scale-maqam-rast-cents     ; (0 200 350 500 700 900 1050)
+scale-maqam-saba-cents     ; (0 150 300 400 500 700 800)
+scale-maqam-sikah-cents    ; (0 150 350 500 650 850 1000)
+
+;; Turkish Makamlar
+scale-makam-ussak-cents    ; (0 150 300 500 700 800 1000)
+scale-makam-huseyni-cents  ; (0 150 300 500 700 900 1000)
+
+;; Indian 22-Shruti scale
+scale-shruti-cents         ; 22 intervals in cents
+```
+
+### Playing Microtonal Scales
+
+```scheme
+(define m (midi-open))
+
+;; Play Maqam Bayati with quarter tones
+(for-each
+  (lambda (cents)
+    (let ((result (cents-to-note d4 cents)))
+      (midi-pitch-bend m (cdr result))
+      (midi-note m (car result) mf quarter)))
+  scale-maqam-bayati-cents)
+
+(midi-pitch-bend m 0)  ; Reset bend
+(midi-close m)
+```
+
+---
+
 ## Duration Constants
 
 Based on 120 BPM by default. Use `set-tempo!` to change.

@@ -164,6 +164,197 @@ Play a I-IV-V-I progression:
 
 ---
 
+## Scale Examples
+
+### Playing Scales
+
+```scheme
+(define m (midi-open))
+
+;; Play C major scale using helper
+(for-each (lambda (p) (midi-note m p mf eighth))
+          (scale c4 'major))
+
+(rest quarter)
+
+;; Play D dorian scale
+(for-each (lambda (p) (midi-note m p mf eighth))
+          (scale d4 'dorian))
+
+(midi-close m)
+```
+
+### Modal Exploration
+
+Play through all diatonic modes starting on C:
+
+```scheme
+(define m (midi-open))
+
+(define modes '(major dorian phrygian lydian mixolydian minor locrian))
+
+(for-each
+  (lambda (mode)
+    (display mode) (newline)
+    (for-each (lambda (p) (midi-note m p mf sixteenth))
+              (scale c4 mode))
+    (rest quarter))
+  modes)
+
+(midi-close m)
+```
+
+### Using Scale Degrees
+
+Build chords from scale degrees:
+
+```scheme
+(define m (midi-open))
+
+;; Play I-IV-V-I in C major using scale degrees
+(define root c4)
+
+;; I chord (1, 3, 5)
+(midi-chord m (list (degree root 'major 1)
+                    (degree root 'major 3)
+                    (degree root 'major 5)) mf half)
+
+;; IV chord (4, 6, 8)
+(midi-chord m (list (degree root 'major 4)
+                    (degree root 'major 6)
+                    (degree root 'major 8)) mf half)
+
+;; V chord (5, 7, 9)
+(midi-chord m (list (degree root 'major 5)
+                    (degree root 'major 7)
+                    (degree root 'major 9)) mf half)
+
+;; I chord
+(midi-chord m (list (degree root 'major 1)
+                    (degree root 'major 3)
+                    (degree root 'major 5)) f whole)
+
+(midi-close m)
+```
+
+### Scale-Constrained Melody
+
+Quantize random pitches to a scale:
+
+```scheme
+(define m (midi-open))
+
+(define root c4)
+
+;; Generate random pitches and quantize to C pentatonic
+(do ((i 0 (+ i 1)))
+    ((= i 16))
+  (let* ((random-pitch (+ c4 (- (random 25) 12)))
+         (quantized (quantize random-pitch root 'pentatonic)))
+    (midi-note m quantized mf sixteenth)))
+
+(midi-close m)
+```
+
+### Arabic Maqam
+
+Play Maqam Hijaz (12-TET approximation):
+
+```scheme
+(define m (midi-open))
+
+;; Hijaz is similar to Phrygian dominant
+(define hijaz (scale d4 'maqam-hijaz))
+
+;; Ascending
+(for-each (lambda (p) (midi-note m p mf quarter)) hijaz)
+
+;; Add the octave
+(midi-note m d5 mf half)
+
+;; Descending
+(for-each (lambda (p) (midi-note m p mf quarter)) (reverse hijaz))
+
+(midi-close m)
+```
+
+### Microtonal Maqam with Quarter Tones
+
+Play authentic Maqam Bayati with quarter tones:
+
+```scheme
+(define m (midi-open))
+
+(define root d4)
+
+;; Play scale with pitch bend for quarter tones
+(for-each
+  (lambda (cents)
+    (let ((result (cents-to-note root cents)))
+      (midi-pitch-bend m (cdr result))
+      (midi-note m (car result) mf quarter)))
+  scale-maqam-bayati-cents)
+
+;; Add octave
+(midi-pitch-bend m 0)
+(midi-note m (+ root 12) mf half)
+
+(midi-close m)
+```
+
+### Indian Raga
+
+Play Raga Bhairav:
+
+```scheme
+(define m (midi-open))
+
+(define bhairav (scale c4 'raga-bhairav))
+
+;; Aroha (ascending)
+(for-each (lambda (p) (midi-note m p mp quarter)) bhairav)
+(midi-note m c5 mf half)
+
+(rest quarter)
+
+;; Avaroha (descending)
+(for-each (lambda (p) (midi-note m p mf quarter)) (reverse bhairav))
+
+(midi-close m)
+```
+
+### Blues Scale Improvisation
+
+```scheme
+(define m (midi-open))
+(set-tempo! 100)
+
+(define blues (scale c4 'blues))
+
+;; Add octave above for more range
+(define full-blues
+  (append blues (map (lambda (p) (+ p 12)) blues)))
+
+;; Random blues licks
+(do ((bar 0 (+ bar 1)))
+    ((= bar 4))
+  (do ((beat 0 (+ beat 1)))
+      ((= beat 4))
+    (let ((note-count (+ 1 (random 3))))
+      (do ((n 0 (+ n 1)))
+          ((= n note-count))
+        (let ((pitch (list-ref full-blues (random (length full-blues))))
+              (vel (+ 60 (random 40))))
+          (midi-note m pitch vel sixteenth))))))
+
+;; End on the root
+(midi-note m c4 f whole)
+
+(midi-close m)
+```
+
+---
+
 ## Advanced Examples
 
 ### Higher-Order Functions
