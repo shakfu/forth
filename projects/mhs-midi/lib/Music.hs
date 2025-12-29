@@ -84,19 +84,12 @@ module Music (
     -- * Music DSL (pure)
     Music(..),
     Event(..),
-    -- ** Note constructors
+    -- ** Constructors
     note,
-    noteV,
-    noteD,
-    noteVD,
-    restM,
-    -- ** Chord constructors
-    chordM,
-    chordV,
-    chordD,
-    chordVD,
-    -- ** Sequencing
+    rest,
+    chord,
     line,
+    -- ** Combinators
     (+:+),
     (|||),
     timesM,
@@ -106,8 +99,8 @@ module Music (
     softer,
     stretch,
     compress,
-    withChan,
     -- ** Utilities
+    mapEvents,
     collectEvents,
     duration,
 ) where
@@ -425,7 +418,7 @@ scaleShrutiCents = [0, 22, 70, 90, 112, 182, 204, 294, 316, 386, 408,
 
 -- | A musical event (single point in time)
 data Event
-    = ENote Channel Pitch Velocity Duration
+    = ENote Pitch Velocity Duration
     | ERest Duration
     deriving (Eq, Show)
 
@@ -437,56 +430,28 @@ data Music
     deriving (Eq, Show)
 
 ------------------------------------------------------------
--- Note constructors
+-- Constructors
 ------------------------------------------------------------
 
--- | Single note with default velocity (mf) and duration (quarter)
-note :: Pitch -> Music
-note pit = MEvent (ENote defaultChannel pit mf quarter)
+-- | Single note
+note :: Pitch -> Velocity -> Duration -> Music
+note p v d = MEvent (ENote p v d)
 
--- | Note with custom velocity
-noteV :: Velocity -> Pitch -> Music
-noteV v pit = MEvent (ENote defaultChannel pit v quarter)
+-- | Rest (silence)
+rest :: Duration -> Music
+rest d = MEvent (ERest d)
 
--- | Note with custom duration
-noteD :: Duration -> Pitch -> Music
-noteD d pit = MEvent (ENote defaultChannel pit mf d)
+-- | Chord (notes played simultaneously)
+chord :: [Pitch] -> Velocity -> Duration -> Music
+chord ps v d = MPar [note p v d | p <- ps]
 
--- | Note with custom velocity and duration
-noteVD :: Velocity -> Duration -> Pitch -> Music
-noteVD v d pit = MEvent (ENote defaultChannel pit v d)
-
--- | Rest (silence) in Music DSL
-restM :: Duration -> Music
-restM d = MEvent (ERest d)
+-- | Sequence (notes played in order)
+line :: [Pitch] -> Velocity -> Duration -> Music
+line ps v d = MSeq [note p v d | p <- ps]
 
 ------------------------------------------------------------
--- Chord constructors
+-- Combinators
 ------------------------------------------------------------
-
--- | Chord with default velocity and duration
-chordM :: [Pitch] -> Music
-chordM ps = MPar [note pit | pit <- ps]
-
--- | Chord with custom velocity
-chordV :: Velocity -> [Pitch] -> Music
-chordV v ps = MPar [noteV v pit | pit <- ps]
-
--- | Chord with custom duration
-chordD :: Duration -> [Pitch] -> Music
-chordD d ps = MPar [noteD d pit | pit <- ps]
-
--- | Chord with custom velocity and duration
-chordVD :: Velocity -> Duration -> [Pitch] -> Music
-chordVD v d ps = MPar [noteVD v d pit | pit <- ps]
-
-------------------------------------------------------------
--- Sequencing combinators
-------------------------------------------------------------
-
--- | Sequence notes into a melody
-line :: [Pitch] -> Music
-line ps = MSeq [note pit | pit <- ps]
 
 -- | Sequential composition
 (+:+) :: Music -> Music -> Music
@@ -511,14 +476,14 @@ infixr 4 |||
 transpose :: Int -> Music -> Music
 transpose n = mapEvents transposeEvent
   where
-    transposeEvent (ENote ch pit v d) = ENote ch (pit + n) v d
+    transposeEvent (ENote p v d) = ENote (p + n) v d
     transposeEvent ev = ev
 
 -- | Increase velocity by amount
 louder :: Int -> Music -> Music
 louder n = mapEvents louderEvent
   where
-    louderEvent (ENote ch pit v d) = ENote ch pit (clamp (v + n)) d
+    louderEvent (ENote p v d) = ENote p (clamp (v + n)) d
     louderEvent ev = ev
     clamp x = max 0 (min 127 x)
 
@@ -530,22 +495,15 @@ softer n = louder (-n)
 stretch :: Int -> Music -> Music
 stretch factor = mapEvents stretchEvent
   where
-    stretchEvent (ENote ch pit v d) = ENote ch pit v (d * factor)
+    stretchEvent (ENote p v d) = ENote p v (d * factor)
     stretchEvent (ERest d) = ERest (d * factor)
 
 -- | Compress durations by factor (2 = twice as fast)
 compress :: Int -> Music -> Music
 compress factor = mapEvents compressEvent
   where
-    compressEvent (ENote ch pit v d) = ENote ch pit v (d `div` factor)
+    compressEvent (ENote p v d) = ENote p v (d `div` factor)
     compressEvent (ERest d) = ERest (d `div` factor)
-
--- | Set channel for all notes
-withChan :: Channel -> Music -> Music
-withChan ch = mapEvents setChan
-  where
-    setChan (ENote _ pit v d) = ENote ch pit v d
-    setChan ev = ev
 
 -- | Map a function over all events
 mapEvents :: (Event -> Event) -> Music -> Music
@@ -565,7 +523,7 @@ collectEvents (MPar ms) = concatMap collectEvents ms
 
 -- | Calculate total duration of music
 duration :: Music -> Duration
-duration (MEvent (ENote _ _ _ d)) = d
+duration (MEvent (ENote _ _ d)) = d
 duration (MEvent (ERest d)) = d
 duration (MSeq ms) = sum [duration m | m <- ms]
 duration (MPar ms) = maximum (0 : [duration m | m <- ms])

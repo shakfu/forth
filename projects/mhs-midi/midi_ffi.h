@@ -14,7 +14,7 @@ void midi_cleanup(void);
 int midi_list_ports(void);
 
 /* Get port name by index, returns pointer to static buffer */
-const char* midi_port_name(int index);
+char* midi_port_name(int index);
 
 /* Open a MIDI output port by index, returns 0 on success */
 int midi_open(int port_index);
@@ -54,5 +54,10 @@ void midi_sleep(int ms);
 
 /* All notes off on all channels */
 void midi_panic(void);
+
+/* Random number generation */
+void midi_seed_random(int seed);
+int midi_random(void);
+int midi_random_range(int min, int max);
 
 #endif /* MIDI_FFI_H */

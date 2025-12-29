@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #define MAX_PORTS 64
@@ -105,7 +106,7 @@ int midi_list_ports(void) {
     return g_port_count;
 }
 
-const char* midi_port_name(int index) {
+char* midi_port_name(int index) {
     if (index < 0 || index >= g_port_count) {
         return "";
     }
@@ -255,4 +256,26 @@ void midi_panic(void) {
 
 int midi_cents_to_bend(int cents) {
     return music_cents_to_bend(cents);
+}
+
+/* Random number generation */
+static int g_random_initialized = 0;
+
+void midi_seed_random(int seed) {
+    srand((unsigned int)seed);
+    g_random_initialized = 1;
+}
+
+int midi_random(void) {
+    if (!g_random_initialized) {
+        srand((unsigned int)time(NULL));
+        g_random_initialized = 1;
+    }
+    return rand();
+}
+
+int midi_random_range(int min, int max) {
+    if (min >= max) return min;
+    int r = midi_random();
+    return min + (r % (max - min + 1));
 }

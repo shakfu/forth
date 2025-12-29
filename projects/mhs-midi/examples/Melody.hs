@@ -4,13 +4,14 @@ module Melody(main) where
 
 import MusicPerform
 
--- Twinkle Twinkle Little Star melody
-twinkle :: [(Pitch, Duration)]
-twinkle =
-    [ (c4, quarter), (c4, quarter), (g4, quarter), (g4, quarter)
-    , (a4, quarter), (a4, quarter), (g4, half)
-    , (f4, quarter), (f4, quarter), (e4, quarter), (e4, quarter)
-    , (d4, quarter), (d4, quarter), (c4, half)
+-- Twinkle Twinkle Little Star as pure Music
+-- Build from (pitch, duration) pairs
+twinkle :: Velocity -> Music
+twinkle vel = MSeq
+    [ note c4 vel quarter, note c4 vel quarter, note g4 vel quarter, note g4 vel quarter
+    , note a4 vel quarter, note a4 vel quarter, note g4 vel half
+    , note f4 vel quarter, note f4 vel quarter, note e4 vel quarter, note e4 vel quarter
+    , note d4 vel quarter, note d4 vel quarter, note c4 vel half
     ]
 
 main :: IO ()
@@ -24,14 +25,14 @@ main = do
             putStrLn "Playing Twinkle Twinkle Little Star..."
 
             -- Play melody with medium-soft dynamics
-            melody twinkle mp
+            perform (twinkle mp)
 
-            rest quarter
+            midiSleep quarter
 
             -- Play it again louder
             putStrLn "Now louder..."
-            melody twinkle ff
+            perform (twinkle ff)
 
-            rest quarter
+            midiSleep quarter
             putStrLn "Done!"
             midiClose

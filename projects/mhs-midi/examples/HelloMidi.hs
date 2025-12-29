@@ -4,6 +4,11 @@ module HelloMidi(main) where
 
 import MusicPerform
 
+-- C major scale as pure Music
+cMajorScale :: Music
+cMajorScale = line [c4, d4, e4, f4, g4, a4, b4] mf quarter
+          +:+ note c5 mf half
+
 main :: IO ()
 main = do
     putStrLn "MHS-MIDI: Hello MIDI Example"
@@ -16,17 +21,10 @@ main = do
             putStrLn "Virtual MIDI port 'mhsMIDI' opened"
             putStrLn "Playing C major scale..."
 
-            -- Play C major scale
-            playNote c4 quarter
-            playNote d4 quarter
-            playNote e4 quarter
-            playNote f4 quarter
-            playNote g4 quarter
-            playNote a4 quarter
-            playNote b4 quarter
-            playNote c5 half
+            -- Perform the pure Music
+            perform cMajorScale
 
-            rest quarter
+            midiSleep quarter
 
             putStrLn "Done!"
             midiClose

@@ -4,11 +4,18 @@ module Chords(main) where
 
 import MusicPerform
 
--- Define some common chords
-cMajor, fMajor, gMajor :: [Pitch]
-cMajor = [c4, e4, g4]      -- C major: C E G
-fMajor = [f4, a4, c5]      -- F major: F A C
-gMajor = [g4, b4, d5]      -- G major: G B D
+-- Define chords as pure Music
+cMajorChord, fMajorChord, gMajorChord :: Music
+cMajorChord = chord [c4, e4, g4] mf half   -- C major: C E G
+fMajorChord = chord [f4, a4, c5] mf half   -- F major: F A C
+gMajorChord = chord [g4, b4, d5] mf half   -- G major: G B D
+
+-- I-IV-V-I progression as pure Music
+progression :: Music
+progression = cMajorChord
+          +:+ fMajorChord
+          +:+ gMajorChord
+          +:+ chord [c4, e4, g4] mf whole  -- final I chord (whole note)
 
 main :: IO ()
 main = do
@@ -20,12 +27,9 @@ main = do
         else do
             putStrLn "Playing I-IV-V-I progression..."
 
-            -- I-IV-V-I progression
-            chord cMajor half       -- I  (C major)
-            chord fMajor half       -- IV (F major)
-            chord gMajor half       -- V  (G major)
-            chord cMajor whole      -- I  (C major)
+            -- Perform the pure Music
+            perform progression
 
-            rest quarter
+            midiSleep quarter
             putStrLn "Done!"
             midiClose

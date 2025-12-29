@@ -23,6 +23,11 @@ module Midi (
 
     -- * Microtonal helper
     midiCentsToBend,
+
+    -- * Random
+    midiSeedRandom,
+    midiRandom,
+    midiRandomRange,
 ) where
 
 import Foreign.C.Types
@@ -47,6 +52,9 @@ foreign import ccall "midi_ffi.h midi_pitch_bend" c_midi_pitch_bend :: CInt -> C
 foreign import ccall "midi_ffi.h midi_cents_to_bend" c_midi_cents_to_bend :: CInt -> IO CInt
 foreign import ccall "midi_ffi.h midi_sleep" c_midi_sleep :: CInt -> IO ()
 foreign import ccall "midi_ffi.h midi_panic" c_midi_panic :: IO ()
+foreign import ccall "midi_ffi.h midi_seed_random" c_midi_seed_random :: CInt -> IO ()
+foreign import ccall "midi_ffi.h midi_random" c_midi_random :: IO CInt
+foreign import ccall "midi_ffi.h midi_random_range" c_midi_random_range :: CInt -> CInt -> IO CInt
 
 -----------------------------------------------------------
 -- MIDI initialization and port management
@@ -151,4 +159,24 @@ midiPanic = c_midi_panic
 midiCentsToBend :: Int -> IO Int
 midiCentsToBend cents = do
     r <- c_midi_cents_to_bend (fromIntegral cents)
+    return (fromIntegral r)
+
+-----------------------------------------------------------
+-- Random number generation
+-----------------------------------------------------------
+
+-- | Seed the random number generator
+midiSeedRandom :: Int -> IO ()
+midiSeedRandom seed = c_midi_seed_random (fromIntegral seed)
+
+-- | Get a random integer
+midiRandom :: IO Int
+midiRandom = do
+    r <- c_midi_random
+    return (fromIntegral r)
+
+-- | Get a random integer in range [min, max]
+midiRandomRange :: Int -> Int -> IO Int
+midiRandomRange minVal maxVal = do
+    r <- c_midi_random_range (fromIntegral minVal) (fromIntegral maxVal)
     return (fromIntegral r)

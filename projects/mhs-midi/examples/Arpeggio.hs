@@ -3,18 +3,24 @@ module Arpeggio(main) where
 
 import MusicPerform
 
--- Chord arpeggios
-cMajorArp, aminorArp, fMajorArp, gMajorArp :: [Pitch]
-cMajorArp = [c4, e4, g4, c5]          -- C major arpeggio
-aminorArp = [a3, c4, e4, a4]          -- A minor arpeggio
-fMajorArp = [f3, a3, c4, f4]          -- F major arpeggio
-gMajorArp = [g3, b3, d4, g4]          -- G major arpeggio
+-- Chord notes
+cMajorNotes, aminorNotes, fMajorNotes, gMajorNotes :: [Pitch]
+cMajorNotes = [c4, e4, g4, c5]          -- C major arpeggio
+aminorNotes = [a3, c4, e4, a4]          -- A minor arpeggio
+fMajorNotes = [f3, a3, c4, f4]          -- F major arpeggio
+gMajorNotes = [g3, b3, d4, g4]          -- G major arpeggio
 
--- Play arpeggio up then down
-arpeggioUpDown :: [Pitch] -> IO ()
-arpeggioUpDown notes = do
-    arpeggio notes sixteenth mf            -- Up
-    arpeggio (reverse notes) sixteenth mf  -- Down
+-- Arpeggio up then down as pure Music
+arpeggioUpDown :: [Pitch] -> Music
+arpeggioUpDown notes = line notes mf sixteenth
+                   +:+ line (reverse notes) mf sixteenth
+
+-- Full progression as pure Music
+arpeggioProgression :: Music
+arpeggioProgression = arpeggioUpDown cMajorNotes
+                  +:+ arpeggioUpDown aminorNotes
+                  +:+ arpeggioUpDown fMajorNotes
+                  +:+ arpeggioUpDown gMajorNotes
 
 main :: IO ()
 main = do
@@ -26,13 +32,9 @@ main = do
         else do
             putStrLn "Playing arpeggiated chord progression..."
 
-            -- Repeat the progression 2 times
-            times 2 $ do
-                arpeggioUpDown cMajorArp
-                arpeggioUpDown aminorArp
-                arpeggioUpDown fMajorArp
-                arpeggioUpDown gMajorArp
+            -- Play progression twice using timesM
+            perform (timesM 2 arpeggioProgression)
 
-            rest quarter
+            midiSleep quarter
             putStrLn "Done!"
             midiClose
