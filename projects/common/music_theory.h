@@ -152,6 +152,27 @@ extern const int SCALE_ROMANIAN_MINOR[]; /* [0, 2, 3, 6, 7, 9, 10] */
 extern const int SCALE_SPANISH_8_TONE[]; /* [0, 1, 3, 4, 5, 6, 8, 10] */
 extern const int SCALE_ENIGMATIC[];      /* [0, 1, 4, 6, 8, 10, 11] */
 
+/* Arabic Maqamat (12-TET approximations) */
+extern const int SCALE_MAQAM_HIJAZ[];      /* [0, 1, 4, 5, 7, 8, 10] */
+extern const int SCALE_MAQAM_NAHAWAND[];   /* [0, 2, 3, 5, 7, 8, 11] */
+extern const int SCALE_MAQAM_NIKRIZ[];     /* [0, 2, 3, 6, 7, 9, 10] */
+extern const int SCALE_MAQAM_ATHAR_KURD[]; /* [0, 1, 3, 5, 6, 8, 10] */
+extern const int SCALE_MAQAM_SHAWQ_AFZA[]; /* [0, 2, 3, 6, 7, 9, 11] */
+extern const int SCALE_MAQAM_JIHARKAH[];   /* [0, 2, 4, 5, 7, 9, 10] - approx */
+
+/* Indian Ragas (12-TET approximations) */
+extern const int SCALE_RAGA_BHAIRAV[];     /* [0, 1, 4, 5, 7, 8, 11] */
+extern const int SCALE_RAGA_TODI[];        /* [0, 1, 3, 6, 7, 8, 11] */
+extern const int SCALE_RAGA_MARWA[];       /* [0, 1, 4, 6, 7, 9, 11] */
+extern const int SCALE_RAGA_PURVI[];       /* [0, 1, 4, 6, 7, 8, 11] */
+extern const int SCALE_RAGA_CHARUKESHI[];  /* [0, 2, 4, 5, 7, 8, 10] */
+extern const int SCALE_RAGA_ASAVARI[];     /* [0, 2, 3, 5, 7, 8, 10] - same as minor */
+extern const int SCALE_RAGA_BILAWAL[];     /* [0, 2, 4, 5, 7, 9, 11] - same as major */
+extern const int SCALE_RAGA_KHAMAJ[];      /* [0, 2, 4, 5, 7, 9, 10] */
+extern const int SCALE_RAGA_KALYAN[];      /* [0, 2, 4, 6, 7, 9, 11] - same as lydian */
+extern const int SCALE_RAGA_BHIMPALASI[];  /* [0, 3, 5, 7, 10] - pentatonic */
+extern const int SCALE_RAGA_DARBARI[];     /* [0, 2, 3, 5, 7, 8, 9] */
+
 /* Scale sizes */
 #define SCALE_DIATONIC_SIZE    7
 #define SCALE_PENTATONIC_SIZE  5
@@ -215,6 +236,99 @@ int music_in_scale(int pitch, int root, const int* intervals, int num_notes);
  * Returns: Nearest pitch that belongs to the scale
  */
 int music_quantize_to_scale(int pitch, int root, const int* intervals, int num_notes);
+
+/* ============================================================================
+ * Microtonal Scales (Cents-Based)
+ * ============================================================================
+ *
+ * For scales with quarter tones or other microtonal intervals, we use cents.
+ * 100 cents = 1 semitone, 50 cents = quarter tone.
+ *
+ * These scales require pitch bend for accurate playback:
+ *   - Calculate base MIDI note (cents / 100)
+ *   - Apply pitch bend for the fractional part
+ */
+
+/* Arabic Maqamat with quarter tones (cents) */
+extern const int SCALE_MAQAM_BAYATI_CENTS[];    /* 0, 150, 300, 500, 700, 800, 1000 */
+extern const int SCALE_MAQAM_RAST_CENTS[];      /* 0, 200, 350, 500, 700, 900, 1050 */
+extern const int SCALE_MAQAM_SABA_CENTS[];      /* 0, 150, 300, 400, 500, 700, 800 */
+extern const int SCALE_MAQAM_SIKAH_CENTS[];     /* 0, 150, 350, 500, 650, 850, 1000 */
+extern const int SCALE_MAQAM_HUZAM_CENTS[];     /* 0, 150, 350, 500, 700, 850, 1050 */
+extern const int SCALE_MAQAM_IRAQ_CENTS[];      /* 0, 150, 350, 500, 700, 850, 1000 */
+extern const int SCALE_MAQAM_BASTANIKAR_CENTS[];/* 0, 150, 350, 500, 700, 800, 1000 */
+
+/* Turkish Makamlar with commas (cents) */
+extern const int SCALE_MAKAM_USSAK_CENTS[];     /* 0, 150, 300, 500, 700, 800, 1000 */
+extern const int SCALE_MAKAM_HUSEYNI_CENTS[];   /* 0, 150, 300, 500, 700, 900, 1000 */
+
+/* Indian Shrutis - 22-shruti scale (cents, subset shown) */
+extern const int SCALE_SHRUTI_CENTS[];          /* 22 intervals in cents */
+#define SCALE_SHRUTI_SIZE 22
+
+/* Microtonal helper constants */
+#define CENTS_PER_SEMITONE   100
+#define CENTS_PER_QUARTERTONE 50
+#define CENTS_PER_OCTAVE    1200
+
+/*
+ * Microtonal note representation.
+ * Combines MIDI note with pitch bend offset for sub-semitone accuracy.
+ */
+typedef struct {
+    int midi_note;     /* Base MIDI note (0-127) */
+    int bend_cents;    /* Pitch bend in cents (-100 to +100) */
+} MicrotonalNote;
+
+/*
+ * Convert cents interval to a microtonal note.
+ *
+ * Parameters:
+ *   root_midi - Root MIDI note (0-127)
+ *   cents     - Interval in cents from root
+ *
+ * Returns: MicrotonalNote with base MIDI note and bend offset
+ */
+MicrotonalNote music_cents_to_note(int root_midi, int cents);
+
+/*
+ * Calculate pitch bend value for a cents offset.
+ * Assumes standard +/- 2 semitone bend range.
+ *
+ * Parameters:
+ *   cents - Cents offset (-200 to +200 for standard bend range)
+ *
+ * Returns: MIDI pitch bend value (0-16383, center = 8192)
+ */
+int music_cents_to_bend(int cents);
+
+/*
+ * Build a microtonal scale with pitch bend values.
+ *
+ * Parameters:
+ *   root_midi   - Root MIDI note (0-127)
+ *   cents       - Array of intervals in cents
+ *   num_notes   - Number of notes in scale
+ *   out_notes   - Output array of MicrotonalNote (must be at least num_notes)
+ *
+ * Returns: Number of valid notes written
+ */
+int music_build_microtonal_scale(int root_midi, const int* cents, int num_notes,
+                                  MicrotonalNote* out_notes);
+
+/*
+ * Get a specific degree from a microtonal scale.
+ *
+ * Parameters:
+ *   root_midi - Root MIDI note
+ *   cents     - Array of intervals in cents
+ *   num_notes - Number of notes in scale
+ *   degree    - Scale degree (1-based)
+ *
+ * Returns: MicrotonalNote for the degree
+ */
+MicrotonalNote music_microtonal_degree(int root_midi, const int* cents,
+                                        int num_notes, int degree);
 
 /* ============================================================================
  * Dynamics (Velocity Constants)

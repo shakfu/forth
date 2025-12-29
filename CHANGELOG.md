@@ -22,6 +22,18 @@ All notable changes to midi-langs are documented in this file.
     - Exotic: `SCALE_HUNGARIAN_MINOR`, `SCALE_DOUBLE_HARMONIC`, `SCALE_NEAPOLITAN_MAJOR`, `SCALE_NEAPOLITAN_MINOR`, `SCALE_PHRYGIAN_DOMINANT`, `SCALE_PERSIAN`, `SCALE_ALTERED`, `SCALE_ENIGMATIC`
     - Japanese: `SCALE_HIRAJOSHI`, `SCALE_IN_SEN`, `SCALE_IWATO`, `SCALE_KUMOI`
     - World: `SCALE_BLUES`, `SCALE_EGYPTIAN`, `SCALE_ROMANIAN_MINOR`, `SCALE_SPANISH_8_TONE`
+    - Arabic Maqamat (12-TET): `SCALE_MAQAM_HIJAZ`, `SCALE_MAQAM_NAHAWAND`, `SCALE_MAQAM_NIKRIZ`, `SCALE_MAQAM_ATHAR_KURD`, `SCALE_MAQAM_SHAWQ_AFZA`, `SCALE_MAQAM_JIHARKAH`
+    - Indian Ragas (12-TET): `SCALE_RAGA_BHAIRAV`, `SCALE_RAGA_TODI`, `SCALE_RAGA_MARWA`, `SCALE_RAGA_PURVI`, `SCALE_RAGA_CHARUKESHI`, `SCALE_RAGA_ASAVARI`, `SCALE_RAGA_BILAWAL`, `SCALE_RAGA_KHAMAJ`, `SCALE_RAGA_KALYAN`, `SCALE_RAGA_BHIMPALASI`, `SCALE_RAGA_DARBARI`
+  - Microtonal scales (cents-based, for quarter tones and other microtonal intervals):
+    - Arabic Maqamat: `SCALE_MAQAM_BAYATI_CENTS`, `SCALE_MAQAM_RAST_CENTS`, `SCALE_MAQAM_SABA_CENTS`, `SCALE_MAQAM_SIKAH_CENTS`, `SCALE_MAQAM_HUZAM_CENTS`, `SCALE_MAQAM_IRAQ_CENTS`, `SCALE_MAQAM_BASTANIKAR_CENTS`
+    - Turkish Makamlar: `SCALE_MAKAM_USSAK_CENTS`, `SCALE_MAKAM_HUSEYNI_CENTS`
+    - Indian: `SCALE_SHRUTI_CENTS` (22-shruti scale)
+  - Microtonal functions:
+    - `MicrotonalNote` struct - combines MIDI note with pitch bend offset
+    - `music_cents_to_note()` - convert cents interval to MIDI note + bend
+    - `music_cents_to_bend()` - convert cents offset to MIDI pitch bend value
+    - `music_build_microtonal_scale()` - build scale with pitch bend values
+    - `music_microtonal_degree()` - get nth degree of a microtonal scale
   - Scale functions:
     - `music_build_scale()` - build scale pitches from root + intervals
     - `music_scale_degree()` - get nth degree of a scale (supports extended degrees like 9, 11, 13)

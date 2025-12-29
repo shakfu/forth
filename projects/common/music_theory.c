@@ -180,6 +180,72 @@ const int SCALE_ROMANIAN_MINOR[] = {0, 2, 3, 6, 7, 9, 10};
 const int SCALE_SPANISH_8_TONE[] = {0, 1, 3, 4, 5, 6, 8, 10};
 const int SCALE_ENIGMATIC[]      = {0, 1, 4, 6, 8, 10, 11};
 
+/* Arabic Maqamat (12-TET approximations) */
+const int SCALE_MAQAM_HIJAZ[]      = {0, 1, 4, 5, 7, 8, 10};
+const int SCALE_MAQAM_NAHAWAND[]   = {0, 2, 3, 5, 7, 8, 11};
+const int SCALE_MAQAM_NIKRIZ[]     = {0, 2, 3, 6, 7, 9, 10};
+const int SCALE_MAQAM_ATHAR_KURD[] = {0, 1, 3, 5, 6, 8, 10};
+const int SCALE_MAQAM_SHAWQ_AFZA[] = {0, 2, 3, 6, 7, 9, 11};
+const int SCALE_MAQAM_JIHARKAH[]   = {0, 2, 4, 5, 7, 9, 10};
+
+/* Indian Ragas (12-TET approximations) */
+const int SCALE_RAGA_BHAIRAV[]     = {0, 1, 4, 5, 7, 8, 11};
+const int SCALE_RAGA_TODI[]        = {0, 1, 3, 6, 7, 8, 11};
+const int SCALE_RAGA_MARWA[]       = {0, 1, 4, 6, 7, 9, 11};
+const int SCALE_RAGA_PURVI[]       = {0, 1, 4, 6, 7, 8, 11};
+const int SCALE_RAGA_CHARUKESHI[]  = {0, 2, 4, 5, 7, 8, 10};
+const int SCALE_RAGA_ASAVARI[]     = {0, 2, 3, 5, 7, 8, 10};
+const int SCALE_RAGA_BILAWAL[]     = {0, 2, 4, 5, 7, 9, 11};
+const int SCALE_RAGA_KHAMAJ[]      = {0, 2, 4, 5, 7, 9, 10};
+const int SCALE_RAGA_KALYAN[]      = {0, 2, 4, 6, 7, 9, 11};
+const int SCALE_RAGA_BHIMPALASI[]  = {0, 3, 5, 7, 10};
+const int SCALE_RAGA_DARBARI[]     = {0, 2, 3, 5, 7, 8, 9};
+
+/* ============================================================================
+ * Microtonal Scales (Cents-Based)
+ * ============================================================================ */
+
+/* Arabic Maqamat with quarter tones (cents) */
+const int SCALE_MAQAM_BAYATI_CENTS[]     = {0, 150, 300, 500, 700, 800, 1000};
+const int SCALE_MAQAM_RAST_CENTS[]       = {0, 200, 350, 500, 700, 900, 1050};
+const int SCALE_MAQAM_SABA_CENTS[]       = {0, 150, 300, 400, 500, 700, 800};
+const int SCALE_MAQAM_SIKAH_CENTS[]      = {0, 150, 350, 500, 650, 850, 1000};
+const int SCALE_MAQAM_HUZAM_CENTS[]      = {0, 150, 350, 500, 700, 850, 1050};
+const int SCALE_MAQAM_IRAQ_CENTS[]       = {0, 150, 350, 500, 700, 850, 1000};
+const int SCALE_MAQAM_BASTANIKAR_CENTS[] = {0, 150, 350, 500, 700, 800, 1000};
+
+/* Turkish Makamlar with commas (cents) */
+const int SCALE_MAKAM_USSAK_CENTS[]   = {0, 150, 300, 500, 700, 800, 1000};
+const int SCALE_MAKAM_HUSEYNI_CENTS[] = {0, 150, 300, 500, 700, 900, 1000};
+
+/* Indian 22-Shruti scale (cents from Sa)
+ * Traditional Indian music divides the octave into 22 shrutis
+ */
+const int SCALE_SHRUTI_CENTS[] = {
+    0,    /* Sa  - tonic */
+    90,   /* ri  - minor second (low) */
+    112,  /* Ri  - minor second (high) */
+    182,  /* ri  - major second (low) */
+    204,  /* Ri  - major second (high) */
+    294,  /* ga  - minor third (low) */
+    316,  /* Ga  - minor third (high) */
+    386,  /* ga  - major third (low) */
+    408,  /* Ga  - major third (high) */
+    498,  /* Ma  - perfect fourth */
+    520,  /* ma  - fourth (high) */
+    590,  /* Ma# - augmented fourth (low) */
+    612,  /* Ma# - augmented fourth (high) */
+    702,  /* Pa  - perfect fifth */
+    792,  /* dha - minor sixth (low) */
+    814,  /* Dha - minor sixth (high) */
+    884,  /* dha - major sixth (low) */
+    906,  /* Dha - major sixth (high) */
+    996,  /* ni  - minor seventh (low) */
+    1018, /* Ni  - minor seventh (high) */
+    1088, /* ni  - major seventh (low) */
+    1110  /* Ni  - major seventh (high) */
+};
+
 /* ============================================================================
  * Scale Functions
  * ============================================================================ */
@@ -268,6 +334,101 @@ int music_quantize_to_scale(int pitch, int root, const int* intervals, int num_n
     }
 
     return best_pitch;
+}
+
+/* ============================================================================
+ * Microtonal Functions
+ * ============================================================================ */
+
+MicrotonalNote music_cents_to_note(int root_midi, int cents) {
+    MicrotonalNote note;
+
+    /* Handle negative cents (going down from root) */
+    int total_cents = cents;
+    if (total_cents < 0) {
+        /* Normalize to positive by subtracting octaves */
+        int octaves_down = (-total_cents / 1200) + 1;
+        total_cents += octaves_down * 1200;
+        root_midi -= octaves_down * 12;
+    }
+
+    /* Calculate semitones and remaining cents */
+    int semitones = total_cents / 100;
+    int remainder = total_cents % 100;
+
+    /* Round to nearest semitone if remainder > 50 cents */
+    if (remainder > 50) {
+        semitones++;
+        remainder -= 100;  /* negative bend */
+    }
+
+    note.midi_note = root_midi + semitones;
+    note.bend_cents = remainder;
+
+    /* Clamp MIDI note to valid range */
+    if (note.midi_note < 0) {
+        note.midi_note = 0;
+        note.bend_cents = 0;
+    } else if (note.midi_note > 127) {
+        note.midi_note = 127;
+        note.bend_cents = 0;
+    }
+
+    return note;
+}
+
+int music_cents_to_bend(int cents) {
+    /*
+     * Standard MIDI pitch bend range is +/- 2 semitones (200 cents).
+     * Pitch bend is 14-bit: 0-16383, with 8192 as center (no bend).
+     *
+     * For +/- 2 semitone range:
+     *   bend = 8192 + (cents * 8192 / 200)
+     *   bend = 8192 + (cents * 40.96)
+     */
+    int bend = 8192 + (cents * 8192) / 200;
+
+    /* Clamp to valid range */
+    if (bend < 0) bend = 0;
+    if (bend > 16383) bend = 16383;
+
+    return bend;
+}
+
+int music_build_microtonal_scale(int root_midi, const int* cents, int num_notes,
+                                  MicrotonalNote* out_notes) {
+    if (cents == NULL || out_notes == NULL || num_notes <= 0) return 0;
+    if (root_midi < 0 || root_midi > 127) return 0;
+
+    int valid_count = 0;
+    for (int i = 0; i < num_notes; i++) {
+        MicrotonalNote note = music_cents_to_note(root_midi, cents[i]);
+        if (note.midi_note >= 0 && note.midi_note <= 127) {
+            out_notes[valid_count++] = note;
+        }
+    }
+
+    return valid_count;
+}
+
+MicrotonalNote music_microtonal_degree(int root_midi, const int* cents,
+                                        int num_notes, int degree) {
+    MicrotonalNote note = {-1, 0};
+
+    if (cents == NULL || num_notes <= 0 || degree < 1) return note;
+    if (root_midi < 0 || root_midi > 127) return note;
+
+    /* Convert 1-based degree to 0-based index */
+    int index = degree - 1;
+
+    /* Calculate octave offset and scale index */
+    int octaves = index / num_notes;
+    int scale_index = index % num_notes;
+
+    /* Get cents for this degree, adding octaves */
+    int total_cents = cents[scale_index] + (octaves * 1200);
+
+    return music_cents_to_note(root_midi, total_cents);
 }
 
 /* ============================================================================
