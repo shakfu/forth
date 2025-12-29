@@ -66,6 +66,153 @@ function midi.rest(dur)
   midi.sleep(dur or midi.quarter)
 end
 
+-- Scale intervals (semitones from root)
+midi.scales = {
+  -- Diatonic modes
+  major = {0, 2, 4, 5, 7, 9, 11},
+  ionian = {0, 2, 4, 5, 7, 9, 11},
+  dorian = {0, 2, 3, 5, 7, 9, 10},
+  phrygian = {0, 1, 3, 5, 7, 8, 10},
+  lydian = {0, 2, 4, 6, 7, 9, 11},
+  mixolydian = {0, 2, 4, 5, 7, 9, 10},
+  minor = {0, 2, 3, 5, 7, 8, 10},
+  aeolian = {0, 2, 3, 5, 7, 8, 10},
+  locrian = {0, 1, 3, 5, 6, 8, 10},
+
+  -- Other minor scales
+  harmonic_minor = {0, 2, 3, 5, 7, 8, 11},
+  melodic_minor = {0, 2, 3, 5, 7, 9, 11},
+
+  -- Pentatonic
+  pentatonic = {0, 2, 4, 7, 9},
+  pentatonic_major = {0, 2, 4, 7, 9},
+  pentatonic_minor = {0, 3, 5, 7, 10},
+
+  -- Blues
+  blues = {0, 3, 5, 6, 7, 10},
+
+  -- Symmetric
+  whole_tone = {0, 2, 4, 6, 8, 10},
+  chromatic = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11},
+  diminished_hw = {0, 1, 3, 4, 6, 7, 9, 10},
+  diminished_wh = {0, 2, 3, 5, 6, 8, 9, 11},
+  augmented = {0, 3, 4, 7, 8, 11},
+
+  -- Bebop
+  bebop_dominant = {0, 2, 4, 5, 7, 9, 10, 11},
+  bebop_major = {0, 2, 4, 5, 7, 8, 9, 11},
+  bebop_minor = {0, 2, 3, 5, 7, 8, 9, 10},
+
+  -- Exotic/World
+  hungarian_minor = {0, 2, 3, 6, 7, 8, 11},
+  double_harmonic = {0, 1, 4, 5, 7, 8, 11},
+  neapolitan_major = {0, 1, 3, 5, 7, 9, 11},
+  neapolitan_minor = {0, 1, 3, 5, 7, 8, 11},
+  phrygian_dominant = {0, 1, 4, 5, 7, 8, 10},
+  persian = {0, 1, 4, 5, 6, 8, 11},
+  altered = {0, 1, 3, 4, 6, 8, 10},
+  enigmatic = {0, 1, 4, 6, 8, 10, 11},
+
+  -- Japanese
+  hirajoshi = {0, 2, 3, 7, 8},
+  in_sen = {0, 1, 5, 7, 10},
+  iwato = {0, 1, 5, 6, 10},
+  kumoi = {0, 2, 3, 7, 9},
+
+  -- Other world scales
+  egyptian = {0, 2, 5, 7, 10},
+  romanian_minor = {0, 2, 3, 6, 7, 9, 10},
+  spanish_8_tone = {0, 1, 3, 4, 5, 6, 8, 10},
+
+  -- Arabic Maqamat (12-TET approximations)
+  maqam_hijaz = {0, 1, 4, 5, 7, 8, 10},
+  maqam_nahawand = {0, 2, 3, 5, 7, 8, 11},
+  maqam_nikriz = {0, 2, 3, 6, 7, 9, 10},
+  maqam_athar_kurd = {0, 1, 3, 5, 6, 8, 10},
+  maqam_shawq_afza = {0, 2, 3, 6, 7, 9, 11},
+  maqam_jiharkah = {0, 2, 4, 5, 7, 9, 10},
+
+  -- Indian Ragas (12-TET approximations)
+  raga_bhairav = {0, 1, 4, 5, 7, 8, 11},
+  raga_todi = {0, 1, 3, 6, 7, 8, 11},
+  raga_marwa = {0, 1, 4, 6, 7, 9, 11},
+  raga_purvi = {0, 1, 4, 6, 7, 8, 11},
+  raga_charukeshi = {0, 2, 4, 5, 7, 8, 10},
+  raga_asavari = {0, 2, 3, 5, 7, 8, 10},
+  raga_bilawal = {0, 2, 4, 5, 7, 9, 11},
+  raga_khamaj = {0, 2, 4, 5, 7, 9, 10},
+  raga_kalyan = {0, 2, 4, 6, 7, 9, 11},
+  raga_bhimpalasi = {0, 3, 5, 7, 10},
+  raga_darbari = {0, 2, 3, 5, 7, 8, 9},
+}
+
+-- Microtonal scales (cents-based, for use with pitch_bend)
+midi.scales_cents = {
+  -- Arabic Maqamat with quarter tones
+  maqam_bayati = {0, 150, 300, 500, 700, 800, 1000},
+  maqam_rast = {0, 200, 350, 500, 700, 900, 1050},
+  maqam_saba = {0, 150, 300, 400, 500, 700, 800},
+  maqam_sikah = {0, 150, 350, 500, 650, 850, 1000},
+  maqam_huzam = {0, 150, 350, 500, 700, 850, 1050},
+  maqam_iraq = {0, 150, 350, 500, 700, 850, 1000},
+  maqam_bastanikar = {0, 150, 350, 500, 700, 800, 1000},
+
+  -- Turkish Makamlar
+  makam_ussak = {0, 150, 300, 500, 700, 800, 1000},
+  makam_huseyni = {0, 150, 300, 500, 700, 900, 1000},
+
+  -- Indian 22-Shruti scale
+  shruti = {0, 90, 112, 182, 204, 294, 316, 386, 408, 498, 520, 590,
+            612, 702, 792, 814, 884, 906, 996, 1018, 1088, 1110},
+}
+
+-- Helper: convert cents interval to note + bend
+function midi.cents_to_note(root, cents)
+  local semitones = math.floor(cents / 100)
+  local bend_cents = cents % 100
+  if bend_cents > 50 then
+    semitones = semitones + 1
+    bend_cents = bend_cents - 100
+  end
+  return root + semitones, bend_cents
+end
+
+-- Helper: build scale with name lookup
+function scale(root, name)
+  local intervals = midi.scales[name]
+  if not intervals then
+    error('Unknown scale: ' .. tostring(name))
+  end
+  return midi.build_scale(root, intervals)
+end
+
+-- Helper: get scale degree with name lookup
+function degree(root, name, deg)
+  local intervals = midi.scales[name]
+  if not intervals then
+    error('Unknown scale: ' .. tostring(name))
+  end
+  return midi.scale_degree(root, intervals, deg)
+end
+
+-- Helper: check if pitch is in named scale
+function in_scale(pitch, root, name)
+  local intervals = midi.scales[name]
+  if not intervals then
+    error('Unknown scale: ' .. tostring(name))
+  end
+  return midi.in_scale(pitch, root, intervals)
+end
+
+-- Helper: quantize to named scale
+function quantize(pitch, root, name)
+  local intervals = midi.scales[name]
+  if not intervals then
+    error('Unknown scale: ' .. tostring(name))
+  end
+  return midi.quantize(pitch, root, intervals)
+end
+
 -- Global aliases for concise syntax
 -- Pitch constants as globals
 for oct = 0, 8 do

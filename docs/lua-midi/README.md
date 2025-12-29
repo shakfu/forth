@@ -8,7 +8,10 @@ A Lua-based MIDI language using [Lua 5.5](https://www.lua.org/), providing a fam
 - Concise syntax with global pitch/duration/dynamic constants
 - Object-oriented MIDI port interface
 - Musical abstractions: pitches, durations, velocities, chords
-- Low-level MIDI control: note on/off, CC, program change
+- **55 built-in scales** (modes, pentatonics, blues, exotic, Arabic Maqamat, Indian Ragas)
+- **10 microtonal scales** with quarter-tone support via pitch bend
+- Scale functions: build scales, get degrees, quantize pitches
+- Low-level MIDI control: note on/off, CC, program change, pitch bend
 - Virtual and hardware MIDI port support
 - Chord builders and transpose helpers
 - Tempo-aware duration constants
@@ -131,11 +134,16 @@ whole, half, quarter, eighth, sixteenth
 -- Chord builders
 major, minor, dim, aug, dom7, maj7, min7
 
+-- Scale helpers
+scale(c4, "major")       -- Build C major scale
+degree(c4, "dorian", 5)  -- Get 5th degree of C dorian
+quantize(66, c4, "major") -- Snap pitch to C major
+
 -- Utilities
 transpose, octave_up, octave_down, dotted, rest, sleep
 ```
 
-The `midi.` prefix also works: `midi.c4`, `midi.mf`, etc.
+The `midi.` prefix also works: `midi.c4`, `midi.mf`, `midi.scales.major`, etc.
 
 ## REPL Tips
 

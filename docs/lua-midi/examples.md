@@ -172,6 +172,225 @@ m:close()
 
 ---
 
+## Scale Examples
+
+### Playing Scales
+
+```lua
+m = midi.open()
+
+-- Play C major scale using helper
+for _, pitch in ipairs(scale(c4, "major")) do
+    m:note(pitch, mf, eighth)
+end
+
+rest(quarter)
+
+-- Play D dorian scale
+for _, pitch in ipairs(scale(d4, "dorian")) do
+    m:note(pitch, mf, eighth)
+end
+
+m:close()
+```
+
+### Modal Exploration
+
+Play through all diatonic modes starting on C:
+
+```lua
+m = midi.open()
+
+local modes = {"major", "dorian", "phrygian", "lydian", "mixolydian", "minor", "locrian"}
+
+for _, mode in ipairs(modes) do
+    print("Playing " .. mode)
+    for _, pitch in ipairs(scale(c4, mode)) do
+        m:note(pitch, mf, sixteenth)
+    end
+    rest(quarter)
+end
+
+m:close()
+```
+
+### Using Scale Degrees
+
+Build chords from scale degrees:
+
+```lua
+m = midi.open()
+
+-- Play I-IV-V-I in C major using scale degrees
+local root = c4
+
+-- I chord (1, 3, 5)
+m:chord({
+    degree(root, "major", 1),
+    degree(root, "major", 3),
+    degree(root, "major", 5)
+}, mf, half)
+
+-- IV chord (4, 6, 8)
+m:chord({
+    degree(root, "major", 4),
+    degree(root, "major", 6),
+    degree(root, "major", 8)
+}, mf, half)
+
+-- V chord (5, 7, 9)
+m:chord({
+    degree(root, "major", 5),
+    degree(root, "major", 7),
+    degree(root, "major", 9)
+}, mf, half)
+
+-- I chord
+m:chord({
+    degree(root, "major", 1),
+    degree(root, "major", 3),
+    degree(root, "major", 5)
+}, f, whole)
+
+m:close()
+```
+
+### Scale-Constrained Melody
+
+Quantize random pitches to a scale:
+
+```lua
+m = midi.open()
+
+local root = c4
+
+-- Generate random pitches and quantize to C pentatonic
+for i = 1, 16 do
+    local random_pitch = c4 + math.random(-12, 12)
+    local quantized = quantize(random_pitch, root, "pentatonic")
+    m:note(quantized, mf, sixteenth)
+end
+
+m:close()
+```
+
+### Arabic Maqam
+
+Play Maqam Hijaz (12-TET approximation):
+
+```lua
+m = midi.open()
+
+-- Hijaz is similar to Phrygian dominant
+local hijaz = scale(d4, "maqam_hijaz")
+
+-- Ascending
+for _, pitch in ipairs(hijaz) do
+    m:note(pitch, mf, quarter)
+end
+
+-- Add the octave
+m:note(d5, mf, half)
+
+-- Descending
+for i = #hijaz, 1, -1 do
+    m:note(hijaz[i], mf, quarter)
+end
+
+m:close()
+```
+
+### Microtonal Maqam with Quarter Tones
+
+Play authentic Maqam Bayati with quarter tones:
+
+```lua
+m = midi.open()
+
+local bayati = midi.scales_cents.maqam_bayati
+local root = d4
+
+-- Play scale with pitch bend for quarter tones
+for _, cents in ipairs(bayati) do
+    local note, bend = midi.cents_to_note(root, cents)
+    m:pitch_bend(bend)
+    m:note(note, mf, quarter)
+end
+
+-- Add octave
+m:pitch_bend(0)
+m:note(root + 12, mf, half)
+
+m:close()
+```
+
+### Indian Raga
+
+Play Raga Bhairav:
+
+```lua
+m = midi.open()
+
+local bhairav = scale(c4, "raga_bhairav")
+
+-- Aroha (ascending)
+for _, pitch in ipairs(bhairav) do
+    m:note(pitch, mp, quarter)
+end
+m:note(c5, mf, half)
+
+rest(quarter)
+
+-- Avaroha (descending) with ornamentation
+for i = #bhairav, 1, -1 do
+    -- Add slight grace note
+    if i > 1 and math.random() > 0.5 then
+        m:note(bhairav[i] + 1, pp, sixteenth)
+    end
+    m:note(bhairav[i], mf, quarter)
+end
+
+m:close()
+```
+
+### Blues Scale Improvisation
+
+```lua
+m = midi.open()
+midi.set_tempo(100)
+
+local blues = scale(c4, "blues")
+
+-- Add octave above for more range
+local full_blues = {}
+for _, p in ipairs(blues) do
+    table.insert(full_blues, p)
+end
+for _, p in ipairs(blues) do
+    table.insert(full_blues, p + 12)
+end
+
+-- Random blues licks
+for bar = 1, 4 do
+    for beat = 1, 4 do
+        local note_count = math.random(1, 3)
+        for n = 1, note_count do
+            local pitch = full_blues[math.random(#full_blues)]
+            local vel = math.random(60, 100)
+            local dur = sixteenth
+            m:note(pitch, vel, dur)
+        end
+    end
+end
+
+-- End on the root
+m:note(c4, f, whole)
+
+m:close()
+```
+
+---
+
 ## Advanced Examples
 
 ### Higher-Order Functions

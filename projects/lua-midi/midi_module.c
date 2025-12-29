@@ -653,6 +653,127 @@ static int l_min7(lua_State *L) {
     return 1;
 }
 
+/* ============================================================================
+ * Scale functions - using common music_theory library
+ * ============================================================================ */
+
+/* Helper to read interval array from Lua table */
+static int get_intervals(lua_State *L, int idx, int* intervals, int max_size) {
+    if (!lua_istable(L, idx)) return 0;
+    int count = 0;
+    lua_pushnil(L);
+    while (lua_next(L, idx) != 0 && count < max_size) {
+        if (lua_isinteger(L, -1)) {
+            intervals[count++] = (int)lua_tointeger(L, -1);
+        }
+        lua_pop(L, 1);
+    }
+    return count;
+}
+
+/* midi.build_scale(root, intervals) -> {pitches...} */
+static int l_build_scale(lua_State *L) {
+    int root = get_pitch(L, 1);
+    if (root < 0) return luaL_error(L, "Invalid root pitch");
+
+    int intervals[16];
+    int num_intervals = get_intervals(L, 2, intervals, 16);
+    if (num_intervals == 0) {
+        return luaL_error(L, "Expected intervals table");
+    }
+
+    int pitches[16];
+    int count = music_build_scale(root, intervals, num_intervals, pitches);
+
+    lua_newtable(L);
+    for (int i = 0; i < count; i++) {
+        lua_pushinteger(L, pitches[i]);
+        lua_rawseti(L, -2, i + 1);
+    }
+    return 1;
+}
+
+/* midi.scale_degree(root, intervals, degree) -> pitch */
+static int l_scale_degree(lua_State *L) {
+    int root = get_pitch(L, 1);
+    if (root < 0) return luaL_error(L, "Invalid root pitch");
+
+    int intervals[16];
+    int num_intervals = get_intervals(L, 2, intervals, 16);
+    if (num_intervals == 0) {
+        return luaL_error(L, "Expected intervals table");
+    }
+
+    int degree = luaL_checkinteger(L, 3);
+    int pitch = music_scale_degree(root, intervals, num_intervals, degree);
+
+    if (pitch < 0) {
+        return luaL_error(L, "Scale degree out of range");
+    }
+    lua_pushinteger(L, pitch);
+    return 1;
+}
+
+/* midi.in_scale(pitch, root, intervals) -> boolean */
+static int l_in_scale(lua_State *L) {
+    int pitch = get_pitch(L, 1);
+    if (pitch < 0) return luaL_error(L, "Invalid pitch");
+
+    int root = get_pitch(L, 2);
+    if (root < 0) return luaL_error(L, "Invalid root pitch");
+
+    int intervals[16];
+    int num_intervals = get_intervals(L, 3, intervals, 16);
+    if (num_intervals == 0) {
+        return luaL_error(L, "Expected intervals table");
+    }
+
+    int result = music_in_scale(pitch, root, intervals, num_intervals);
+    lua_pushboolean(L, result);
+    return 1;
+}
+
+/* midi.quantize(pitch, root, intervals) -> pitch */
+static int l_quantize(lua_State *L) {
+    int pitch = get_pitch(L, 1);
+    if (pitch < 0) return luaL_error(L, "Invalid pitch");
+
+    int root = get_pitch(L, 2);
+    if (root < 0) return luaL_error(L, "Invalid root pitch");
+
+    int intervals[16];
+    int num_intervals = get_intervals(L, 3, intervals, 16);
+    if (num_intervals == 0) {
+        return luaL_error(L, "Expected intervals table");
+    }
+
+    int result = music_quantize_to_scale(pitch, root, intervals, num_intervals);
+    lua_pushinteger(L, result);
+    return 1;
+}
+
+/* midi.pitch_bend(cents, [channel]) - send pitch bend for microtonal */
+static int l_pitch_bend(lua_State *L) {
+    MidiOutData *data = check_midi_out(L, 1);
+    if (!data->handle) {
+        return luaL_error(L, "MIDI port is closed");
+    }
+
+    int cents = luaL_checkinteger(L, 2);
+    int channel = luaL_optinteger(L, 3, 1);
+
+    if (channel < 1 || channel > 16) channel = 1;
+
+    int bend = music_cents_to_bend(cents);
+    uint8_t msg[3] = {
+        0xE0 | ((channel - 1) & 0x0F),
+        bend & 0x7F,
+        (bend >> 7) & 0x7F
+    };
+    libremidi_midi_out_send_message(data->handle, msg, 3);
+    return 0;
+}
+
 /* help() function */
 static int l_help(lua_State *L) {
     (void)L;
@@ -693,9 +814,21 @@ static int l_help(lua_State *L) {
     printf("  midi.maj7(root)             Major 7th\n");
     printf("  midi.min7(root)             Minor 7th\n");
     printf("\n");
+    printf("Scale functions:\n");
+    printf("  midi.build_scale(root, intervals)    Build scale pitches\n");
+    printf("  midi.scale_degree(root, intervals, n) Get nth scale degree\n");
+    printf("  midi.in_scale(pitch, root, intervals) Check if pitch in scale\n");
+    printf("  midi.quantize(pitch, root, intervals) Snap to nearest scale tone\n");
+    printf("  m:pitch_bend(cents, [ch])   Send pitch bend (for microtonal)\n");
+    printf("\n");
+    printf("Scale helpers (via prelude):\n");
+    printf("  scale(root, scale_type)     Build scale (e.g., scale(c4, 'major'))\n");
+    printf("  degree(root, scale_type, n) Get scale degree\n");
+    printf("\n");
     printf("Constants: midi.c0-c8, midi.cs0-cs8, midi.d0-d8, etc.\n");
     printf("Dynamics: midi.ppp, pp, p, mp, mf, f, ff, fff\n");
     printf("Durations: midi.whole, half, quarter, eighth, sixteenth\n");
+    printf("Scales: midi.scales.major, minor, dorian, blues, pentatonic, etc.\n");
     return 0;
 }
 
@@ -714,6 +847,7 @@ static const luaL_Reg midi_methods[] = {
     {"cc", l_cc},
     {"program", l_program},
     {"all_notes_off", l_all_notes_off},
+    {"pitch_bend", l_pitch_bend},
     {NULL, NULL}
 };
 
@@ -725,6 +859,7 @@ static const luaL_Reg midi_funcs[] = {
     {"transpose", l_transpose},
     {"octave_up", l_octave_up},
     {"octave_down", l_octave_down},
+    /* Chord builders */
     {"major", l_major},
     {"minor", l_minor},
     {"dim", l_dim},
@@ -732,6 +867,11 @@ static const luaL_Reg midi_funcs[] = {
     {"dom7", l_dom7},
     {"maj7", l_maj7},
     {"min7", l_min7},
+    /* Scale functions */
+    {"build_scale", l_build_scale},
+    {"scale_degree", l_scale_degree},
+    {"in_scale", l_in_scale},
+    {"quantize", l_quantize},
     {"help", l_help},
     {NULL, NULL}
 };

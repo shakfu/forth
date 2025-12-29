@@ -65,6 +65,13 @@ All notable changes to midi-langs are documented in this file.
   - `parse_pitch()` now wraps `music_parse_pitch()` with articulation suffix handling
   - Dynamics functions use `DYN_*` constants from music_theory.h
 - **lua-midi**: Refactored to use common `music_parse_pitch()` instead of local implementation
+  - Added scale support with 55 12-TET scales and 10 microtonal scales
+  - New FFI functions: `midi.build_scale()`, `midi.scale_degree()`, `midi.in_scale()`, `midi.quantize()`
+  - New MidiOut method: `m:pitch_bend(cents, [ch])` for microtonal playback
+  - Scale intervals in `midi.scales` table (major, minor, dorian, blues, pentatonic, maqam_hijaz, raga_bhairav, etc.)
+  - Microtonal scales in `midi.scales_cents` table (maqam_bayati, maqam_rast, shruti, etc.)
+  - Helper functions: `scale(root, name)`, `degree(root, name, n)`, `in_scale()`, `quantize()`
+  - Helper: `midi.cents_to_note(root, cents)` for microtonal interval calculation
 - **s7-midi**: Refactored to use common `music_parse_pitch()` instead of local implementation
 - **pktpy-midi**: Refactored to use common `music_parse_pitch()` instead of local implementation
 - **mhs-midi**: Linked with music_theory library for future use

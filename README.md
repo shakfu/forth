@@ -1008,7 +1008,7 @@ m:close()
 
 Each interpreted language (Scheme, Lua, Python) has a prelude file containing constants and helper functions written in its native syntax:
 
-```
+```text
 projects/s7-midi/prelude.scm    -> scm_prelude.h
 projects/lua-midi/prelude.lua   -> lua_prelude.h
 projects/pktpy-midi/prelude.py  -> py_prelude.h
