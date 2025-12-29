@@ -22,7 +22,7 @@ A Forth-like MIDI interpreter with concise musical notation for generating and t
 ```
 
 ```forth
-midi-virtual            \ Create virtual MIDI port
+midi-open            \ Create virtual MIDI port
 c4, e4, g4,             \ Play C, E, G sequentially
 (c4 e4 g4),             \ Play C major chord
 : cmaj (c4 e4 g4), ;    \ Define a word
@@ -44,7 +44,7 @@ Type `help` for command reference, `quit` to exit.
 ## Example: Generative Pattern
 
 ```forth
-midi-virtual
+midi-open
 200 dur!
 
 \ Random note from pentatonic scale, 75% chance to play
@@ -61,7 +61,7 @@ midi-close
 ## Example: Chord Progression with Sequences
 
 ```forth
-midi-virtual
+midi-open
 seq-new drop
 
 c4 major 100 half 0 3 chord>seq

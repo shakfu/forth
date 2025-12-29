@@ -96,8 +96,9 @@ c4,                     \ Now plays on ch 2, vel 100, dur 250ms
 
 ```forth
 midi-list               \ List available MIDI output ports
-midi-open ( n -- )      \ Open port by index
-midi-virtual            \ Create virtual port "MidiForth"
+midi-open               \ Create virtual port "ForthMIDI"
+midi-open-as <name>     \ Create virtual port with custom name
+midi-open-port ( n -- ) \ Open port by index
 midi-close              \ Close current port
 panic                   \ All notes off (emergency stop)
 ```
@@ -450,7 +451,7 @@ The `,` word inspects the stack to determine mode:
 ## Simple Melody
 
 ```forth
-midi-virtual
+midi-open
 250 dur!
 c4, d4, e4, f4, g4, a4, b4, c5,
 ```
@@ -458,7 +459,7 @@ c4, d4, e4, f4, g4, a4, b4, c5,
 ## Chord Progression
 
 ```forth
-midi-virtual
+midi-open
 500 dur!
 (c4 e4 g4),             \ C major
 (f4 a4 c5),             \ F major
@@ -469,7 +470,7 @@ midi-virtual
 ## With Dynamics (future)
 
 ```forth
-midi-virtual
+midi-open
 mf
 : verse c4, e4, g4, c5, ;
 : chorus ff (c4 e4 g4 c5), ;
@@ -479,7 +480,7 @@ verse verse chorus verse
 ## Arpeggio Pattern (future)
 
 ```forth
-midi-virtual
+midi-open
 100 dur!
 : arp c4, e4, g4, c5, g4, e4, ;
 arp 4 times
@@ -622,7 +623,7 @@ Use `%` and `|` for evolving, non-repetitive music:
 A complete composition using all features:
 
 ```forth
-midi-virtual
+midi-open
 120 bpm!
 
 \ === Sound palette ===

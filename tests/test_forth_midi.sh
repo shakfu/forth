@@ -426,7 +426,7 @@ test_contains "capture starts" "capture" "MIDI capture started"
 
 # Test capture stop shows event count
 TOTAL=$((TOTAL + 1))
-output=$(printf 'midi-virtual\ncapture\n100 dur!\nc4,\nstop\nmidi-close\n' | $MIDI_FORTH 2>&1)
+output=$(printf 'midi-open\ncapture\n100 dur!\nc4,\nstop\nmidi-close\n' | $MIDI_FORTH 2>&1)
 if echo "$output" | grep -q "2 events captured"; then
     echo -e "${GREEN}PASS${NC}: capture stop shows event count"
     PASSED=$((PASSED + 1))
@@ -439,7 +439,7 @@ fi
 # Test save-midi creates file with sequence commands
 TOTAL=$((TOTAL + 1))
 rm -f "$TMPDIR/captured.4th"
-printf 'midi-virtual\ncapture\n100 dur!\nc4,\ne4,\nstop\nsave-midi %s/captured.4th\nmidi-close\n' "$TMPDIR" | $MIDI_FORTH > /dev/null 2>&1
+printf 'midi-open\ncapture\n100 dur!\nc4,\ne4,\nstop\nsave-midi %s/captured.4th\nmidi-close\n' "$TMPDIR" | $MIDI_FORTH > /dev/null 2>&1
 if [ -f "$TMPDIR/captured.4th" ] && grep -q "seq-note-ch" "$TMPDIR/captured.4th"; then
     echo -e "${GREEN}PASS${NC}: save-midi creates sequence file"
     PASSED=$((PASSED + 1))

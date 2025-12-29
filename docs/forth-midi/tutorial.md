@@ -18,7 +18,7 @@ You'll see a prompt: `>`. Type `help` for a command reference, `quit` to exit.
 First, create a virtual MIDI output that other apps can receive from:
 
 ```forth
-midi-virtual
+midi-open
 ```
 
 Now play a note using pitch name and comma:
@@ -268,7 +268,7 @@ For chords with explicit params:
 ## Example: Complete Piece
 
 ```forth
-midi-virtual
+midi-open
 
 \ Define chord progressions
 : I   (c4 e4 g4), ;
@@ -327,7 +327,7 @@ c#4 c4 scale-major quantize .   \ 60 (snaps to C)
 Use scales for generative music:
 
 ```forth
-midi-virtual
+midi-open
 
 \ Random pentatonic melody
 : gen-note

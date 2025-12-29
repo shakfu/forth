@@ -31,7 +31,7 @@ Requires GCC/Clang and CMake 3.16+.
 ```
 
 ```forth
-midi-virtual c4, e4, g4, (c4 e4 g4), midi-close
+midi-open c4, e4, g4, (c4 e4 g4), midi-close
 ```
 
 [Full documentation](docs/forth-midi/README.md) | [Tutorial](docs/forth-midi/tutorial.md)
@@ -76,7 +76,8 @@ close
 ```python
 import midi
 with midi.open() as m:
-    m.note("C4"); m.note("E4"); m.note("G4")
+    for p in ["C4", "E4", "G4"]:
+        m.note(p)
     m.chord(midi.major("C4"))
 ```
 

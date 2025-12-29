@@ -476,7 +476,7 @@ void op_midi_list(Stack* stack) {
 
     printf("Hardware MIDI outputs:\n");
     if (out_port_count == 0) {
-        printf("  (none - use midi-virtual to create a virtual port)\n");
+        printf("  (none - use midi-open to create a virtual port)\n");
     } else {
         for (int i = 0; i < out_port_count; i++) {
             const char* name = NULL;
@@ -541,7 +541,8 @@ void op_midi_open(Stack* stack) {
     printf("Opened MIDI output: %s\n", name);
 }
 
-void op_midi_open_virtual(Stack* stack) {
+// Helper to open virtual port with a given name
+static int open_virtual_port(const char* name) {
     // Close existing output if open
     if (midi_out != NULL) {
         libremidi_midi_out_free(midi_out);
@@ -554,18 +555,18 @@ void op_midi_open_virtual(Stack* stack) {
     ret = libremidi_midi_configuration_init(&midi_conf);
     if (ret != 0) {
         printf("Failed to init MIDI config\n");
-        return;
+        return ret;
     }
 
     midi_conf.version = MIDI1;
     midi_conf.virtual_port = true;
-    midi_conf.port_name = "ForthMIDI";
+    midi_conf.port_name = name;
 
     libremidi_api_configuration api_conf;
     ret = libremidi_midi_api_configuration_init(&api_conf);
     if (ret != 0) {
         printf("Failed to init API config\n");
-        return;
+        return ret;
     }
 
     api_conf.configuration_type = Output;
@@ -574,10 +575,21 @@ void op_midi_open_virtual(Stack* stack) {
     ret = libremidi_midi_out_new(&midi_conf, &api_conf, &midi_out);
     if (ret != 0) {
         printf("Failed to create virtual MIDI output: %d\n", ret);
-        return;
+        return ret;
     }
 
-    printf("Created virtual MIDI output: MidiForth\n");
+    printf("Created virtual MIDI output: %s\n", name);
+    return 0;
+}
+
+void op_midi_open_virtual(Stack* stack) {
+    (void)stack;
+    open_virtual_port("ForthMIDI");
+}
+
+// For midi-open-as: open with custom name (called from execute_line)
+void open_virtual_port_named(const char* name) {
+    open_virtual_port(name);
 }
 
 void op_midi_close(Stack* stack) {
@@ -2236,7 +2248,7 @@ int capture_save_midi(const char* filename) {
     }
 
     fprintf(f, "\n\\ %d notes written\n", notes_written);
-    fprintf(f, "\\ To play: midi-virtual seq-play midi-close\n");
+    fprintf(f, "\\ To play: midi-open seq-play midi-close\n");
 
     fclose(f);
     printf("Saved %d notes to '%s'\n", notes_written, filename);
@@ -2342,8 +2354,8 @@ void init_dictionary(void) {
     // MIDI words
     add_word("midi-apis", op_midi_apis, 1);
     add_word("midi-list", op_midi_list, 1);
-    add_word("midi-open", op_midi_open, 1);
-    add_word("midi-virtual", op_midi_open_virtual, 1);
+    add_word("midi-open", op_midi_open_virtual, 1);
+    add_word("midi-open-port", op_midi_open, 1);
     add_word("midi-close", op_midi_close, 1);
     add_word("cc", op_cc, 1);
     add_word("panic", op_all_notes_off, 1);
@@ -2702,6 +2714,8 @@ void execute_line(const char* input) {
                 recording_save(word);
             } else if (awaiting_filename == 3) {
                 capture_save_midi(word);
+            } else if (awaiting_filename == 4) {
+                open_virtual_port_named(word);
             }
             awaiting_filename = 0;
             continue;
@@ -2873,6 +2887,12 @@ void execute_line(const char* input) {
             continue;
         }
 
+        if (strcmp(word, "midi-open-as") == 0) {
+            // Open virtual port with custom name - next word is the port name
+            awaiting_filename = 4;  // 4 = midi-open-as mode
+            continue;
+        }
+
         // Execute the word
         execute_word(word);
     }
@@ -2940,8 +2960,9 @@ void print_help(void) {
 
     printf("\nMIDI Output:\n");
     printf("  midi-list               List available MIDI output ports\n");
-    printf("  midi-open ( n -- )      Open MIDI output port by index\n");
-    printf("  midi-virtual            Create virtual MIDI output 'MidiForth'\n");
+    printf("  midi-open               Create virtual MIDI output 'ForthMIDI'\n");
+    printf("  midi-open-as <name>     Create virtual MIDI output with custom name\n");
+    printf("  midi-open-port ( n -- ) Open MIDI output port by index\n");
     printf("  midi-close              Close MIDI output\n");
     printf("  cc ( ch cc val -- )     Send Control Change\n");
     printf("  panic                   All notes off on all channels\n");
@@ -2984,8 +3005,8 @@ void print_help(void) {
     printf("  bpm@ ( -- n )           Get current tempo\n");
 
     printf("\nExamples:\n");
-    printf("  midi-virtual c4, e4, g4,\n");
-    printf("  midi-virtual (c4 e4 g4),\n");
+    printf("  midi-open c4, e4, g4,\n");
+    printf("  midi-open (c4 e4 g4),\n");
     printf("  : melody c4, e4, g4, ; melody 4 times\n");
     printf("  c4, r, e4, r, g4,\n");
     printf("  mf c4|e4|g4, c4|e4|g4,   Random note selection\n");

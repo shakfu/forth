@@ -190,7 +190,7 @@ Send a pitch bend in cents on a specific channel.
 ### Play a Scale
 
 ```forth
-midi-virtual
+midi-open
 
 \ Play C major scale ascending
 : play-scale
@@ -206,7 +206,7 @@ play-scale
 ### Build Triads from Scale Degrees
 
 ```forth
-midi-virtual
+midi-open
 
 \ I chord (1-3-5)
 : I-chord
@@ -237,7 +237,7 @@ midi-virtual
 ### Quantize Random Notes
 
 ```forth
-midi-virtual
+midi-open
 
 \ Generate random note and quantize to scale
 : random-note
@@ -252,7 +252,7 @@ random-note 16 times
 ### Modal Exploration
 
 ```forth
-midi-virtual
+midi-open
 
 \ Play same notes through different modes
 : play-mode ( scale-id -- )
@@ -270,7 +270,7 @@ scale-phrygian play-mode
 ### Blues Improvisation
 
 ```forth
-midi-virtual
+midi-open
 
 \ Random blues phrase
 : blues-note

@@ -85,7 +85,7 @@ bpm@                \ Get current tempo
 ### Simple Melody
 
 ```forth
-midi-virtual
+midi-open
 seq-new drop
 
 \ Build a scale

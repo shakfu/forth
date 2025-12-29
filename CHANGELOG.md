@@ -333,8 +333,8 @@ All notable changes to midi-langs are documented in this file.
   - `eighth` (240), `sixteenth` (120)
 
 - **MIDI Output**
-  - Virtual port: `midi-virtual`
-  - Hardware ports: `midi-list`, `midi-open`, `midi-close`
+  - Virtual port: `midi-open`, `midi-open-as <name>`
+  - Hardware ports: `midi-list`, `midi-open-port`, `midi-close`
   - Control: `cc`, `pc`, `pb`, `panic`
 
 - **Timing**
