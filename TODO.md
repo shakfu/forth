@@ -2,6 +2,42 @@
 
 Ideas for extending both MIDI implementations.
 
+
+## All Implementations
+
+### REPL Improvements
+
+- [ ] Readline support for all REPLs (command history, line editing)
+  - [x] forth-midi: readline support
+  - [x] lua-midi: readline support (optional)
+  - [ ] s7-midi: add readline support
+  - [ ] pktpy-midi: add readline support
+  - [ ] mhs-midi: add readline support
+- [ ] Autocomplete for all REPLs
+  - [x] forth-midi: experimental autocomplete (pitches, words, builtins)
+  - [ ] lua-midi: add autocomplete for MIDI functions, pitches, dynamics
+  - [ ] s7-midi: add autocomplete for Scheme functions, pitches
+  - [ ] pktpy-midi: add autocomplete for midi module, pitches
+  - [ ] mhs-midi: add autocomplete for Haskell functions, pitches
+
+### Testing
+
+- [ ] Property-based testing for Music transformations
+- [ ] MIDI output verification (mock port)
+- [ ] Performance benchmarks
+
+### Documentation
+
+- [ ] Video tutorials
+- [ ] Example compositions
+- [ ] Comparison guide (when to use which)
+
+### Integration
+
+- [ ] OSC support for external control
+- [ ] Ableton Link for tempo sync
+- [ ] Jack audio connection kit support (Linux)
+
 ---
 
 ## forth-midi
@@ -22,8 +58,8 @@ Ideas for extending both MIDI implementations.
 
 ### Scales / Harmony
 
-- [ ] Scale definitions (major, minor, modes)
-- [ ] Scale-constrained random (`scale-random`)
+- [x] Scale definitions (major, minor, modes) - 49 scales via `scale-*` words
+- [x] Scale-constrained random (`quantize` word snaps to scale)
 - [ ] Chord symbols (`Cmaj7`, `Dm`, `G7`)
 - [ ] Automatic voice leading
 
@@ -75,8 +111,8 @@ Ideas for extending both MIDI implementations.
 
 ### Scales and Chords
 
-- [ ] `Scale` type (root + intervals)
-- [ ] `scaleNote :: Scale -> Int -> Pitch` - scale degree to pitch
+- [x] `Scale` type (root + intervals) - `type Scale = [Int]` with 55 scales + 10 microtonal
+- [x] `scaleNote :: Scale -> Int -> Pitch` - implemented as `scaleDegree`
 - [ ] `ChordType` (maj, min, dim, aug, 7th, etc.)
 - [ ] `chordPitches :: Pitch -> ChordType -> [Pitch]`
 
@@ -99,40 +135,3 @@ Ideas for extending both MIDI implementations.
 - [ ] `program :: Int -> IO ()` - quick program change
 - [ ] `cc :: Int -> Int -> IO ()` - quick control change
 - [ ] `bend :: Int -> IO ()` - quick pitch bend
-
----
-
-## All Implementations
-
-### REPL Improvements
-
-- [ ] Readline support for all REPLs (command history, line editing)
-  - [x] forth-midi: readline support
-  - [x] lua-midi: readline support (optional)
-  - [ ] s7-midi: add readline support
-  - [ ] pktpy-midi: add readline support
-  - [ ] mhs-midi: add readline support
-- [ ] Autocomplete for all REPLs
-  - [x] forth-midi: experimental autocomplete (pitches, words, builtins)
-  - [ ] lua-midi: add autocomplete for MIDI functions, pitches, dynamics
-  - [ ] s7-midi: add autocomplete for Scheme functions, pitches
-  - [ ] pktpy-midi: add autocomplete for midi module, pitches
-  - [ ] mhs-midi: add autocomplete for Haskell functions, pitches
-
-### Testing
-
-- [ ] Property-based testing for Music transformations
-- [ ] MIDI output verification (mock port)
-- [ ] Performance benchmarks
-
-### Documentation
-
-- [ ] Video tutorials
-- [ ] Example compositions
-- [ ] Comparison guide (when to use which)
-
-### Integration
-
-- [ ] OSC support for external control
-- [ ] Ableton Link for tempo sync
-- [ ] Jack audio connection kit support (Linux)
