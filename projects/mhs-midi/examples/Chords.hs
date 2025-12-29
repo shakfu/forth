@@ -2,7 +2,7 @@
 -- Plays a simple I-IV-V-I progression in C major
 module Chords(main) where
 
-import Midi
+import MusicPerform
 
 -- Define some common chords
 cMajor, fMajor, gMajor :: [Pitch]
@@ -14,7 +14,7 @@ main :: IO ()
 main = do
     putStrLn "MHS-MIDI: Chord Progression Example"
 
-    ok <- midiOpenVirtual "MhsMidi"
+    ok <- midiOpenVirtual "mhsMIDI"
     if not ok
         then putStrLn "Failed to open MIDI"
         else do

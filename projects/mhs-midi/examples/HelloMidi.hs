@@ -2,18 +2,18 @@
 -- Plays a C major scale using a virtual MIDI port
 module HelloMidi(main) where
 
-import Midi
+import MusicPerform
 
 main :: IO ()
 main = do
     putStrLn "MHS-MIDI: Hello MIDI Example"
 
     -- Open virtual MIDI port
-    ok <- midiOpenVirtual "MhsMidi"
+    ok <- midiOpenVirtual "mhsMIDI"
     if not ok
         then putStrLn "Failed to open virtual MIDI port"
         else do
-            putStrLn "Virtual MIDI port 'MhsMidi' opened"
+            putStrLn "Virtual MIDI port 'mhsMIDI' opened"
             putStrLn "Playing C major scale..."
 
             -- Play C major scale

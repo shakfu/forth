@@ -1,7 +1,7 @@
 -- | Arpeggio.hs - Arpeggio patterns example
 module Arpeggio(main) where
 
-import Midi
+import MusicPerform
 
 -- Chord arpeggios
 cMajorArp, aminorArp, fMajorArp, gMajorArp :: [Pitch]
@@ -20,7 +20,7 @@ main :: IO ()
 main = do
     putStrLn "MHS-MIDI: Arpeggio Example"
 
-    ok <- midiOpenVirtual "MhsMidi"
+    ok <- midiOpenVirtual "mhsMIDI"
     if not ok
         then putStrLn "Failed to open MIDI"
         else do

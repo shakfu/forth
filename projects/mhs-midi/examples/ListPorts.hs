@@ -1,7 +1,7 @@
 -- | ListPorts.hs - List available MIDI ports
 module ListPorts(main) where
 
-import Midi
+import MusicPerform
 
 printPort :: Int -> IO ()
 printPort idx = do

@@ -2,7 +2,7 @@
 -- Plays a simple melody with varying dynamics
 module Melody(main) where
 
-import Midi
+import MusicPerform
 
 -- Twinkle Twinkle Little Star melody
 twinkle :: [(Pitch, Duration)]
@@ -17,7 +17,7 @@ main :: IO ()
 main = do
     putStrLn "MHS-MIDI: Melody Example"
 
-    ok <- midiOpenVirtual "MhsMidi"
+    ok <- midiOpenVirtual "mhsMIDI"
     if not ok
         then putStrLn "Failed to open MIDI"
         else do
