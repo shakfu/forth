@@ -26,6 +26,18 @@ All notable changes to midi-langs are documented in this file.
   - Tab completion for dynamics and durations
   - Tab completion for scale names (`major`, `dorian`, `blues`, etc.)
 
+- **pktpy-midi Readline Support**: Interactive REPL with readline and autocomplete
+  - Tab completion for Python keywords (`def`, `class`, `if`, `for`, `import`, etc.)
+  - Tab completion for Python builtins (`print`, `len`, `range`, `list`, etc.)
+  - Tab completion for MIDI module functions (`midi.open`, `midi.note`, `midi.scale`, etc.)
+  - Tab completion for MidiOut methods (`.note`, `.chord`, `.arpeggio`, etc.)
+  - Tab completion for pitch names (`midi.c4`, `midi.cs4`, etc.)
+  - Tab completion for dynamics (`midi.ppp` through `midi.fff`) and durations
+  - Tab completion for scale constants (`midi.SCALE_MAJOR`, `midi.SCALE_BLUES`, etc.)
+  - Tab completion for CC constants (`midi.CC_MODULATION`, `midi.CC_VOLUME`, etc.)
+  - Command history with up/down arrow navigation
+  - Graceful fallback to pocketpy's built-in REPL if readline unavailable
+
 - **mhs-midi Pure Generative Algorithms**: Music.hs now includes pure generative functions
   - Pure PRNG: `nextRandom`, `randomRange`, `randomList` (Linear Congruential Generator)
   - Deterministic: `euclideanRhythm`, `arpUp`, `arpDown`, `arpUpDown`, `retrograde`, `invert`

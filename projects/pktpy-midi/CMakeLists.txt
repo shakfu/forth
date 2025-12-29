@@ -6,6 +6,13 @@ add_executable(pktpy_midi
 
 target_compile_options(pktpy_midi PRIVATE -Wall -Wextra -Wno-unused-parameter)
 
+# Check for readline
+find_library(READLINE_LIB readline)
+if(READLINE_LIB)
+    target_compile_definitions(pktpy_midi PRIVATE USE_READLINE)
+    target_link_libraries(pktpy_midi PRIVATE ${READLINE_LIB})
+endif()
+
 # Link with libremidi and music_theory
 target_link_libraries(pktpy_midi PRIVATE libremidi music_theory)
 
