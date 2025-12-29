@@ -12,6 +12,217 @@
 #endif
 
 #include "lua.h"
+
+#ifdef USE_READLINE
+/* ============================================================================
+ * Readline autocomplete
+ * ============================================================================ */
+
+/* Lua keywords */
+static const char* lua_keywords[] = {
+    "and", "break", "do", "else", "elseif", "end", "false", "for",
+    "function", "goto", "if", "in", "local", "nil", "not", "or",
+    "repeat", "return", "then", "true", "until", "while",
+    NULL
+};
+
+/* Lua standard library functions */
+static const char* lua_stdlib[] = {
+    "assert", "collectgarbage", "dofile", "error", "getmetatable",
+    "ipairs", "load", "loadfile", "next", "pairs", "pcall", "print",
+    "rawequal", "rawget", "rawlen", "rawset", "require", "select",
+    "setmetatable", "tonumber", "tostring", "type", "xpcall",
+    "coroutine", "debug", "io", "math", "os", "package", "string", "table", "utf8",
+    NULL
+};
+
+/* MIDI module functions */
+static const char* midi_functions[] = {
+    "midi.open", "midi.list_ports", "midi.note", "midi.sleep",
+    "midi.build_scale", "midi.scale_degree", "midi.in_scale", "midi.quantize",
+    "midi.cents_to_note", "midi.help",
+    "midi.transpose", "midi.octave_up", "midi.octave_down",
+    "midi.major", "midi.minor", "midi.dim", "midi.aug",
+    "midi.dom7", "midi.maj7", "midi.min7",
+    "midi.set_tempo", "midi.get_tempo", "midi.bpm", "midi.dotted", "midi.rest",
+    "midi.scales", "midi.scales_cents",
+    NULL
+};
+
+/* MidiOut methods */
+static const char* midiout_methods[] = {
+    ":note", ":chord", ":arpeggio", ":note_on", ":note_off",
+    ":cc", ":program", ":pitch_bend", ":all_notes_off", ":close", ":is_open",
+    NULL
+};
+
+/* Prelude convenience functions */
+static const char* prelude_functions[] = {
+    "open", "close", "n", "ch", "arp", "help", "quit", "exit",
+    "scale", "degree", "in_scale", "quantize",
+    "major", "minor", "dim", "aug", "dom7", "maj7", "min7",
+    "transpose", "octave_up", "octave_down",
+    "dotted", "rest", "sleep",
+    NULL
+};
+
+/* Dynamics */
+static const char* dynamics[] = {
+    "ppp", "pp", "p", "mp", "mf", "f", "ff", "fff",
+    "midi.ppp", "midi.pp", "midi.p", "midi.mp", "midi.mf", "midi.f", "midi.ff", "midi.fff",
+    NULL
+};
+
+/* Durations */
+static const char* durations[] = {
+    "whole", "half", "quarter", "eighth", "sixteenth",
+    "midi.whole", "midi.half", "midi.quarter", "midi.eighth", "midi.sixteenth",
+    NULL
+};
+
+/* Pitch names (c0-c8 with sharps and flats) */
+static const char* pitch_names[] = {
+    "c0", "cs0", "db0", "d0", "ds0", "eb0", "e0", "f0", "fs0", "gb0", "g0", "gs0", "ab0", "a0", "as0", "bb0", "b0",
+    "c1", "cs1", "db1", "d1", "ds1", "eb1", "e1", "f1", "fs1", "gb1", "g1", "gs1", "ab1", "a1", "as1", "bb1", "b1",
+    "c2", "cs2", "db2", "d2", "ds2", "eb2", "e2", "f2", "fs2", "gb2", "g2", "gs2", "ab2", "a2", "as2", "bb2", "b2",
+    "c3", "cs3", "db3", "d3", "ds3", "eb3", "e3", "f3", "fs3", "gb3", "g3", "gs3", "ab3", "a3", "as3", "bb3", "b3",
+    "c4", "cs4", "db4", "d4", "ds4", "eb4", "e4", "f4", "fs4", "gb4", "g4", "gs4", "ab4", "a4", "as4", "bb4", "b4",
+    "c5", "cs5", "db5", "d5", "ds5", "eb5", "e5", "f5", "fs5", "gb5", "g5", "gs5", "ab5", "a5", "as5", "bb5", "b5",
+    "c6", "cs6", "db6", "d6", "ds6", "eb6", "e6", "f6", "fs6", "gb6", "g6", "gs6", "ab6", "a6", "as6", "bb6", "b6",
+    "c7", "cs7", "db7", "d7", "ds7", "eb7", "e7", "f7", "fs7", "gb7", "g7", "gs7", "ab7", "a7", "as7", "bb7", "b7",
+    "c8", "cs8", "db8", "d8", "ds8", "eb8", "e8", "f8", "fs8", "gb8", "g8", "gs8", "ab8", "a8", "as8", "bb8", "b8",
+    NULL
+};
+
+/* Scale names (for midi.scales table) */
+static const char* scale_names[] = {
+    "major", "ionian", "dorian", "phrygian", "lydian", "mixolydian",
+    "minor", "aeolian", "locrian", "harmonic_minor", "melodic_minor",
+    "pentatonic", "pentatonic_major", "pentatonic_minor", "blues",
+    "whole_tone", "chromatic", "diminished_hw", "diminished_wh", "augmented",
+    "bebop_dominant", "bebop_major", "bebop_minor",
+    "hungarian_minor", "double_harmonic", "neapolitan_major", "neapolitan_minor",
+    "phrygian_dominant", "persian", "altered", "enigmatic",
+    "hirajoshi", "in_sen", "iwato", "kumoi",
+    "egyptian", "romanian_minor", "spanish_8_tone",
+    "maqam_hijaz", "maqam_nahawand", "maqam_nikriz",
+    "raga_bhairav", "raga_todi", "raga_marwa",
+    NULL
+};
+
+/* Generator function for readline completion */
+static char* completion_generator(const char* text, int state) {
+    static int kw_idx, stdlib_idx, midi_idx, method_idx, prelude_idx;
+    static int dyn_idx, dur_idx, pitch_idx, scale_idx;
+    static size_t len;
+
+    if (state == 0) {
+        kw_idx = 0;
+        stdlib_idx = 0;
+        midi_idx = 0;
+        method_idx = 0;
+        prelude_idx = 0;
+        dyn_idx = 0;
+        dur_idx = 0;
+        pitch_idx = 0;
+        scale_idx = 0;
+        len = strlen(text);
+    }
+
+    /* Search Lua keywords */
+    while (lua_keywords[kw_idx] != NULL) {
+        const char* name = lua_keywords[kw_idx++];
+        if (strncmp(name, text, len) == 0) {
+            return strdup(name);
+        }
+    }
+
+    /* Search Lua stdlib */
+    while (lua_stdlib[stdlib_idx] != NULL) {
+        const char* name = lua_stdlib[stdlib_idx++];
+        if (strncmp(name, text, len) == 0) {
+            return strdup(name);
+        }
+    }
+
+    /* Search MIDI functions */
+    while (midi_functions[midi_idx] != NULL) {
+        const char* name = midi_functions[midi_idx++];
+        if (strncmp(name, text, len) == 0) {
+            return strdup(name);
+        }
+    }
+
+    /* Search MidiOut methods */
+    while (midiout_methods[method_idx] != NULL) {
+        const char* name = midiout_methods[method_idx++];
+        if (strncmp(name, text, len) == 0) {
+            return strdup(name);
+        }
+    }
+
+    /* Search prelude functions */
+    while (prelude_functions[prelude_idx] != NULL) {
+        const char* name = prelude_functions[prelude_idx++];
+        if (strncmp(name, text, len) == 0) {
+            return strdup(name);
+        }
+    }
+
+    /* Search dynamics */
+    while (dynamics[dyn_idx] != NULL) {
+        const char* name = dynamics[dyn_idx++];
+        if (strncmp(name, text, len) == 0) {
+            return strdup(name);
+        }
+    }
+
+    /* Search durations */
+    while (durations[dur_idx] != NULL) {
+        const char* name = durations[dur_idx++];
+        if (strncmp(name, text, len) == 0) {
+            return strdup(name);
+        }
+    }
+
+    /* Search pitch names */
+    while (pitch_names[pitch_idx] != NULL) {
+        const char* name = pitch_names[pitch_idx++];
+        if (strncmp(name, text, len) == 0) {
+            return strdup(name);
+        }
+    }
+
+    /* Search scale names */
+    while (scale_names[scale_idx] != NULL) {
+        const char* name = scale_names[scale_idx++];
+        if (strncmp(name, text, len) == 0) {
+            return strdup(name);
+        }
+    }
+
+    return NULL;
+}
+
+/* Custom completion function */
+static char** lua_completion(const char* text, int start, int end) {
+    (void)start;
+    (void)end;
+
+    /* Disable default filename completion */
+    rl_attempted_completion_over = 1;
+
+    return rl_completion_matches(text, completion_generator);
+}
+
+/* Initialize readline completion */
+static void init_readline_completion(void) {
+    rl_attempted_completion_function = lua_completion;
+    /* Lua uses parens, brackets, and dots as word boundaries */
+    rl_completer_word_break_characters = " \t\n()[]{}:.,;'\"";
+}
+#endif /* USE_READLINE */
+
 #include "lauxlib.h"
 #include "lualib.h"
 
@@ -73,6 +284,10 @@ static int run_file(lua_State *L, const char *filename) {
 static void repl(lua_State *L) {
     printf("lua_midi - Lua MIDI language (Lua 5.5)\n");
     printf("Type help() for available functions, quit() or Ctrl-D to exit\n\n");
+
+#ifdef USE_READLINE
+    init_readline_completion();
+#endif
 
     while (1) {
 #ifdef USE_READLINE

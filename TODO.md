@@ -15,7 +15,7 @@ Ideas for extending both MIDI implementations.
   - [ ] mhs-midi: add readline support
 - [ ] Autocomplete for all REPLs
   - [x] forth-midi: experimental autocomplete (pitches, words, builtins)
-  - [ ] lua-midi: add autocomplete for MIDI functions, pitches, dynamics
+  - [x] lua-midi: add autocomplete for MIDI functions, pitches, dynamics
   - [x] s7-midi: add autocomplete for Scheme functions, pitches
   - [ ] pktpy-midi: add autocomplete for midi module, pitches
   - [ ] mhs-midi: add autocomplete for Haskell functions, pitches

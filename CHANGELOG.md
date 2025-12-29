@@ -16,6 +16,16 @@ All notable changes to midi-langs are documented in this file.
   - Command history with up/down arrow navigation
   - Graceful fallback to basic REPL if readline unavailable
 
+- **lua-midi Readline Autocomplete**: Added tab completion to existing readline support
+  - Tab completion for Lua keywords (`function`, `local`, `if`, `for`, etc.)
+  - Tab completion for Lua standard library (`print`, `pairs`, `ipairs`, `math`, etc.)
+  - Tab completion for MIDI module functions (`midi.open`, `midi.note`, `midi.scales`, etc.)
+  - Tab completion for MidiOut methods (`:note`, `:chord`, `:arpeggio`, etc.)
+  - Tab completion for prelude functions (`open`, `n`, `ch`, `major`, `minor`, etc.)
+  - Tab completion for pitch names (`c4`, `cs4`, `db4`, etc.)
+  - Tab completion for dynamics and durations
+  - Tab completion for scale names (`major`, `dorian`, `blues`, etc.)
+
 - **mhs-midi Pure Generative Algorithms**: Music.hs now includes pure generative functions
   - Pure PRNG: `nextRandom`, `randomRange`, `randomList` (Linear Congruential Generator)
   - Deterministic: `euclideanRhythm`, `arpUp`, `arpDown`, `arpUpDown`, `retrograde`, `invert`
