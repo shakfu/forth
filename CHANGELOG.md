@@ -13,6 +13,20 @@ All notable changes to midi-langs are documented in this file.
   - Pitch formatting: `music_pitch_to_name()` converts MIDI numbers back to note names
   - Chord intervals: `CHORD_MAJOR`, `CHORD_MINOR`, `CHORD_DIM`, `CHORD_AUG`, `CHORD_DOM7`, `CHORD_MAJ7`, `CHORD_MIN7`, `CHORD_DIM7`, `CHORD_HALF_DIM7`, `CHORD_SUS2`, `CHORD_SUS4`
   - Chord building: `music_build_chord()` builds chords from root + intervals
+  - Scale intervals (35 scales):
+    - Diatonic modes: `SCALE_MAJOR`, `SCALE_DORIAN`, `SCALE_PHRYGIAN`, `SCALE_LYDIAN`, `SCALE_MIXOLYDIAN`, `SCALE_MINOR`, `SCALE_LOCRIAN`
+    - Minor variants: `SCALE_HARMONIC_MINOR`, `SCALE_MELODIC_MINOR`
+    - Pentatonic: `SCALE_PENTATONIC_MAJOR`, `SCALE_PENTATONIC_MINOR`
+    - Symmetric: `SCALE_WHOLE_TONE`, `SCALE_CHROMATIC`, `SCALE_DIMINISHED_HW`, `SCALE_DIMINISHED_WH`, `SCALE_AUGMENTED`
+    - Bebop: `SCALE_BEBOP_DOMINANT`, `SCALE_BEBOP_MAJOR`, `SCALE_BEBOP_MINOR`
+    - Exotic: `SCALE_HUNGARIAN_MINOR`, `SCALE_DOUBLE_HARMONIC`, `SCALE_NEAPOLITAN_MAJOR`, `SCALE_NEAPOLITAN_MINOR`, `SCALE_PHRYGIAN_DOMINANT`, `SCALE_PERSIAN`, `SCALE_ALTERED`, `SCALE_ENIGMATIC`
+    - Japanese: `SCALE_HIRAJOSHI`, `SCALE_IN_SEN`, `SCALE_IWATO`, `SCALE_KUMOI`
+    - World: `SCALE_BLUES`, `SCALE_EGYPTIAN`, `SCALE_ROMANIAN_MINOR`, `SCALE_SPANISH_8_TONE`
+  - Scale functions:
+    - `music_build_scale()` - build scale pitches from root + intervals
+    - `music_scale_degree()` - get nth degree of a scale (supports extended degrees like 9, 11, 13)
+    - `music_in_scale()` - check if a pitch belongs to a scale (any octave)
+    - `music_quantize_to_scale()` - snap a pitch to the nearest scale tone
   - Dynamics parsing: `music_parse_dynamics()` converts "ppp"-"fff" to velocity values
   - Duration calculation: `music_duration_ms()` calculates note duration from beats and BPM
   - Constants: `DYN_PPP`-`DYN_FFF`, `DUR_WHOLE`-`DUR_SIXTEENTH`, `NOTE_C0`-`NOTE_G9`, `CC_*`
@@ -35,6 +49,9 @@ All notable changes to midi-langs are documented in this file.
 
 ### Changed
 
+- **forth-midi**: Refactored to use common library
+  - `parse_pitch()` now wraps `music_parse_pitch()` with articulation suffix handling
+  - Dynamics functions use `DYN_*` constants from music_theory.h
 - **lua-midi**: Refactored to use common `music_parse_pitch()` instead of local implementation
 - **s7-midi**: Refactored to use common `music_parse_pitch()` instead of local implementation
 - **pktpy-midi**: Refactored to use common `music_parse_pitch()` instead of local implementation

@@ -9,6 +9,7 @@
 #include <readline/history.h>
 
 #include <libremidi/libremidi-c.h>
+#include "music_theory.h"
 
 #define MAX_STACK_SIZE 256
 #define MAX_WORD_LENGTH 32
@@ -813,15 +814,15 @@ void op_percent(Stack* stack) {
     // Otherwise, leave the value on stack to be played
 }
 
-// Dynamics - set default velocity
-void op_ppp(Stack* stack) { (void)stack; default_velocity = 16; }
-void op_pp(Stack* stack)  { (void)stack; default_velocity = 32; }
-void op_p(Stack* stack)   { (void)stack; default_velocity = 48; }
-void op_mp(Stack* stack)  { (void)stack; default_velocity = 64; }
-void op_mf(Stack* stack)  { (void)stack; default_velocity = 80; }
-void op_f(Stack* stack)   { (void)stack; default_velocity = 96; }
-void op_ff(Stack* stack)  { (void)stack; default_velocity = 112; }
-void op_fff(Stack* stack) { (void)stack; default_velocity = 127; }
+// Dynamics - set default velocity (using constants from music_theory.h)
+void op_ppp(Stack* stack) { (void)stack; default_velocity = DYN_PPP; }
+void op_pp(Stack* stack)  { (void)stack; default_velocity = DYN_PP; }
+void op_p(Stack* stack)   { (void)stack; default_velocity = DYN_P; }
+void op_mp(Stack* stack)  { (void)stack; default_velocity = DYN_MP; }
+void op_mf(Stack* stack)  { (void)stack; default_velocity = DYN_MF; }
+void op_f(Stack* stack)   { (void)stack; default_velocity = DYN_F; }
+void op_ff(Stack* stack)  { (void)stack; default_velocity = DYN_FF; }
+void op_fff(Stack* stack) { (void)stack; default_velocity = DYN_FFF; }
 
 // Octave shifts - push current pitch shifted by octave
 void op_octave_up(Stack* stack) {
@@ -2154,59 +2155,39 @@ void init_dictionary(void) {
 // Also handles articulation suffixes: c4. (staccato), c4> (accent), c4- (tenuto)
 // Returns MIDI note number (0-127) or -1 if not a valid pitch name
 // Sets global articulation flags as side effect
+// Uses common music_theory library for base pitch parsing
 int parse_pitch(const char* token) {
-    int note = -1, accidental = 0, octave = -1;
-    int i = 0;
+    if (token == NULL || token[0] == '\0') return -1;
 
-    // Note letter (case insensitive)
-    switch (tolower(token[i++])) {
-        case 'c': note = 0; break;
-        case 'd': note = 2; break;
-        case 'e': note = 4; break;
-        case 'f': note = 5; break;
-        case 'g': note = 7; break;
-        case 'a': note = 9; break;
-        case 'b': note = 11; break;
-        default: return -1;
+    int len = strlen(token);
+    char suffix = token[len - 1];
+
+    // Check for articulation suffix
+    if (suffix == '.' || suffix == '>' || suffix == '-') {
+        // Strip suffix and parse base pitch
+        char base[16];
+        if (len - 1 >= (int)sizeof(base)) return -1;
+        strncpy(base, token, len - 1);
+        base[len - 1] = '\0';
+
+        int pitch = music_parse_pitch(base);
+        if (pitch < 0) return -1;
+
+        // Set articulation flags
+        if (suffix == '.') {
+            articulation_staccato = 1;
+        } else if (suffix == '>') {
+            articulation_accent = 1;
+        } else if (suffix == '-') {
+            // Tenuto: full duration (clear staccato if set)
+            articulation_staccato = 0;
+        }
+
+        return pitch;
     }
 
-    // Optional accidental
-    if (token[i] == '#') {
-        accidental = 1;
-        i++;
-    } else if (token[i] == 'b') {
-        accidental = -1;
-        i++;
-    }
-
-    // Octave digit (required)
-    if (token[i] >= '0' && token[i] <= '9') {
-        octave = token[i] - '0';
-        i++;
-    } else {
-        return -1;
-    }
-
-    // Optional articulation suffix
-    if (token[i] == '.') {
-        articulation_staccato = 1;
-        i++;
-    } else if (token[i] == '>') {
-        articulation_accent = 1;
-        i++;
-    } else if (token[i] == '-') {
-        // Tenuto: full duration (clear staccato if set, no other effect)
-        articulation_staccato = 0;
-        i++;
-    }
-
-    // Must be end of token
-    if (token[i] != '\0') return -1;
-
-    int midi = (octave + 1) * 12 + note + accidental;
-    if (midi < 0 || midi > 127) return -1;
-
-    return midi;
+    // No articulation suffix - use common library directly
+    return music_parse_pitch(token);
 }
 
 // Parse and execute a single word

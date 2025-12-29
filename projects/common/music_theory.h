@@ -92,6 +92,131 @@ extern const int CHORD_SUS4[];       /* Suspended 4th: [0, 5, 7] */
 int music_build_chord(int root, const int* intervals, int num_notes, int* out_pitches);
 
 /* ============================================================================
+ * Scale Intervals
+ * ============================================================================
+ *
+ * Scale intervals are stored as arrays of semitone offsets from the root.
+ * For example, a major scale is [0, 2, 4, 5, 7, 9, 11].
+ */
+
+/* Diatonic modes */
+extern const int SCALE_MAJOR[];          /* Ionian: [0, 2, 4, 5, 7, 9, 11] */
+extern const int SCALE_DORIAN[];         /* [0, 2, 3, 5, 7, 9, 10] */
+extern const int SCALE_PHRYGIAN[];       /* [0, 1, 3, 5, 7, 8, 10] */
+extern const int SCALE_LYDIAN[];         /* [0, 2, 4, 6, 7, 9, 11] */
+extern const int SCALE_MIXOLYDIAN[];     /* [0, 2, 4, 5, 7, 9, 10] */
+extern const int SCALE_MINOR[];          /* Aeolian/Natural minor: [0, 2, 3, 5, 7, 8, 10] */
+extern const int SCALE_LOCRIAN[];        /* [0, 1, 3, 5, 6, 8, 10] */
+
+/* Other minor scales */
+extern const int SCALE_HARMONIC_MINOR[]; /* [0, 2, 3, 5, 7, 8, 11] */
+extern const int SCALE_MELODIC_MINOR[];  /* [0, 2, 3, 5, 7, 9, 11] (ascending) */
+
+/* Pentatonic scales */
+extern const int SCALE_PENTATONIC_MAJOR[]; /* [0, 2, 4, 7, 9] */
+extern const int SCALE_PENTATONIC_MINOR[]; /* [0, 3, 5, 7, 10] */
+
+/* Blues scale */
+extern const int SCALE_BLUES[];          /* [0, 3, 5, 6, 7, 10] */
+
+/* Symmetric scales */
+extern const int SCALE_WHOLE_TONE[];     /* [0, 2, 4, 6, 8, 10] */
+extern const int SCALE_CHROMATIC[];      /* [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] */
+extern const int SCALE_DIMINISHED_HW[];  /* Half-whole: [0, 1, 3, 4, 6, 7, 9, 10] */
+extern const int SCALE_DIMINISHED_WH[];  /* Whole-half: [0, 2, 3, 5, 6, 8, 9, 11] */
+extern const int SCALE_AUGMENTED[];      /* [0, 3, 4, 7, 8, 11] */
+
+/* Bebop scales (8 notes) */
+extern const int SCALE_BEBOP_DOMINANT[]; /* [0, 2, 4, 5, 7, 9, 10, 11] */
+extern const int SCALE_BEBOP_MAJOR[];    /* [0, 2, 4, 5, 7, 8, 9, 11] */
+extern const int SCALE_BEBOP_MINOR[];    /* [0, 2, 3, 5, 7, 8, 9, 10] */
+
+/* Exotic/World scales */
+extern const int SCALE_HUNGARIAN_MINOR[];   /* [0, 2, 3, 6, 7, 8, 11] */
+extern const int SCALE_DOUBLE_HARMONIC[];   /* Byzantine: [0, 1, 4, 5, 7, 8, 11] */
+extern const int SCALE_NEAPOLITAN_MAJOR[];  /* [0, 1, 3, 5, 7, 9, 11] */
+extern const int SCALE_NEAPOLITAN_MINOR[];  /* [0, 1, 3, 5, 7, 8, 11] */
+extern const int SCALE_PHRYGIAN_DOMINANT[]; /* Spanish/Jewish: [0, 1, 4, 5, 7, 8, 10] */
+extern const int SCALE_PERSIAN[];           /* [0, 1, 4, 5, 6, 8, 11] */
+extern const int SCALE_ALTERED[];           /* Super Locrian: [0, 1, 3, 4, 6, 8, 10] */
+
+/* Japanese scales */
+extern const int SCALE_HIRAJOSHI[];      /* [0, 2, 3, 7, 8] */
+extern const int SCALE_IN_SEN[];         /* [0, 1, 5, 7, 10] */
+extern const int SCALE_IWATO[];          /* [0, 1, 5, 6, 10] */
+extern const int SCALE_KUMOI[];          /* [0, 2, 3, 7, 9] */
+
+/* Other world scales */
+extern const int SCALE_EGYPTIAN[];       /* [0, 2, 5, 7, 10] */
+extern const int SCALE_ROMANIAN_MINOR[]; /* [0, 2, 3, 6, 7, 9, 10] */
+extern const int SCALE_SPANISH_8_TONE[]; /* [0, 1, 3, 4, 5, 6, 8, 10] */
+extern const int SCALE_ENIGMATIC[];      /* [0, 1, 4, 6, 8, 10, 11] */
+
+/* Scale sizes */
+#define SCALE_DIATONIC_SIZE    7
+#define SCALE_PENTATONIC_SIZE  5
+#define SCALE_BLUES_SIZE       6
+#define SCALE_WHOLE_TONE_SIZE  6
+#define SCALE_CHROMATIC_SIZE  12
+#define SCALE_DIMINISHED_SIZE  8
+#define SCALE_AUGMENTED_SIZE   6
+#define SCALE_BEBOP_SIZE       8
+
+/*
+ * Build a scale from a root pitch and interval array (one octave).
+ *
+ * Parameters:
+ *   root        - Root pitch (MIDI number 0-127)
+ *   intervals   - Array of semitone intervals
+ *   num_notes   - Number of notes in the scale
+ *   out_pitches - Output array for scale pitches (must be at least num_notes)
+ *
+ * Returns: Number of valid pitches written (may be less than num_notes
+ *          if some would exceed MIDI range)
+ */
+int music_build_scale(int root, const int* intervals, int num_notes, int* out_pitches);
+
+/*
+ * Get a specific scale degree.
+ *
+ * Parameters:
+ *   root      - Root pitch (MIDI number 0-127)
+ *   intervals - Array of semitone intervals
+ *   num_notes - Number of notes in the scale
+ *   degree    - Scale degree (1-based: 1=root, 2=second, etc.)
+ *               Supports degrees beyond the octave (e.g., 9 = 2nd + octave)
+ *
+ * Returns: MIDI pitch for the degree, or -1 if out of range
+ */
+int music_scale_degree(int root, const int* intervals, int num_notes, int degree);
+
+/*
+ * Check if a pitch belongs to a scale (in any octave).
+ *
+ * Parameters:
+ *   pitch     - MIDI pitch to check (0-127)
+ *   root      - Root pitch of the scale
+ *   intervals - Array of semitone intervals
+ *   num_notes - Number of notes in the scale
+ *
+ * Returns: 1 if pitch is in scale, 0 otherwise
+ */
+int music_in_scale(int pitch, int root, const int* intervals, int num_notes);
+
+/*
+ * Quantize a pitch to the nearest scale tone.
+ *
+ * Parameters:
+ *   pitch     - MIDI pitch to quantize (0-127)
+ *   root      - Root pitch of the scale
+ *   intervals - Array of semitone intervals
+ *   num_notes - Number of notes in the scale
+ *
+ * Returns: Nearest pitch that belongs to the scale
+ */
+int music_quantize_to_scale(int pitch, int root, const int* intervals, int num_notes);
+
+/* ============================================================================
  * Dynamics (Velocity Constants)
  * ============================================================================ */
 

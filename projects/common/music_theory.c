@@ -124,6 +124,153 @@ int music_build_chord(int root, const int* intervals, int num_notes, int* out_pi
 }
 
 /* ============================================================================
+ * Scale Interval Definitions
+ * ============================================================================ */
+
+/* Diatonic modes */
+const int SCALE_MAJOR[]      = {0, 2, 4, 5, 7, 9, 11};
+const int SCALE_DORIAN[]     = {0, 2, 3, 5, 7, 9, 10};
+const int SCALE_PHRYGIAN[]   = {0, 1, 3, 5, 7, 8, 10};
+const int SCALE_LYDIAN[]     = {0, 2, 4, 6, 7, 9, 11};
+const int SCALE_MIXOLYDIAN[] = {0, 2, 4, 5, 7, 9, 10};
+const int SCALE_MINOR[]      = {0, 2, 3, 5, 7, 8, 10};
+const int SCALE_LOCRIAN[]    = {0, 1, 3, 5, 6, 8, 10};
+
+/* Other minor scales */
+const int SCALE_HARMONIC_MINOR[] = {0, 2, 3, 5, 7, 8, 11};
+const int SCALE_MELODIC_MINOR[]  = {0, 2, 3, 5, 7, 9, 11};
+
+/* Pentatonic scales */
+const int SCALE_PENTATONIC_MAJOR[] = {0, 2, 4, 7, 9};
+const int SCALE_PENTATONIC_MINOR[] = {0, 3, 5, 7, 10};
+
+/* Blues scale */
+const int SCALE_BLUES[] = {0, 3, 5, 6, 7, 10};
+
+/* Symmetric scales */
+const int SCALE_WHOLE_TONE[]    = {0, 2, 4, 6, 8, 10};
+const int SCALE_CHROMATIC[]     = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+const int SCALE_DIMINISHED_HW[] = {0, 1, 3, 4, 6, 7, 9, 10};
+const int SCALE_DIMINISHED_WH[] = {0, 2, 3, 5, 6, 8, 9, 11};
+const int SCALE_AUGMENTED[]     = {0, 3, 4, 7, 8, 11};
+
+/* Bebop scales (8 notes) */
+const int SCALE_BEBOP_DOMINANT[] = {0, 2, 4, 5, 7, 9, 10, 11};
+const int SCALE_BEBOP_MAJOR[]    = {0, 2, 4, 5, 7, 8, 9, 11};
+const int SCALE_BEBOP_MINOR[]    = {0, 2, 3, 5, 7, 8, 9, 10};
+
+/* Exotic/World scales */
+const int SCALE_HUNGARIAN_MINOR[]   = {0, 2, 3, 6, 7, 8, 11};
+const int SCALE_DOUBLE_HARMONIC[]   = {0, 1, 4, 5, 7, 8, 11};
+const int SCALE_NEAPOLITAN_MAJOR[]  = {0, 1, 3, 5, 7, 9, 11};
+const int SCALE_NEAPOLITAN_MINOR[]  = {0, 1, 3, 5, 7, 8, 11};
+const int SCALE_PHRYGIAN_DOMINANT[] = {0, 1, 4, 5, 7, 8, 10};
+const int SCALE_PERSIAN[]           = {0, 1, 4, 5, 6, 8, 11};
+const int SCALE_ALTERED[]           = {0, 1, 3, 4, 6, 8, 10};
+
+/* Japanese scales */
+const int SCALE_HIRAJOSHI[] = {0, 2, 3, 7, 8};
+const int SCALE_IN_SEN[]    = {0, 1, 5, 7, 10};
+const int SCALE_IWATO[]     = {0, 1, 5, 6, 10};
+const int SCALE_KUMOI[]     = {0, 2, 3, 7, 9};
+
+/* Other world scales */
+const int SCALE_EGYPTIAN[]       = {0, 2, 5, 7, 10};
+const int SCALE_ROMANIAN_MINOR[] = {0, 2, 3, 6, 7, 9, 10};
+const int SCALE_SPANISH_8_TONE[] = {0, 1, 3, 4, 5, 6, 8, 10};
+const int SCALE_ENIGMATIC[]      = {0, 1, 4, 6, 8, 10, 11};
+
+/* ============================================================================
+ * Scale Functions
+ * ============================================================================ */
+
+int music_build_scale(int root, const int* intervals, int num_notes, int* out_pitches) {
+    if (intervals == NULL || out_pitches == NULL || num_notes <= 0) return 0;
+    if (root < 0 || root > 127) return 0;
+
+    int valid_count = 0;
+    for (int i = 0; i < num_notes; i++) {
+        int pitch = root + intervals[i];
+        if (pitch >= 0 && pitch <= 127) {
+            out_pitches[valid_count++] = pitch;
+        }
+    }
+
+    return valid_count;
+}
+
+int music_scale_degree(int root, const int* intervals, int num_notes, int degree) {
+    if (intervals == NULL || num_notes <= 0 || degree < 1) return -1;
+    if (root < 0 || root > 127) return -1;
+
+    /* Convert 1-based degree to 0-based index */
+    int index = degree - 1;
+
+    /* Calculate octave offset and scale index */
+    int octaves = index / num_notes;
+    int scale_index = index % num_notes;
+
+    /* Calculate pitch */
+    int pitch = root + intervals[scale_index] + (octaves * 12);
+
+    if (pitch < 0 || pitch > 127) return -1;
+    return pitch;
+}
+
+int music_in_scale(int pitch, int root, const int* intervals, int num_notes) {
+    if (intervals == NULL || num_notes <= 0) return 0;
+    if (pitch < 0 || pitch > 127) return 0;
+    if (root < 0 || root > 127) return 0;
+
+    /* Get the pitch class (0-11) relative to the root */
+    int root_class = root % 12;
+    int pitch_class = pitch % 12;
+
+    /* Calculate interval from root (in pitch class space) */
+    int interval = (pitch_class - root_class + 12) % 12;
+
+    /* Check if this interval exists in the scale */
+    for (int i = 0; i < num_notes; i++) {
+        if (intervals[i] == interval) {
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+int music_quantize_to_scale(int pitch, int root, const int* intervals, int num_notes) {
+    if (intervals == NULL || num_notes <= 0) return pitch;
+    if (pitch < 0 || pitch > 127) return pitch;
+    if (root < 0 || root > 127) return pitch;
+
+    /* If already in scale, return as-is */
+    if (music_in_scale(pitch, root, intervals, num_notes)) {
+        return pitch;
+    }
+
+    /* Find the nearest scale tone */
+    int best_pitch = pitch;
+    int best_distance = 128;
+
+    /* Check pitches within one octave up and down */
+    for (int offset = -12; offset <= 12; offset++) {
+        int candidate = pitch + offset;
+        if (candidate < 0 || candidate > 127) continue;
+
+        if (music_in_scale(candidate, root, intervals, num_notes)) {
+            int distance = abs(offset);
+            if (distance < best_distance) {
+                best_distance = distance;
+                best_pitch = candidate;
+            }
+        }
+    }
+
+    return best_pitch;
+}
+
+/* ============================================================================
  * Dynamics Parsing
  * ============================================================================ */
 

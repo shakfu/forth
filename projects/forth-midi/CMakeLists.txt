@@ -2,8 +2,8 @@ add_executable(forth_midi forth_midi.c)
 
 target_compile_options(forth_midi PRIVATE -Wall -Wextra)
 
-# Link with libremidi
-target_link_libraries(forth_midi PRIVATE libremidi)
+# Link with libremidi and music_theory
+target_link_libraries(forth_midi PRIVATE libremidi music_theory)
 
 # Link with readline
 find_library(READLINE_LIBRARY readline)
