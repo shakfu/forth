@@ -53,7 +53,7 @@ Ideas for extending both MIDI implementations.
 
 - [ ] Named pattern storage (`pattern! pattern@`)
 - [ ] Pattern transformations (reverse, invert, retrograde)
-- [ ] Euclidean rhythms (`euclidean` word)
+- [x] Euclidean rhythms (`euclidean` word)
 - [ ] Markov chains for generative sequences
 
 ### Scales / Harmony

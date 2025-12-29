@@ -1,4 +1,22 @@
-add_executable(forth_midi forth_midi.c)
+# Modular MIDI Forth source files
+set(FORTH_MIDI_SOURCES
+    main.c
+    stack.c
+    primitives.c
+    midi_core.c
+    notation.c
+    generative.c
+    sequences.c
+    packed_notes.c
+    patterns.c
+    scales.c
+    recording.c
+    dictionary.c
+    interpreter.c
+    readline_comp.c
+)
+
+add_executable(forth_midi ${FORTH_MIDI_SOURCES})
 
 target_compile_options(forth_midi PRIVATE -Wall -Wextra)
 
