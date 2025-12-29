@@ -6,7 +6,9 @@ A Python-based MIDI language using [PocketPy](https://pocketpy.dev), a portable 
 
 - Pythonic API with context managers and classes
 - Musical abstractions: pitches, durations, velocities, chords
-- Low-level MIDI control: note on/off, CC, program change
+- 55 built-in scales including modes, pentatonics, world scales
+- Microtonal support with 10 scales featuring quarter-tones
+- Low-level MIDI control: note on/off, CC, program change, pitch bend
 - Virtual and hardware MIDI port support
 - Chord builders: major, minor, diminished, augmented, 7ths
 - Tempo-aware duration constants

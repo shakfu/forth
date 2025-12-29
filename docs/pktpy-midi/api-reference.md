@@ -432,6 +432,232 @@ midi.min7("C4")  # [60, 63, 67, 70]
 
 ---
 
+## Scale Functions
+
+### midi.scale
+
+```python
+midi.scale(root, name) -> list[int]
+```
+
+Build a scale from root pitch and scale name.
+
+- `root` - Root pitch (int or str)
+- `name` - Scale name (string)
+
+```python
+midi.scale(60, "major")      # [60, 62, 64, 65, 67, 69, 71]
+midi.scale("C4", "minor")    # [60, 62, 63, 65, 67, 68, 70]
+midi.scale("D4", "dorian")   # Dorian mode starting on D
+```
+
+### midi.degree
+
+```python
+midi.degree(root, name, n) -> int
+```
+
+Get the nth degree of a named scale (1-based).
+
+- `root` - Root pitch (int or str)
+- `name` - Scale name (string)
+- `n` - Scale degree (1 = root, 2 = second, etc.)
+
+Supports degrees beyond the octave (e.g., 9 = 2nd + octave).
+
+```python
+midi.degree(60, "major", 1)   # 60 (root)
+midi.degree(60, "major", 3)   # 64 (major third)
+midi.degree(60, "major", 5)   # 67 (perfect fifth)
+midi.degree(60, "major", 8)   # 72 (octave)
+midi.degree(60, "major", 9)   # 74 (ninth = octave + 2nd)
+```
+
+### midi.in_scale
+
+```python
+midi.in_scale(pitch, root, name) -> bool
+```
+
+Check if a pitch belongs to a named scale (in any octave).
+
+```python
+midi.in_scale(64, 60, "major")  # True  (E is in C major)
+midi.in_scale(61, 60, "major")  # False (C# is not in C major)
+```
+
+### midi.quantize
+
+```python
+midi.quantize(pitch, root, name) -> int
+```
+
+Quantize a pitch to the nearest note in a named scale.
+
+```python
+midi.quantize(63, 60, "major")  # 62 (D#/Eb -> D)
+midi.quantize(66, 60, "major")  # 67 (F#/Gb -> G)
+```
+
+### Low-Level Scale Functions
+
+For direct control with interval tuples:
+
+```python
+midi.build_scale(root, intervals) -> list[int]
+midi.scale_degree(root, intervals, degree) -> int
+midi.in_scale(pitch, root, intervals) -> bool
+midi.quantize_to_scale(pitch, root, intervals) -> int
+```
+
+```python
+major = (0, 2, 4, 5, 7, 9, 11)
+midi.build_scale(60, major)           # [60, 62, 64, 65, 67, 69, 71]
+midi.scale_degree(60, major, 5)       # 67
+midi.in_scale(64, 60, major)          # True
+midi.quantize_to_scale(63, 60, major) # 62
+```
+
+---
+
+## Scale Constants
+
+All scales are available as tuples of semitone intervals from the root.
+
+### Diatonic Modes
+
+| Constant | Intervals |
+|----------|-----------|
+| `midi.SCALE_MAJOR` | (0, 2, 4, 5, 7, 9, 11) |
+| `midi.SCALE_MINOR` | (0, 2, 3, 5, 7, 8, 10) |
+| `midi.SCALE_DORIAN` | (0, 2, 3, 5, 7, 9, 10) |
+| `midi.SCALE_PHRYGIAN` | (0, 1, 3, 5, 7, 8, 10) |
+| `midi.SCALE_LYDIAN` | (0, 2, 4, 6, 7, 9, 11) |
+| `midi.SCALE_MIXOLYDIAN` | (0, 2, 4, 5, 7, 9, 10) |
+| `midi.SCALE_LOCRIAN` | (0, 1, 3, 5, 6, 8, 10) |
+| `midi.SCALE_IONIAN` | Same as major |
+| `midi.SCALE_AEOLIAN` | Same as natural minor |
+
+### Pentatonic & Blues
+
+| Constant | Intervals |
+|----------|-----------|
+| `midi.SCALE_PENTATONIC` | (0, 2, 4, 7, 9) |
+| `midi.SCALE_PENTATONIC_MAJOR` | (0, 2, 4, 7, 9) |
+| `midi.SCALE_PENTATONIC_MINOR` | (0, 3, 5, 7, 10) |
+| `midi.SCALE_BLUES` | (0, 3, 5, 6, 7, 10) |
+| `midi.SCALE_BLUES_MAJOR` | (0, 2, 3, 4, 7, 9) |
+
+### Harmonic & Melodic
+
+| Constant | Intervals |
+|----------|-----------|
+| `midi.SCALE_HARMONIC_MINOR` | (0, 2, 3, 5, 7, 8, 11) |
+| `midi.SCALE_MELODIC_MINOR` | (0, 2, 3, 5, 7, 9, 11) |
+| `midi.SCALE_HARMONIC_MAJOR` | (0, 2, 4, 5, 7, 8, 11) |
+
+### World Scales
+
+| Constant | Description |
+|----------|-------------|
+| `midi.SCALE_MAQAM_HIJAZ` | Arabic Hijaz (12-TET) |
+| `midi.SCALE_MAQAM_NAHAWAND` | Arabic Nahawand |
+| `midi.SCALE_RAGA_BHAIRAV` | Indian Bhairav |
+| `midi.SCALE_JAPANESE` | Japanese In scale |
+| `midi.SCALE_GYPSY` | Hungarian Gypsy |
+
+### Other Scales
+
+| Constant | Description |
+|----------|-------------|
+| `midi.SCALE_CHROMATIC` | All 12 semitones |
+| `midi.SCALE_WHOLE_TONE` | Whole-tone scale |
+| `midi.SCALE_DIMINISHED` | Whole-half diminished |
+| `midi.SCALE_AUGMENTED` | Augmented scale |
+| `midi.SCALE_BEBOP_DOMINANT` | Bebop dominant |
+
+### Scale Lookup Dictionary
+
+```python
+midi.scales["major"]      # Returns (0, 2, 4, 5, 7, 9, 11)
+midi.scales["pentatonic"] # Returns (0, 2, 4, 7, 9)
+```
+
+---
+
+## Microtonal
+
+### MidiOut.pitch_bend
+
+```python
+m.pitch_bend(cents, channel=1)
+```
+
+Set pitch bend in cents (-200 to +200 for semitone range).
+
+- `cents` - Pitch offset in cents
+- `channel` - MIDI channel (1-16)
+
+```python
+m.pitch_bend(50)    # Bend up quarter-tone
+m.pitch_bend(-50)   # Bend down quarter-tone
+m.pitch_bend(0)     # Reset to center
+```
+
+### midi.cents_to_note
+
+```python
+midi.cents_to_note(root, cents) -> tuple[int, int]
+```
+
+Convert a cents interval to note and pitch bend values.
+
+- `root` - Root pitch (MIDI number)
+- `cents` - Interval in cents from root
+
+Returns tuple of (midi_note, bend_cents).
+
+```python
+midi.cents_to_note(60, 150)   # (61, 50)  - 150 cents = C# minus 50 cents
+midi.cents_to_note(60, 350)   # (63, 50)  - 350 cents = Eb plus 50 cents
+```
+
+### Microtonal Scale Constants
+
+For scales with quarter-tones and other microtonal intervals:
+
+| Constant | Description |
+|----------|-------------|
+| `midi.SCALE_MAQAM_BAYATI_CENTS` | Authentic Bayati with 3/4 tones |
+| `midi.SCALE_MAQAM_RAST_CENTS` | Authentic Rast with 3/4 tones |
+| `midi.SCALE_MAQAM_SABA_CENTS` | Authentic Saba |
+| `midi.SCALE_MAQAM_SIKAH_CENTS` | Authentic Sikah |
+| `midi.SCALE_MAQAM_HIJAZ_CENTS` | Authentic Hijaz with microtones |
+| `midi.SCALE_RAGA_TODI_CENTS` | Raga Todi with shruti |
+| `midi.SCALE_SLENDRO_CENTS` | Javanese Slendro |
+| `midi.SCALE_PELOG_CENTS` | Javanese Pelog |
+
+```python
+midi.SCALE_MAQAM_BAYATI_CENTS  # (0, 150, 300, 500, 700, 800, 1000)
+midi.scales_cents["maqam_bayati"]  # Same via lookup
+```
+
+### Microtonal Playback Example
+
+```python
+import midi
+
+with midi.open() as m:
+    root = 60
+    for cents in midi.SCALE_MAQAM_BAYATI_CENTS:
+        note, bend = midi.cents_to_note(root, cents)
+        m.pitch_bend(bend)
+        m.note(note, midi.mf, midi.quarter)
+    m.pitch_bend(0)  # Reset
+```
+
+---
+
 ## Pitch Helpers
 
 ### midi.transpose

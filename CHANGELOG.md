@@ -82,6 +82,14 @@ All notable changes to midi-langs are documented in this file.
   - `*scales*` alist for name-based scale lookup
   - Helper: `(cents-to-note root cents)` for microtonal interval calculation
 - **pktpy-midi**: Refactored to use common `music_parse_pitch()` instead of local implementation
+  - Added scale support with 55 12-TET scales and 10 microtonal scales
+  - New FFI functions: `midi.build_scale()`, `midi.scale_degree()`, `midi.in_scale()`, `midi.quantize_to_scale()`
+  - New MidiOut method: `m.pitch_bend(cents, [channel])` for microtonal playback
+  - Scale intervals as `midi.SCALE_*` tuples (SCALE_MAJOR, SCALE_DORIAN, SCALE_BLUES, etc.)
+  - Microtonal scales as `midi.SCALE_*_CENTS` tuples (SCALE_MAQAM_BAYATI_CENTS, etc.)
+  - Lookup dictionaries: `midi.scales` and `midi.scales_cents` for name-based access
+  - Helper functions: `midi.scale(root, name)`, `midi.degree(root, name, n)`, `midi.quantize(pitch, root, name)`
+  - Helper: `midi.cents_to_note(root, cents)` for microtonal interval calculation
 - **mhs-midi**: Linked with music_theory library for future use
 
 ## [0.1.4]

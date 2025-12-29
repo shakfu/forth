@@ -158,6 +158,185 @@ with midi.open() as m:
 
 ---
 
+## Scale Examples
+
+### Playing Scales
+
+```python
+import midi
+
+with midi.open() as m:
+    # Play C major scale
+    for pitch in midi.scale(60, "major"):
+        m.note(pitch, midi.mf, midi.eighth)
+
+    midi.rest(midi.quarter)
+
+    # Play D dorian scale
+    for pitch in midi.scale("D4", "dorian"):
+        m.note(pitch, midi.mf, midi.eighth)
+```
+
+### Modal Exploration
+
+Play through all diatonic modes starting on C:
+
+```python
+import midi
+
+modes = ["major", "dorian", "phrygian", "lydian",
+         "mixolydian", "minor", "locrian"]
+
+with midi.open() as m:
+    for mode in modes:
+        print(mode)
+        for pitch in midi.scale(60, mode):
+            m.note(pitch, midi.mf, midi.sixteenth)
+        midi.rest(midi.quarter)
+```
+
+### Using Scale Degrees
+
+Build chords from scale degrees:
+
+```python
+import midi
+
+with midi.open() as m:
+    root = 60
+
+    # I chord (1, 3, 5)
+    m.chord([midi.degree(root, "major", 1),
+             midi.degree(root, "major", 3),
+             midi.degree(root, "major", 5)], midi.mf, midi.half)
+
+    # IV chord (4, 6, 8)
+    m.chord([midi.degree(root, "major", 4),
+             midi.degree(root, "major", 6),
+             midi.degree(root, "major", 8)], midi.mf, midi.half)
+
+    # V chord (5, 7, 9)
+    m.chord([midi.degree(root, "major", 5),
+             midi.degree(root, "major", 7),
+             midi.degree(root, "major", 9)], midi.mf, midi.half)
+
+    # I chord
+    m.chord([midi.degree(root, "major", 1),
+             midi.degree(root, "major", 3),
+             midi.degree(root, "major", 5)], midi.f, midi.whole)
+```
+
+### Scale-Constrained Melody
+
+Quantize random pitches to a scale:
+
+```python
+import midi
+import random
+
+with midi.open() as m:
+    root = 60
+
+    # Generate random pitches and quantize to C pentatonic
+    for _ in range(16):
+        random_pitch = midi.c4 + random.randint(-12, 12)
+        quantized = midi.quantize(random_pitch, root, "pentatonic")
+        m.note(quantized, midi.mf, midi.sixteenth)
+```
+
+### Blues Scale Improvisation
+
+```python
+import midi
+import random
+
+midi.set_tempo(100)
+
+with midi.open() as m:
+    blues = midi.scale(60, "blues")
+    # Add octave above for more range
+    full_blues = list(blues) + [p + 12 for p in blues]
+
+    # Random blues licks
+    for bar in range(4):
+        for beat in range(4):
+            note_count = random.randint(1, 3)
+            for n in range(note_count):
+                pitch = random.choice(full_blues)
+                vel = 60 + random.randint(0, 40)
+                m.note(pitch, vel, midi.sixteenth)
+
+    # End on the root
+    m.note(60, midi.f, midi.whole)
+```
+
+### Indian Raga
+
+Play Raga Bhairav:
+
+```python
+import midi
+
+with midi.open() as m:
+    bhairav = midi.scale(60, "raga_bhairav")
+
+    # Aroha (ascending)
+    for pitch in bhairav:
+        m.note(pitch, midi.mp, midi.quarter)
+    m.note(72, midi.mf, midi.half)  # Octave
+
+    midi.rest(midi.quarter)
+
+    # Avaroha (descending)
+    for pitch in reversed(bhairav):
+        m.note(pitch, midi.mf, midi.quarter)
+```
+
+### Microtonal Maqam with Quarter Tones
+
+Play authentic Maqam Bayati with quarter tones:
+
+```python
+import midi
+
+with midi.open() as m:
+    root = 60
+
+    # Play scale with pitch bend for quarter tones
+    for cents in midi.SCALE_MAQAM_BAYATI_CENTS:
+        note, bend = midi.cents_to_note(root, cents)
+        m.pitch_bend(bend)
+        m.note(note, midi.mf, midi.quarter)
+
+    # Add octave
+    m.pitch_bend(0)
+    m.note(root + 12, midi.mf, midi.half)
+```
+
+### Arabic Maqam
+
+Play Maqam Hijaz (12-TET approximation):
+
+```python
+import midi
+
+with midi.open() as m:
+    hijaz = midi.scale(62, "maqam_hijaz")  # D is traditional root
+
+    # Ascending
+    for pitch in hijaz:
+        m.note(pitch, midi.mf, midi.quarter)
+
+    # Add the octave
+    m.note(74, midi.mf, midi.half)
+
+    # Descending
+    for pitch in reversed(hijaz):
+        m.note(pitch, midi.mf, midi.quarter)
+```
+
+---
+
 ## Advanced Examples
 
 ### Control Changes

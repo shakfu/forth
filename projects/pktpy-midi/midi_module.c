@@ -199,6 +199,152 @@ static bool midi_note(int argc, py_StackRef argv) {
 }
 
 // ============================================================================
+// Scale functions - using common music_theory library
+// ============================================================================
+
+// Helper to read intervals from a Python list/tuple
+static int get_intervals_from_py(py_Ref list_arg, int* intervals, int max_size) {
+    int count = 0;
+    int len;
+
+    if (py_istype(list_arg, tp_list)) {
+        len = py_list_len(list_arg);
+        for (int i = 0; i < len && count < max_size; i++) {
+            py_Ref item = py_list_getitem(list_arg, i);
+            if (py_isint(item)) {
+                intervals[count++] = (int)py_toint(item);
+            }
+        }
+    } else if (py_istype(list_arg, tp_tuple)) {
+        len = py_tuple_len(list_arg);
+        for (int i = 0; i < len && count < max_size; i++) {
+            py_Ref item = py_tuple_getitem(list_arg, i);
+            if (py_isint(item)) {
+                intervals[count++] = (int)py_toint(item);
+            }
+        }
+    }
+    return count;
+}
+
+// midi.build_scale(root, intervals) -> list of pitches
+static bool midi_build_scale(int argc, py_StackRef argv) {
+    PY_CHECK_ARGC(2);
+    PY_CHECK_ARG_TYPE(0, tp_int);
+
+    int root = (int)py_toint(py_arg(0));
+    if (root < 0 || root > 127) {
+        return py_exception(tp_ValueError, "root must be 0-127, got %d", root);
+    }
+
+    py_Ref intervals_arg = py_arg(1);
+    if (!py_istype(intervals_arg, tp_list) && !py_istype(intervals_arg, tp_tuple)) {
+        return py_exception(tp_TypeError, "intervals must be a list or tuple");
+    }
+
+    int intervals[16];
+    int num_intervals = get_intervals_from_py(intervals_arg, intervals, 16);
+    if (num_intervals == 0) {
+        py_newlist(py_retval());
+        return true;
+    }
+
+    int pitches[16];
+    int count = music_build_scale(root, intervals, num_intervals, pitches);
+
+    py_newlistn(py_retval(), count);
+    for (int i = 0; i < count; i++) {
+        py_newint(py_list_getitem(py_retval(), i), pitches[i]);
+    }
+    return true;
+}
+
+// midi.scale_degree(root, intervals, degree) -> pitch
+static bool midi_scale_degree(int argc, py_StackRef argv) {
+    PY_CHECK_ARGC(3);
+    PY_CHECK_ARG_TYPE(0, tp_int);
+    PY_CHECK_ARG_TYPE(2, tp_int);
+
+    int root = (int)py_toint(py_arg(0));
+    if (root < 0 || root > 127) {
+        return py_exception(tp_ValueError, "root must be 0-127, got %d", root);
+    }
+
+    py_Ref intervals_arg = py_arg(1);
+    if (!py_istype(intervals_arg, tp_list) && !py_istype(intervals_arg, tp_tuple)) {
+        return py_exception(tp_TypeError, "intervals must be a list or tuple");
+    }
+
+    int degree = (int)py_toint(py_arg(2));
+
+    int intervals[16];
+    int num_intervals = get_intervals_from_py(intervals_arg, intervals, 16);
+    if (num_intervals == 0) {
+        return py_exception(tp_ValueError, "intervals list is empty");
+    }
+
+    int pitch = music_scale_degree(root, intervals, num_intervals, degree);
+    if (pitch < 0) {
+        return py_exception(tp_ValueError, "scale degree out of range");
+    }
+
+    py_newint(py_retval(), pitch);
+    return true;
+}
+
+// midi.in_scale(pitch, root, intervals) -> bool
+static bool midi_in_scale(int argc, py_StackRef argv) {
+    PY_CHECK_ARGC(3);
+    PY_CHECK_ARG_TYPE(0, tp_int);
+    PY_CHECK_ARG_TYPE(1, tp_int);
+
+    int pitch = (int)py_toint(py_arg(0));
+    int root = (int)py_toint(py_arg(1));
+
+    py_Ref intervals_arg = py_arg(2);
+    if (!py_istype(intervals_arg, tp_list) && !py_istype(intervals_arg, tp_tuple)) {
+        return py_exception(tp_TypeError, "intervals must be a list or tuple");
+    }
+
+    int intervals[16];
+    int num_intervals = get_intervals_from_py(intervals_arg, intervals, 16);
+    if (num_intervals == 0) {
+        py_newbool(py_retval(), false);
+        return true;
+    }
+
+    int result = music_in_scale(pitch, root, intervals, num_intervals);
+    py_newbool(py_retval(), result);
+    return true;
+}
+
+// midi.quantize_to_scale(pitch, root, intervals) -> pitch
+static bool midi_quantize_to_scale(int argc, py_StackRef argv) {
+    PY_CHECK_ARGC(3);
+    PY_CHECK_ARG_TYPE(0, tp_int);
+    PY_CHECK_ARG_TYPE(1, tp_int);
+
+    int pitch = (int)py_toint(py_arg(0));
+    int root = (int)py_toint(py_arg(1));
+
+    py_Ref intervals_arg = py_arg(2);
+    if (!py_istype(intervals_arg, tp_list) && !py_istype(intervals_arg, tp_tuple)) {
+        return py_exception(tp_TypeError, "intervals must be a list or tuple");
+    }
+
+    int intervals[16];
+    int num_intervals = get_intervals_from_py(intervals_arg, intervals, 16);
+    if (num_intervals == 0) {
+        py_newint(py_retval(), pitch);
+        return true;
+    }
+
+    int result = music_quantize_to_scale(pitch, root, intervals, num_intervals);
+    py_newint(py_retval(), result);
+    return true;
+}
+
+// ============================================================================
 // MidiOut methods
 // ============================================================================
 
@@ -623,6 +769,43 @@ static bool MidiOut_all_notes_off(int argc, py_StackRef argv) {
     return true;
 }
 
+// MidiOut.pitch_bend(cents, channel=1) - for microtonal playback
+static bool MidiOut_pitch_bend(int argc, py_StackRef argv) {
+    if (argc < 2 || argc > 3) {
+        return py_exception(tp_TypeError, "pitch_bend() takes 1-2 arguments");
+    }
+
+    MidiOutData* data = MidiOut_get(py_arg(0));
+    if (!data) return false;
+    if (!data->handle) {
+        return py_exception(tp_RuntimeError, "MIDI output is closed");
+    }
+
+    PY_CHECK_ARG_TYPE(1, tp_int);
+    int cents = (int)py_toint(py_arg(1));
+
+    int channel = 1;
+    if (argc >= 3) {
+        PY_CHECK_ARG_TYPE(2, tp_int);
+        channel = (int)py_toint(py_arg(2));
+    }
+
+    if (channel < 1 || channel > 16) {
+        return py_exception(tp_ValueError, "channel must be 1-16, got %d", channel);
+    }
+
+    int bend = music_cents_to_bend(cents);
+    uint8_t msg[3] = {
+        0xE0 | ((channel - 1) & 0x0F),
+        bend & 0x7F,
+        (bend >> 7) & 0x7F
+    };
+    libremidi_midi_out_send_message(data->handle, msg, 3);
+
+    py_newnone(py_retval());
+    return true;
+}
+
 // MidiOut.close()
 static bool MidiOut_close(int argc, py_StackRef argv) {
     PY_CHECK_ARGC(1);
@@ -709,6 +892,12 @@ void pk_midi_module_init(void) {
     py_bindfunc(mod, "open", midi_open);
     py_bindfunc(mod, "note", midi_note);
 
+    // Scale functions
+    py_bindfunc(mod, "build_scale", midi_build_scale);
+    py_bindfunc(mod, "scale_degree", midi_scale_degree);
+    py_bindfunc(mod, "in_scale", midi_in_scale);
+    py_bindfunc(mod, "quantize_to_scale", midi_quantize_to_scale);
+
     // Create MidiOut type
     tp_MidiOut = py_newtype("MidiOut", tp_object, mod, MidiOut_dtor);
 
@@ -720,6 +909,7 @@ void pk_midi_module_init(void) {
     py_bindmethod(tp_MidiOut, "cc", MidiOut_cc);
     py_bindmethod(tp_MidiOut, "program_change", MidiOut_program_change);
     py_bindmethod(tp_MidiOut, "all_notes_off", MidiOut_all_notes_off);
+    py_bindmethod(tp_MidiOut, "pitch_bend", MidiOut_pitch_bend);
     py_bindmethod(tp_MidiOut, "close", MidiOut_close);
 
     // Bind properties
