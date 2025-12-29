@@ -1593,6 +1593,286 @@ void op_chord_min7(Stack* stack) {
     push(stack, root + 10);
 }
 
+// ============================================================================
+// Scales
+// ============================================================================
+//
+// Scale system uses numeric IDs for scale types. Words like `scale-major`
+// push the scale ID. Then `scale`, `degree`, `in-scale?`, `quantize` operate
+// on (root scale-id) pairs.
+
+// Scale lookup table entry
+typedef struct {
+    const char* name;
+    const int* intervals;
+    int size;
+} ScaleInfo;
+
+// Scale IDs - must match order in scale_table
+enum {
+    SCALE_ID_MAJOR = 0,
+    SCALE_ID_DORIAN,
+    SCALE_ID_PHRYGIAN,
+    SCALE_ID_LYDIAN,
+    SCALE_ID_MIXOLYDIAN,
+    SCALE_ID_MINOR,
+    SCALE_ID_LOCRIAN,
+    SCALE_ID_HARMONIC_MINOR,
+    SCALE_ID_MELODIC_MINOR,
+    SCALE_ID_PENTATONIC_MAJOR,
+    SCALE_ID_PENTATONIC_MINOR,
+    SCALE_ID_BLUES,
+    SCALE_ID_WHOLE_TONE,
+    SCALE_ID_CHROMATIC,
+    SCALE_ID_DIMINISHED_HW,
+    SCALE_ID_DIMINISHED_WH,
+    SCALE_ID_AUGMENTED,
+    SCALE_ID_BEBOP_DOMINANT,
+    SCALE_ID_BEBOP_MAJOR,
+    SCALE_ID_BEBOP_MINOR,
+    SCALE_ID_HUNGARIAN_MINOR,
+    SCALE_ID_DOUBLE_HARMONIC,
+    SCALE_ID_NEAPOLITAN_MAJOR,
+    SCALE_ID_NEAPOLITAN_MINOR,
+    SCALE_ID_PHRYGIAN_DOMINANT,
+    SCALE_ID_PERSIAN,
+    SCALE_ID_ALTERED,
+    SCALE_ID_HIRAJOSHI,
+    SCALE_ID_IN_SEN,
+    SCALE_ID_IWATO,
+    SCALE_ID_KUMOI,
+    SCALE_ID_EGYPTIAN,
+    SCALE_ID_ROMANIAN_MINOR,
+    SCALE_ID_SPANISH_8_TONE,
+    SCALE_ID_ENIGMATIC,
+    SCALE_ID_MAQAM_HIJAZ,
+    SCALE_ID_MAQAM_NAHAWAND,
+    SCALE_ID_MAQAM_NIKRIZ,
+    SCALE_ID_MAQAM_ATHAR_KURD,
+    SCALE_ID_MAQAM_SHAWQ_AFZA,
+    SCALE_ID_MAQAM_JIHARKAH,
+    SCALE_ID_RAGA_BHAIRAV,
+    SCALE_ID_RAGA_TODI,
+    SCALE_ID_RAGA_MARWA,
+    SCALE_ID_RAGA_PURVI,
+    SCALE_ID_RAGA_CHARUKESHI,
+    SCALE_ID_RAGA_KHAMAJ,
+    SCALE_ID_RAGA_BHIMPALASI,
+    SCALE_ID_RAGA_DARBARI,
+    SCALE_ID_COUNT  // Total number of scales
+};
+
+// Scale lookup table (order must match enum above)
+static const ScaleInfo scale_table[] = {
+    { "major",            SCALE_MAJOR,            SCALE_DIATONIC_SIZE },
+    { "dorian",           SCALE_DORIAN,           SCALE_DIATONIC_SIZE },
+    { "phrygian",         SCALE_PHRYGIAN,         SCALE_DIATONIC_SIZE },
+    { "lydian",           SCALE_LYDIAN,           SCALE_DIATONIC_SIZE },
+    { "mixolydian",       SCALE_MIXOLYDIAN,       SCALE_DIATONIC_SIZE },
+    { "minor",            SCALE_MINOR,            SCALE_DIATONIC_SIZE },
+    { "locrian",          SCALE_LOCRIAN,          SCALE_DIATONIC_SIZE },
+    { "harmonic-minor",   SCALE_HARMONIC_MINOR,   SCALE_DIATONIC_SIZE },
+    { "melodic-minor",    SCALE_MELODIC_MINOR,    SCALE_DIATONIC_SIZE },
+    { "pentatonic",       SCALE_PENTATONIC_MAJOR, SCALE_PENTATONIC_SIZE },
+    { "pentatonic-minor", SCALE_PENTATONIC_MINOR, SCALE_PENTATONIC_SIZE },
+    { "blues",            SCALE_BLUES,            SCALE_BLUES_SIZE },
+    { "whole-tone",       SCALE_WHOLE_TONE,       SCALE_WHOLE_TONE_SIZE },
+    { "chromatic",        SCALE_CHROMATIC,        SCALE_CHROMATIC_SIZE },
+    { "diminished-hw",    SCALE_DIMINISHED_HW,    SCALE_DIMINISHED_SIZE },
+    { "diminished-wh",    SCALE_DIMINISHED_WH,    SCALE_DIMINISHED_SIZE },
+    { "augmented",        SCALE_AUGMENTED,        SCALE_AUGMENTED_SIZE },
+    { "bebop-dominant",   SCALE_BEBOP_DOMINANT,   SCALE_BEBOP_SIZE },
+    { "bebop-major",      SCALE_BEBOP_MAJOR,      SCALE_BEBOP_SIZE },
+    { "bebop-minor",      SCALE_BEBOP_MINOR,      SCALE_BEBOP_SIZE },
+    { "hungarian-minor",  SCALE_HUNGARIAN_MINOR,  SCALE_DIATONIC_SIZE },
+    { "double-harmonic",  SCALE_DOUBLE_HARMONIC,  SCALE_DIATONIC_SIZE },
+    { "neapolitan-major", SCALE_NEAPOLITAN_MAJOR, SCALE_DIATONIC_SIZE },
+    { "neapolitan-minor", SCALE_NEAPOLITAN_MINOR, SCALE_DIATONIC_SIZE },
+    { "phrygian-dominant",SCALE_PHRYGIAN_DOMINANT,SCALE_DIATONIC_SIZE },
+    { "persian",          SCALE_PERSIAN,          SCALE_DIATONIC_SIZE },
+    { "altered",          SCALE_ALTERED,          SCALE_DIATONIC_SIZE },
+    { "hirajoshi",        SCALE_HIRAJOSHI,        SCALE_PENTATONIC_SIZE },
+    { "in-sen",           SCALE_IN_SEN,           SCALE_PENTATONIC_SIZE },
+    { "iwato",            SCALE_IWATO,            SCALE_PENTATONIC_SIZE },
+    { "kumoi",            SCALE_KUMOI,            SCALE_PENTATONIC_SIZE },
+    { "egyptian",         SCALE_EGYPTIAN,         SCALE_PENTATONIC_SIZE },
+    { "romanian-minor",   SCALE_ROMANIAN_MINOR,   SCALE_DIATONIC_SIZE },
+    { "spanish-8-tone",   SCALE_SPANISH_8_TONE,   SCALE_BEBOP_SIZE },
+    { "enigmatic",        SCALE_ENIGMATIC,        SCALE_DIATONIC_SIZE },
+    { "maqam-hijaz",      SCALE_MAQAM_HIJAZ,      SCALE_DIATONIC_SIZE },
+    { "maqam-nahawand",   SCALE_MAQAM_NAHAWAND,   SCALE_DIATONIC_SIZE },
+    { "maqam-nikriz",     SCALE_MAQAM_NIKRIZ,     SCALE_DIATONIC_SIZE },
+    { "maqam-athar-kurd", SCALE_MAQAM_ATHAR_KURD, SCALE_DIATONIC_SIZE },
+    { "maqam-shawq-afza", SCALE_MAQAM_SHAWQ_AFZA, SCALE_DIATONIC_SIZE },
+    { "maqam-jiharkah",   SCALE_MAQAM_JIHARKAH,   SCALE_DIATONIC_SIZE },
+    { "raga-bhairav",     SCALE_RAGA_BHAIRAV,     SCALE_DIATONIC_SIZE },
+    { "raga-todi",        SCALE_RAGA_TODI,        SCALE_DIATONIC_SIZE },
+    { "raga-marwa",       SCALE_RAGA_MARWA,       SCALE_DIATONIC_SIZE },
+    { "raga-purvi",       SCALE_RAGA_PURVI,       SCALE_DIATONIC_SIZE },
+    { "raga-charukeshi",  SCALE_RAGA_CHARUKESHI,  SCALE_DIATONIC_SIZE },
+    { "raga-khamaj",      SCALE_RAGA_KHAMAJ,      SCALE_DIATONIC_SIZE },
+    { "raga-bhimpalasi",  SCALE_RAGA_BHIMPALASI,  SCALE_PENTATONIC_SIZE },
+    { "raga-darbari",     SCALE_RAGA_DARBARI,     SCALE_DIATONIC_SIZE },
+};
+
+// Scale constant words - push scale ID
+void op_scale_major(Stack* stack) { push(stack, SCALE_ID_MAJOR); }
+void op_scale_dorian(Stack* stack) { push(stack, SCALE_ID_DORIAN); }
+void op_scale_phrygian(Stack* stack) { push(stack, SCALE_ID_PHRYGIAN); }
+void op_scale_lydian(Stack* stack) { push(stack, SCALE_ID_LYDIAN); }
+void op_scale_mixolydian(Stack* stack) { push(stack, SCALE_ID_MIXOLYDIAN); }
+void op_scale_minor(Stack* stack) { push(stack, SCALE_ID_MINOR); }
+void op_scale_locrian(Stack* stack) { push(stack, SCALE_ID_LOCRIAN); }
+void op_scale_harmonic_minor(Stack* stack) { push(stack, SCALE_ID_HARMONIC_MINOR); }
+void op_scale_melodic_minor(Stack* stack) { push(stack, SCALE_ID_MELODIC_MINOR); }
+void op_scale_pentatonic(Stack* stack) { push(stack, SCALE_ID_PENTATONIC_MAJOR); }
+void op_scale_pentatonic_minor(Stack* stack) { push(stack, SCALE_ID_PENTATONIC_MINOR); }
+void op_scale_blues(Stack* stack) { push(stack, SCALE_ID_BLUES); }
+void op_scale_whole_tone(Stack* stack) { push(stack, SCALE_ID_WHOLE_TONE); }
+void op_scale_chromatic(Stack* stack) { push(stack, SCALE_ID_CHROMATIC); }
+void op_scale_diminished_hw(Stack* stack) { push(stack, SCALE_ID_DIMINISHED_HW); }
+void op_scale_diminished_wh(Stack* stack) { push(stack, SCALE_ID_DIMINISHED_WH); }
+void op_scale_augmented_scale(Stack* stack) { push(stack, SCALE_ID_AUGMENTED); }
+void op_scale_bebop_dominant(Stack* stack) { push(stack, SCALE_ID_BEBOP_DOMINANT); }
+void op_scale_bebop_major(Stack* stack) { push(stack, SCALE_ID_BEBOP_MAJOR); }
+void op_scale_bebop_minor(Stack* stack) { push(stack, SCALE_ID_BEBOP_MINOR); }
+void op_scale_hungarian_minor(Stack* stack) { push(stack, SCALE_ID_HUNGARIAN_MINOR); }
+void op_scale_double_harmonic(Stack* stack) { push(stack, SCALE_ID_DOUBLE_HARMONIC); }
+void op_scale_neapolitan_major(Stack* stack) { push(stack, SCALE_ID_NEAPOLITAN_MAJOR); }
+void op_scale_neapolitan_minor(Stack* stack) { push(stack, SCALE_ID_NEAPOLITAN_MINOR); }
+void op_scale_phrygian_dominant(Stack* stack) { push(stack, SCALE_ID_PHRYGIAN_DOMINANT); }
+void op_scale_persian(Stack* stack) { push(stack, SCALE_ID_PERSIAN); }
+void op_scale_altered(Stack* stack) { push(stack, SCALE_ID_ALTERED); }
+void op_scale_hirajoshi(Stack* stack) { push(stack, SCALE_ID_HIRAJOSHI); }
+void op_scale_in_sen(Stack* stack) { push(stack, SCALE_ID_IN_SEN); }
+void op_scale_iwato(Stack* stack) { push(stack, SCALE_ID_IWATO); }
+void op_scale_kumoi(Stack* stack) { push(stack, SCALE_ID_KUMOI); }
+void op_scale_egyptian(Stack* stack) { push(stack, SCALE_ID_EGYPTIAN); }
+void op_scale_romanian_minor(Stack* stack) { push(stack, SCALE_ID_ROMANIAN_MINOR); }
+void op_scale_spanish_8_tone(Stack* stack) { push(stack, SCALE_ID_SPANISH_8_TONE); }
+void op_scale_enigmatic(Stack* stack) { push(stack, SCALE_ID_ENIGMATIC); }
+void op_scale_maqam_hijaz(Stack* stack) { push(stack, SCALE_ID_MAQAM_HIJAZ); }
+void op_scale_maqam_nahawand(Stack* stack) { push(stack, SCALE_ID_MAQAM_NAHAWAND); }
+void op_scale_maqam_nikriz(Stack* stack) { push(stack, SCALE_ID_MAQAM_NIKRIZ); }
+void op_scale_maqam_athar_kurd(Stack* stack) { push(stack, SCALE_ID_MAQAM_ATHAR_KURD); }
+void op_scale_maqam_shawq_afza(Stack* stack) { push(stack, SCALE_ID_MAQAM_SHAWQ_AFZA); }
+void op_scale_maqam_jiharkah(Stack* stack) { push(stack, SCALE_ID_MAQAM_JIHARKAH); }
+void op_scale_raga_bhairav(Stack* stack) { push(stack, SCALE_ID_RAGA_BHAIRAV); }
+void op_scale_raga_todi(Stack* stack) { push(stack, SCALE_ID_RAGA_TODI); }
+void op_scale_raga_marwa(Stack* stack) { push(stack, SCALE_ID_RAGA_MARWA); }
+void op_scale_raga_purvi(Stack* stack) { push(stack, SCALE_ID_RAGA_PURVI); }
+void op_scale_raga_charukeshi(Stack* stack) { push(stack, SCALE_ID_RAGA_CHARUKESHI); }
+void op_scale_raga_khamaj(Stack* stack) { push(stack, SCALE_ID_RAGA_KHAMAJ); }
+void op_scale_raga_bhimpalasi(Stack* stack) { push(stack, SCALE_ID_RAGA_BHIMPALASI); }
+void op_scale_raga_darbari(Stack* stack) { push(stack, SCALE_ID_RAGA_DARBARI); }
+
+// scale ( root scale-id -- p1 p2 ... pN N ) build scale and push all pitches + count
+void op_scale(Stack* stack) {
+    int32_t scale_id = pop(stack);
+    int32_t root = pop(stack);
+
+    if (scale_id < 0 || scale_id >= SCALE_ID_COUNT) {
+        printf("Invalid scale ID: %d\n", scale_id);
+        push(stack, 0);
+        return;
+    }
+
+    const ScaleInfo* info = &scale_table[scale_id];
+    int pitches[16];
+    int count = music_build_scale(root, info->intervals, info->size, pitches);
+
+    for (int i = 0; i < count; i++) {
+        push(stack, pitches[i]);
+    }
+    push(stack, count);
+}
+
+// degree ( root scale-id degree -- pitch ) get nth degree of scale (1-based)
+void op_degree(Stack* stack) {
+    int32_t deg = pop(stack);
+    int32_t scale_id = pop(stack);
+    int32_t root = pop(stack);
+
+    if (scale_id < 0 || scale_id >= SCALE_ID_COUNT) {
+        printf("Invalid scale ID: %d\n", scale_id);
+        push(stack, root);
+        return;
+    }
+
+    const ScaleInfo* info = &scale_table[scale_id];
+    int pitch = music_scale_degree(root, info->intervals, info->size, deg);
+    push(stack, pitch >= 0 ? pitch : root);
+}
+
+// in-scale? ( pitch root scale-id -- flag ) check if pitch is in scale
+void op_in_scale(Stack* stack) {
+    int32_t scale_id = pop(stack);
+    int32_t root = pop(stack);
+    int32_t pitch = pop(stack);
+
+    if (scale_id < 0 || scale_id >= SCALE_ID_COUNT) {
+        printf("Invalid scale ID: %d\n", scale_id);
+        push(stack, 0);
+        return;
+    }
+
+    const ScaleInfo* info = &scale_table[scale_id];
+    int result = music_in_scale(pitch, root, info->intervals, info->size);
+    push(stack, result ? -1 : 0);  // Forth true = -1
+}
+
+// quantize ( pitch root scale-id -- quantized-pitch )
+void op_quantize(Stack* stack) {
+    int32_t scale_id = pop(stack);
+    int32_t root = pop(stack);
+    int32_t pitch = pop(stack);
+
+    if (scale_id < 0 || scale_id >= SCALE_ID_COUNT) {
+        printf("Invalid scale ID: %d\n", scale_id);
+        push(stack, pitch);
+        return;
+    }
+
+    const ScaleInfo* info = &scale_table[scale_id];
+    int result = music_quantize_to_scale(pitch, root, info->intervals, info->size);
+    push(stack, result);
+}
+
+// scales ( -- ) list all available scales
+void op_scales(Stack* stack) {
+    (void)stack;
+    printf("Available scales (%d total):\n", SCALE_ID_COUNT);
+    for (int i = 0; i < SCALE_ID_COUNT; i++) {
+        printf("  %2d: scale-%s\n", i, scale_table[i].name);
+    }
+}
+
+// cents>bend ( cents -- bend ) convert cents offset to pitch bend value
+void op_cents_to_bend(Stack* stack) {
+    int32_t cents = pop(stack);
+    int bend = music_cents_to_bend(cents);
+    push(stack, bend);
+}
+
+// pb-cents ( cents ch -- ) send pitch bend in cents on channel
+void op_pb_cents(Stack* stack) {
+    int32_t ch = pop(stack);
+    int32_t cents = pop(stack);
+
+    if (midi_out == NULL) {
+        printf("No MIDI output open\n");
+        return;
+    }
+
+    int bend = music_cents_to_bend(cents);
+    // MIDI pitch bend: 0xE0 + channel, LSB, MSB
+    unsigned char msg[3];
+    msg[0] = 0xE0 | ((ch - 1) & 0x0F);
+    msg[1] = bend & 0x7F;
+    msg[2] = (bend >> 7) & 0x7F;
+    libremidi_midi_out_send_message(midi_out, msg, 3);
+}
+
 // play-chord ( p1 p2 p3 vel dur n -- ) play n notes as chord
 void op_play_chord(Stack* stack) {
     int32_t n = pop(stack);
@@ -2149,6 +2429,68 @@ void init_dictionary(void) {
     add_word("play-chord", op_play_chord, 1);
     add_word("chord>seq", op_chord_to_seq, 1);
     add_word("arp>seq", op_arp_to_seq, 1);
+
+    // Scales - constants
+    add_word("scale-major", op_scale_major, 1);
+    add_word("scale-dorian", op_scale_dorian, 1);
+    add_word("scale-phrygian", op_scale_phrygian, 1);
+    add_word("scale-lydian", op_scale_lydian, 1);
+    add_word("scale-mixolydian", op_scale_mixolydian, 1);
+    add_word("scale-minor", op_scale_minor, 1);
+    add_word("scale-locrian", op_scale_locrian, 1);
+    add_word("scale-harmonic-minor", op_scale_harmonic_minor, 1);
+    add_word("scale-melodic-minor", op_scale_melodic_minor, 1);
+    add_word("scale-pentatonic", op_scale_pentatonic, 1);
+    add_word("scale-pentatonic-minor", op_scale_pentatonic_minor, 1);
+    add_word("scale-blues", op_scale_blues, 1);
+    add_word("scale-whole-tone", op_scale_whole_tone, 1);
+    add_word("scale-chromatic", op_scale_chromatic, 1);
+    add_word("scale-diminished-hw", op_scale_diminished_hw, 1);
+    add_word("scale-diminished-wh", op_scale_diminished_wh, 1);
+    add_word("scale-augmented", op_scale_augmented_scale, 1);
+    add_word("scale-bebop-dominant", op_scale_bebop_dominant, 1);
+    add_word("scale-bebop-major", op_scale_bebop_major, 1);
+    add_word("scale-bebop-minor", op_scale_bebop_minor, 1);
+    add_word("scale-hungarian-minor", op_scale_hungarian_minor, 1);
+    add_word("scale-double-harmonic", op_scale_double_harmonic, 1);
+    add_word("scale-neapolitan-major", op_scale_neapolitan_major, 1);
+    add_word("scale-neapolitan-minor", op_scale_neapolitan_minor, 1);
+    add_word("scale-phrygian-dominant", op_scale_phrygian_dominant, 1);
+    add_word("scale-persian", op_scale_persian, 1);
+    add_word("scale-altered", op_scale_altered, 1);
+    add_word("scale-hirajoshi", op_scale_hirajoshi, 1);
+    add_word("scale-in-sen", op_scale_in_sen, 1);
+    add_word("scale-iwato", op_scale_iwato, 1);
+    add_word("scale-kumoi", op_scale_kumoi, 1);
+    add_word("scale-egyptian", op_scale_egyptian, 1);
+    add_word("scale-romanian-minor", op_scale_romanian_minor, 1);
+    add_word("scale-spanish-8-tone", op_scale_spanish_8_tone, 1);
+    add_word("scale-enigmatic", op_scale_enigmatic, 1);
+    add_word("scale-maqam-hijaz", op_scale_maqam_hijaz, 1);
+    add_word("scale-maqam-nahawand", op_scale_maqam_nahawand, 1);
+    add_word("scale-maqam-nikriz", op_scale_maqam_nikriz, 1);
+    add_word("scale-maqam-athar-kurd", op_scale_maqam_athar_kurd, 1);
+    add_word("scale-maqam-shawq-afza", op_scale_maqam_shawq_afza, 1);
+    add_word("scale-maqam-jiharkah", op_scale_maqam_jiharkah, 1);
+    add_word("scale-raga-bhairav", op_scale_raga_bhairav, 1);
+    add_word("scale-raga-todi", op_scale_raga_todi, 1);
+    add_word("scale-raga-marwa", op_scale_raga_marwa, 1);
+    add_word("scale-raga-purvi", op_scale_raga_purvi, 1);
+    add_word("scale-raga-charukeshi", op_scale_raga_charukeshi, 1);
+    add_word("scale-raga-khamaj", op_scale_raga_khamaj, 1);
+    add_word("scale-raga-bhimpalasi", op_scale_raga_bhimpalasi, 1);
+    add_word("scale-raga-darbari", op_scale_raga_darbari, 1);
+
+    // Scales - operations
+    add_word("scale", op_scale, 1);
+    add_word("degree", op_degree, 1);
+    add_word("in-scale?", op_in_scale, 1);
+    add_word("quantize", op_quantize, 1);
+    add_word("scales", op_scales, 1);
+
+    // Microtonal
+    add_word("cents>bend", op_cents_to_bend, 1);
+    add_word("pb-cents", op_pb_cents, 1);
 }
 
 // Parse pitch name like c4, C#4, Db5, etc.
@@ -2623,6 +2965,19 @@ void print_help(void) {
     printf("\nChord Builders:\n");
     printf("  major minor dim aug     Build triad from root\n");
     printf("  dom7 maj7 min7          Build 7th chord from root\n");
+
+    printf("\nScales:\n");
+    printf("  scales                  List all 49 available scales\n");
+    printf("  scale-major scale-minor Scale constant words\n");
+    printf("  scale-blues scale-pentatonic ... and more\n");
+    printf("  c4 scale-major scale    Build scale (root scale-id -- p1..pN N)\n");
+    printf("  c4 scale-major 3 degree Get 3rd degree (root scale-id deg -- pitch)\n");
+    printf("  e4 c4 scale-major in-scale?  Check membership (pitch root id -- flag)\n");
+    printf("  61 c4 scale-major quantize   Snap to scale (pitch root id -- pitch)\n");
+
+    printf("\nMicrotonal:\n");
+    printf("  cents>bend ( cents -- bend )  Convert cents to pitch bend\n");
+    printf("  pb-cents ( cents ch -- )      Pitch bend in cents\n");
 
     printf("\nTempo:\n");
     printf("  bpm! ( n -- )           Set tempo (default 120)\n");

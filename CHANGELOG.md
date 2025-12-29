@@ -97,6 +97,13 @@ All notable changes to midi-langs are documented in this file.
   - Scale functions: `buildScale`, `scaleDegree`, `inScale`, `quantize`
   - Microtonal helpers: `centsToBend`, `centsToNote`, `pitchBendCents`
   - Pure Haskell implementation for scale operations (no FFI needed for computation)
+- **forth-midi**: Added scale support with 49 12-TET scales
+  - Scale constant words: `scale-major`, `scale-minor`, `scale-dorian`, `scale-blues`, `scale-pentatonic`, etc.
+  - Scale operations: `scale` (build scale pitches), `degree` (get nth degree), `in-scale?` (membership check), `quantize` (snap to scale)
+  - Utility: `scales` word lists all 49 available scales
+  - Microtonal helpers: `cents>bend` (convert cents to pitch bend), `pb-cents` (send pitch bend in cents)
+  - Updated `help` output with Scales and Microtonal sections
+  - New documentation: `docs/forth-midi/scales.md`
 
 ## [0.1.4]
 

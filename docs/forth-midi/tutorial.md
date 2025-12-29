@@ -293,8 +293,56 @@ ending 8 times
 I
 ```
 
+## Lesson 15: Scales
+
+MIDI Forth includes 49 built-in scales. Type `scales` to see them all.
+
+Build a scale from a root pitch:
+
+```forth
+c4 scale-major scale .s    \ Pushes: 60 62 64 65 67 69 71 7
+```
+
+Get specific scale degrees (1-based):
+
+```forth
+c4 scale-major 1 degree .  \ 60 (root)
+c4 scale-major 3 degree .  \ 64 (third)
+c4 scale-major 5 degree .  \ 67 (fifth)
+```
+
+Check if a note belongs to a scale:
+
+```forth
+e4 c4 scale-major in-scale? .   \ -1 (true)
+c#4 c4 scale-major in-scale? .  \ 0 (false)
+```
+
+Quantize to nearest scale tone:
+
+```forth
+c#4 c4 scale-major quantize .   \ 60 (snaps to C)
+```
+
+Use scales for generative music:
+
+```forth
+midi-virtual
+
+\ Random pentatonic melody
+: gen-note
+    random 127 * 100 /
+    c4 scale-pentatonic quantize
+    75%,
+;
+gen-note 16 times
+```
+
+See `docs/scales.md` for the complete scale reference.
+
 ## Next Steps
 
 - Type `help` in the REPL for the full command reference
 - See `docs/syntax.md` for complete syntax documentation
+- See `docs/scales.md` for the 49 built-in scales
 - Explore the sequence system for non-blocking playback (`seq-new`, `seq-play`)
