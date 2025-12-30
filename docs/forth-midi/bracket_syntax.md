@@ -502,7 +502,7 @@ midi-close
 1. **Named parameters**: `vel=100` (one-shot), `ch:=2` (persistent)
 2. **Gate parameter**: `gate=80` or `80 gate!` - percentage of duration to sound (1-100)
 3. **Sequence concatenation**: `[ c4 e4 ] [ g4 b4 ] concat` - join two sequences
-4. **Sequence transpose**: `[ c4 e4 g4 ] 5 btranspose` - transpose bracket sequence pitches
+4. **Polymorphic transpose**: `transpose` works on both packed notes and bracket sequences
 
 ### Example Usage
 
@@ -522,7 +522,7 @@ c4, e4, g4,
 
 \ Sequence operations
 [ c4 e4 ] [ g4 b4 ] concat,     \ Play c4 e4 g4 b4
-[ c4 e4 g4 ] 7 btranspose,      \ Play transposed up a fifth
+[ c4 e4 g4 ] 7 transpose,       \ Play transposed up a fifth
 ```
 
 ## Implementation Notes

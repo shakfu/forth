@@ -395,12 +395,15 @@ g4, -2, -2,             \ G F Eb (down)
 
 ## Transpose
 
+Polymorphic operation that works on packed notes and bracket sequences.
+
 | Word | Stack | Description |
 |------|-------|-------------|
-| `transpose` | `( pitch semitones -- new-pitch )` | Transpose a pitch |
+| `transpose` | `( value semitones -- value )` | Transpose pitches (packed notes or sequences) |
 
 ```forth
-c4 7 transpose .        \ 67 (G4)
+c4 7 transpose .            \ 67 (G4) - packed note
+[ c4 e4 g4 ] 7 transpose,   \ Play G4 B4 D5 - sequence
 ```
 
 ---
@@ -668,7 +671,7 @@ These operations work on bracket sequences `[ ... ]`:
 | `arp-down` | `( seq -- seq )` | Reverse (descending) |
 | `arp-up-down` | `( seq -- seq )` | Original + reversed middle |
 | `concat` | `( seq1 seq2 -- seq )` | Concatenate two sequences |
-| `btranspose` | `( seq semitones -- seq )` | Transpose all pitches |
+| `transpose` | `( value semitones -- value )` | Transpose pitches (polymorphic: packed notes or sequences) |
 
 ```forth
 [ c4 e4 g4 ] shuffle,       \ Play shuffled
@@ -678,7 +681,7 @@ These operations work on bracket sequences `[ ... ]`:
 [ c4 e4 g4 ] 64 invert,     \ Invert around E4
 [ c4 e4 g4 ] arp-up-down,   \ c4 e4 g4 e4
 [ c4 e4 ] [ g4 b4 ] concat, \ Play c4 e4 g4 b4
-[ c4 e4 g4 ] 7 btranspose,  \ Play transposed up a fifth
+[ c4 e4 g4 ] 7 transpose,   \ Play transposed up a fifth
 ```
 
 ### Random Walks

@@ -737,8 +737,24 @@ void interpret(const char* input) {
         int start = i;
         int len = 0;
 
+        /* Quoted string - extract content without quotes */
+        if (input[i] == '"') {
+            i++;  /* Skip opening quote */
+            start = i;
+            while (input[i] != '"' && input[i] != '\0') {
+                i++;
+            }
+            len = i - start;
+            if (len >= MAX_INPUT_LENGTH) {
+                printf("String too long\n");
+                return;
+            }
+            strncpy(word, input + start, len);
+            word[len] = '\0';
+            if (input[i] == '"') i++;  /* Skip closing quote */
+        }
         /* Special single-character tokens */
-        if (is_special_char(input[i])) {
+        else if (is_special_char(input[i])) {
             word[0] = input[i];
             word[1] = '\0';
             len = 1;
@@ -1034,6 +1050,18 @@ void interpret(const char* input) {
 
         if (strcmp(word, "midi-open-as") == 0) {
             awaiting_filename = 4;
+            continue;
+        }
+
+        if (strcmp(word, "midi-open") == 0) {
+            /* Check if next non-whitespace is a quoted string */
+            int peek = i;
+            while (isspace(input[peek])) peek++;
+            if (input[peek] == '"') {
+                awaiting_filename = 4;  /* Next token will be the port name */
+            } else {
+                open_virtual_port("ForthMIDI");  /* Default name */
+            }
             continue;
         }
 

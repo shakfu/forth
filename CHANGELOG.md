@@ -86,7 +86,7 @@ All notable changes to midi-langs are documented in this file.
   - Gate parameter: `gate!`, `gate@`, `gate=80` - percentage of duration to sound (1-100)
   - New sequence operations:
     - `concat` - concatenate two sequences
-    - `btranspose` - transpose all pitches in a bracket sequence
+  - Polymorphic `transpose` - works on both packed notes and bracket sequences
   - Notes and chords now use effective parameters (support one-shot overrides and gate)
 
 - **mhs-midi Module Refactoring**: Clean separation of concerns

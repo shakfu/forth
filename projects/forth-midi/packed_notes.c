@@ -42,14 +42,56 @@ void op_note_print(Stack* stack) {
            note_pitch(n), note_vel(n), note_ch(n) + 1, note_dur(n));
 }
 
-/* transpose ( packed-note semitones -- packed-note ) */
+/* transpose ( value semitones -- value )
+ * Polymorphic: works on packed notes or bracket sequences */
 void op_transpose(Stack* stack) {
+    if (stack->top < 1) {
+        printf("transpose needs a value and semitones\n");
+        return;
+    }
+
     int32_t semi = pop(stack);
-    int32_t n = pop(stack);
-    int new_pitch = note_pitch(n) + semi;
+    int32_t val = pop(stack);
+
+    /* Check if it's a bracket sequence */
+    if ((val & 0xFF000000) == SEQ_MARKER) {
+        int idx = val & 0x00FFFFFF;
+        if (idx < 0 || idx >= bracket_seq_count || !bracket_seq_storage[idx]) {
+            printf("Invalid sequence\n");
+            push(stack, 0);
+            return;
+        }
+
+        BracketSequence* seq = bracket_seq_storage[idx];
+
+        /* Transpose pitches in place */
+        for (int i = 0; i < seq->count; i++) {
+            SeqElement* elem = &seq->elements[i];
+            if (elem->type == SEQ_ELEM_PITCH) {
+                int new_val = elem->value + semi;
+                if (new_val < 0) new_val = 0;
+                if (new_val > 127) new_val = 127;
+                elem->value = new_val;
+            }
+            if (elem->type == SEQ_ELEM_CHORD) {
+                for (int j = 0; j < elem->chord_count; j++) {
+                    int new_val = elem->chord_pitches[j] + semi;
+                    if (new_val < 0) new_val = 0;
+                    if (new_val > 127) new_val = 127;
+                    elem->chord_pitches[j] = new_val;
+                }
+            }
+        }
+
+        push(stack, val);
+        return;
+    }
+
+    /* Otherwise treat as packed note */
+    int new_pitch = note_pitch(val) + semi;
     if (new_pitch < 0) new_pitch = 0;
     if (new_pitch > 127) new_pitch = 127;
-    push(stack, pack_note(new_pitch, note_vel(n), note_ch(n), note_dur(n)));
+    push(stack, pack_note(new_pitch, note_vel(val), note_ch(val), note_dur(val)));
 }
 
 /* note! ( packed-note -- ) play the note immediately (blocking) */

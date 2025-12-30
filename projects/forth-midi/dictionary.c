@@ -175,7 +175,7 @@ void init_dictionary(void) {
 
     /* MIDI words */
     add_word("midi-list", op_midi_list, 1);
-    add_word("midi-open", op_midi_open_port, 1);
+    /* midi-open handled specially in interpreter for optional string arg */
     add_word("midi-open-port", op_midi_open, 1);
     add_word("midi-close", op_midi_close, 1);
     add_word("cc", op_cc, 1);
@@ -285,7 +285,6 @@ void init_dictionary(void) {
     add_word("drunk-walk", op_drunk_walk, 1);
     add_word("weighted-pick", op_weighted_pick, 1);
     add_word("concat", op_concat, 1);
-    add_word("btranspose", op_btranspose, 1);
 
     /* Scales */
     register_scale_words();

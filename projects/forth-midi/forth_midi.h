@@ -339,7 +339,6 @@ void op_random_walk(Stack* stack);
 void op_drunk_walk(Stack* stack);
 void op_weighted_pick(Stack* stack);
 void op_concat(Stack* stack);
-void op_btranspose(Stack* stack);
 
 /* ============================================================================
  * Function Declarations - Sequences (sequences.c)
