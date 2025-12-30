@@ -151,7 +151,104 @@ typedef struct {
 } BracketSequence;
 
 /* ============================================================================
- * Global Variables (extern declarations)
+ * ForthContext - Encapsulates all interpreter state
+ * ============================================================================ */
+
+typedef struct ForthContext {
+    /* Core interpreter state */
+    Stack stack;
+    Word dictionary[MAX_WORDS];
+    int dict_count;
+
+    /* Compile mode state */
+    int compile_mode;
+    char current_definition_name[MAX_WORD_LENGTH];
+    char current_definition_body[MAX_DEFINITION_LENGTH];
+    int definition_body_len;
+
+    /* Anonymous block state */
+    char* block_storage[MAX_BLOCKS];
+    int block_count;
+    int block_capture_mode;
+    char current_block_body[MAX_DEFINITION_LENGTH];
+    int block_body_len;
+    int block_nesting;
+
+    /* Conditional execution state */
+    int cond_skip_mode;
+    int cond_skip_nesting;
+    int cond_in_true_branch;
+
+    /* Track last executed word */
+    char last_executed_word[MAX_WORD_LENGTH];
+
+    /* File loading depth */
+    int load_depth;
+
+    /* MIDI handles */
+    libremidi_midi_observer_handle* midi_observer;
+    libremidi_midi_out_handle* midi_out;
+    libremidi_midi_out_port* out_ports[MAX_PORTS];
+    int out_port_count;
+
+    /* Context defaults for concise notation */
+    int default_channel;
+    int default_velocity;
+    int default_duration;
+    int current_pitch;
+
+    /* Articulation flags */
+    int articulation_staccato;
+    int articulation_accent;
+    int articulation_tenuto;
+
+    /* Sequences */
+    Sequence sequences[MAX_SEQUENCES];
+    int sequence_count;
+    int current_seq;
+    int global_bpm;
+
+    /* Recording system */
+    char* recording_buffer[MAX_RECORDING_LINES];
+    int recording_count;
+    int recording_active;
+
+    /* MIDI capture system */
+    CapturedEvent capture_buffer[MAX_CAPTURE_EVENTS];
+    int capture_count;
+    int capture_active;
+    struct timespec capture_start_time;
+
+    /* Generative music PRNG state */
+    int32_t prng_seed;
+
+    /* Named parameter system state */
+    int default_gate;
+    int pending_channel;
+    int pending_velocity;
+    int pending_duration;
+    int pending_gate;
+
+    /* Bracket sequence system */
+    BracketSequence* bracket_seq_storage[MAX_BRACKET_SEQS];
+    int bracket_seq_count;
+    int seq_capture_mode;
+    int seq_capture_count;
+    int seq_capture_chord_mode;
+    int seq_capture_chord_count;
+    int16_t seq_capture_chord_buffer[8];
+    BracketSequence* current_bracket_seq;
+} ForthContext;
+
+/* Global context instance */
+extern ForthContext g_ctx;
+
+/* Initialize context with default values */
+void forth_context_init(ForthContext* ctx);
+
+/* ============================================================================
+ * Global Variables (extern declarations) - Legacy compatibility
+ * These will be migrated to use g_ctx fields
  * ============================================================================ */
 
 /* Core interpreter state */

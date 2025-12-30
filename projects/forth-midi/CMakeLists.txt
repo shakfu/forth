@@ -1,6 +1,7 @@
 # Modular MIDI Forth source files
 set(FORTH_MIDI_SOURCES
     main.c
+    context.c
     stack.c
     primitives.c
     midi_core.c

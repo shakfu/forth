@@ -98,6 +98,9 @@ int main(int argc, char* argv[]) {
     /* Seed random number generator */
     srand((unsigned int)time(NULL));
 
+    /* Initialize global context */
+    forth_context_init(&g_ctx);
+
     /* Initialize stack */
     stack.top = -1;
 

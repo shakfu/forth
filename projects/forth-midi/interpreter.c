@@ -797,60 +797,176 @@ void process_token(const char* token) {
     }
 }
 
+/* ============================================================================
+ * Tokenizer
+ * ============================================================================ */
+
+/* Get next token from input, advancing position.
+ * Returns 1 if token found, 0 if end of input, -1 on error.
+ * Token is written to `out` buffer (must be MAX_INPUT_LENGTH). */
+static int next_token(const char* input, int* pos, char* out) {
+    int i = *pos;
+
+    /* Skip whitespace */
+    while (isspace(input[i])) {
+        i++;
+    }
+
+    if (input[i] == '\0') {
+        *pos = i;
+        return 0;  /* End of input */
+    }
+
+    int start = i;
+    int len = 0;
+
+    /* Quoted string - extract content without quotes */
+    if (input[i] == '"') {
+        i++;  /* Skip opening quote */
+        start = i;
+        while (input[i] != '"' && input[i] != '\0') {
+            i++;
+        }
+        len = i - start;
+        if (len >= MAX_INPUT_LENGTH) {
+            printf("String too long\n");
+            *pos = i;
+            return -1;
+        }
+        strncpy(out, input + start, len);
+        out[len] = '\0';
+        if (input[i] == '"') i++;  /* Skip closing quote */
+    }
+    /* Special single-character tokens */
+    else if (is_special_char(input[i])) {
+        out[0] = input[i];
+        out[1] = '\0';
+        i++;
+    } else {
+        /* Regular word */
+        while (!isspace(input[i]) && input[i] != '\0' && !is_special_char(input[i])) {
+            i++;
+        }
+        len = i - start;
+        if (len >= MAX_INPUT_LENGTH) {
+            printf("Word too long\n");
+            *pos = i;
+            return -1;
+        }
+        strncpy(out, input + start, len);
+        out[len] = '\0';
+    }
+
+    *pos = i;
+    return 1;  /* Token found */
+}
+
+/* ============================================================================
+ * Sequence Capture Handler
+ * ============================================================================ */
+
+/* Handle a token while in sequence capture mode.
+ * Returns 1 if token was consumed, 0 if sequence ended. */
+static int handle_seq_capture_token(const char* word) {
+    if (strcmp(word, "[") == 0) {
+        printf("Nested sequences not allowed\n");
+        return 1;
+    }
+
+    if (strcmp(word, "]") == 0) {
+        /* End of sequence - finalize it */
+        if (seq_capture_chord_mode) {
+            printf("Unclosed '(' in sequence\n");
+            seq_capture_chord_mode = 0;
+            seq_capture_chord_count = 0;
+        }
+        int idx = finalize_sequence();
+        if (idx >= 0) {
+            push(&stack, SEQ_MARKER | idx);
+        }
+        seq_capture_mode = 0;
+        return 0;  /* Sequence ended */
+    }
+
+    if (strcmp(word, "(") == 0) {
+        seq_capture_chord_mode = 1;
+        seq_capture_chord_count = 0;
+        return 1;
+    }
+
+    if (strcmp(word, ")") == 0) {
+        if (seq_capture_chord_mode && seq_capture_chord_count > 0) {
+            seq_add_chord(seq_capture_chord_buffer, seq_capture_chord_count);
+        }
+        seq_capture_chord_mode = 0;
+        seq_capture_chord_count = 0;
+        return 1;
+    }
+
+    if (strcmp(word, "r") == 0) {
+        seq_add_element(SEQ_ELEM_REST, 0);
+        return 1;
+    }
+
+    if (is_dynamic_word(word)) {
+        seq_add_element(SEQ_ELEM_DYNAMIC, dynamic_to_velocity(word));
+        return 1;
+    }
+
+    if (is_duration_word(word)) {
+        seq_add_element(SEQ_ELEM_DURATION, duration_word_to_ms(word));
+        return 1;
+    }
+
+    if ((word[0] == '+' || word[0] == '-') && strlen(word) > 1) {
+        char* end;
+        long interval = strtol(word, &end, 10);
+        if (*end == '\0') {
+            seq_add_element(SEQ_ELEM_INTERVAL, (int16_t)interval);
+            return 1;
+        }
+    }
+
+    /* Try to parse as pitch */
+    int pitch = parse_pitch_with_artic(word);
+    if (pitch >= 0) {
+        if (seq_capture_chord_mode) {
+            if (seq_capture_chord_count < 8) {
+                seq_capture_chord_buffer[seq_capture_chord_count++] = pitch;
+            }
+        } else {
+            seq_add_element(SEQ_ELEM_PITCH, (int16_t)pitch);
+        }
+        return 1;
+    }
+
+    /* Try to parse as plain number */
+    {
+        char* endptr;
+        long num = strtol(word, &endptr, 10);
+        if (*endptr == '\0') {
+            seq_add_element(SEQ_ELEM_NUMBER, (int16_t)num);
+            return 1;
+        }
+    }
+
+    printf("Unknown element in sequence: %s\n", word);
+    return 1;
+}
+
+/* ============================================================================
+ * Main Interpreter
+ * ============================================================================ */
+
 /* Parse and execute a command line */
 void interpret(const char* input) {
     char word[MAX_INPUT_LENGTH];
     int i = 0;
     int awaiting_name = 0;
     int awaiting_filename = 0;
+    int result;
 
-    while (input[i] != '\0') {
-        /* Skip whitespace */
-        while (isspace(input[i])) {
-            i++;
-        }
-
-        if (input[i] == '\0') break;
-
-        /* Extract the word */
-        int start = i;
-        int len = 0;
-
-        /* Quoted string - extract content without quotes */
-        if (input[i] == '"') {
-            i++;  /* Skip opening quote */
-            start = i;
-            while (input[i] != '"' && input[i] != '\0') {
-                i++;
-            }
-            len = i - start;
-            if (len >= MAX_INPUT_LENGTH) {
-                printf("String too long\n");
-                return;
-            }
-            strncpy(word, input + start, len);
-            word[len] = '\0';
-            if (input[i] == '"') i++;  /* Skip closing quote */
-        }
-        /* Special single-character tokens */
-        else if (is_special_char(input[i])) {
-            word[0] = input[i];
-            word[1] = '\0';
-            len = 1;
-            i++;
-        } else {
-            /* Regular word */
-            while (!isspace(input[i]) && input[i] != '\0' && !is_special_char(input[i])) {
-                i++;
-            }
-            len = i - start;
-            if (len >= MAX_INPUT_LENGTH) {
-                printf("Word too long\n");
-                return;
-            }
-            strncpy(word, input + start, len);
-            word[len] = '\0';
-        }
+    while ((result = next_token(input, &i, word)) > 0) {
 
         /* Handle compile mode */
         if (awaiting_name) {
@@ -932,84 +1048,7 @@ void interpret(const char* input) {
 
         /* Handle bracket sequence capture mode */
         if (seq_capture_mode) {
-            if (strcmp(word, "[") == 0) {
-                printf("Nested sequences not allowed\n");
-                continue;
-            } else if (strcmp(word, "]") == 0) {
-                /* End of sequence - finalize it */
-                if (seq_capture_chord_mode) {
-                    printf("Unclosed '(' in sequence\n");
-                    seq_capture_chord_mode = 0;
-                    seq_capture_chord_count = 0;
-                }
-                int idx = finalize_sequence();
-                if (idx >= 0) {
-                    push(&stack, SEQ_MARKER | idx);
-                }
-                seq_capture_mode = 0;
-                continue;
-            } else if (strcmp(word, "(") == 0) {
-                /* Start chord within sequence */
-                seq_capture_chord_mode = 1;
-                seq_capture_chord_count = 0;
-                continue;
-            } else if (strcmp(word, ")") == 0) {
-                /* End chord within sequence */
-                if (seq_capture_chord_mode && seq_capture_chord_count > 0) {
-                    seq_add_chord(seq_capture_chord_buffer, seq_capture_chord_count);
-                }
-                seq_capture_chord_mode = 0;
-                seq_capture_chord_count = 0;
-                continue;
-            } else if (strcmp(word, "r") == 0) {
-                /* Rest */
-                seq_add_element(SEQ_ELEM_REST, 0);
-                continue;
-            } else if (is_dynamic_word(word)) {
-                /* Dynamic */
-                seq_add_element(SEQ_ELEM_DYNAMIC, dynamic_to_velocity(word));
-                continue;
-            } else if (is_duration_word(word)) {
-                /* Duration */
-                seq_add_element(SEQ_ELEM_DURATION, duration_word_to_ms(word));
-                continue;
-            } else if ((word[0] == '+' || word[0] == '-') && strlen(word) > 1) {
-                /* Interval */
-                char* end;
-                long interval = strtol(word, &end, 10);
-                if (*end == '\0') {
-                    seq_add_element(SEQ_ELEM_INTERVAL, (int16_t)interval);
-                    continue;
-                }
-            }
-
-            /* Try to parse as pitch */
-            int pitch = parse_pitch_with_artic(word);
-            if (pitch >= 0) {
-                if (seq_capture_chord_mode) {
-                    /* Add to chord buffer */
-                    if (seq_capture_chord_count < 8) {
-                        seq_capture_chord_buffer[seq_capture_chord_count++] = pitch;
-                    }
-                } else {
-                    /* Single pitch */
-                    seq_add_element(SEQ_ELEM_PITCH, (int16_t)pitch);
-                }
-                continue;
-            }
-
-            /* Try to parse as plain number */
-            {
-                char* endptr;
-                long num = strtol(word, &endptr, 10);
-                if (*endptr == '\0') {
-                    seq_add_element(SEQ_ELEM_NUMBER, (int16_t)num);
-                    continue;
-                }
-            }
-
-            /* Unknown token in sequence */
-            printf("Unknown element in sequence: %s\n", word);
+            handle_seq_capture_token(word);
             continue;
         }
 
