@@ -116,12 +116,12 @@ from_t mhs_midi_record_stop(int s) {
     return mhs_from_Int(s, 0, midi_record_stop());
 }
 
-from_t mhs_midi_record_save(int s) {
-    return mhs_from_Int(s, 1, midi_record_save(mhs_to_Ptr(s, 0)));
+from_t mhs_midi_save_mid(int s) {
+    return mhs_from_Int(s, 1, midi_save_mid(mhs_to_Ptr(s, 0)));
 }
 
-from_t mhs_midi_record_save_hs(int s) {
-    return mhs_from_Int(s, 1, midi_record_save_hs(mhs_to_Ptr(s, 0)));
+from_t mhs_midi_save_hs(int s) {
+    return mhs_from_Int(s, 1, midi_save_hs(mhs_to_Ptr(s, 0)));
 }
 
 from_t mhs_midi_record_count(int s) {
@@ -169,8 +169,8 @@ static const struct ffi_entry midi_ffi_table[] = {
     /* recording functions */
     { "midi_record_start",   1, mhs_midi_record_start },
     { "midi_record_stop",    0, mhs_midi_record_stop },
-    { "midi_record_save",    1, mhs_midi_record_save },
-    { "midi_record_save_hs", 1, mhs_midi_record_save_hs },
+    { "midi_save_mid", 1, mhs_midi_save_mid },
+    { "midi_save_hs", 1, mhs_midi_save_hs },
     { "midi_record_count",   0, mhs_midi_record_count },
     { "midi_record_active",  0, mhs_midi_record_active },
     /* MIDI file I/O */

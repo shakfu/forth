@@ -32,8 +32,8 @@ module Midi (
     -- * Recording
     midiRecordStart,
     midiRecordStop,
-    midiRecordSave,
-    midiRecordSaveHs,
+    midiSaveToFile,
+    midiSaveToSource,
     midiRecordCount,
     midiRecordActive,
 
@@ -68,8 +68,8 @@ foreign import ccall "midi_ffi.h midi_random" c_midi_random :: IO CInt
 foreign import ccall "midi_ffi.h midi_random_range" c_midi_random_range :: CInt -> CInt -> IO CInt
 foreign import ccall "midi_ffi.h midi_record_start" c_midi_record_start :: CInt -> IO CInt
 foreign import ccall "midi_ffi.h midi_record_stop" c_midi_record_stop :: IO CInt
-foreign import ccall "midi_ffi.h midi_record_save" c_midi_record_save :: CString -> IO CInt
-foreign import ccall "midi_ffi.h midi_record_save_hs" c_midi_record_save_hs :: CString -> IO CInt
+foreign import ccall "midi_ffi.h midi_save_mid" c_midi_save_mid :: CString -> IO CInt
+foreign import ccall "midi_ffi.h midi_save_hs" c_midi_save_hs :: CString -> IO CInt
 foreign import ccall "midi_ffi.h midi_record_count" c_midi_record_count :: IO CInt
 foreign import ccall "midi_ffi.h midi_record_active" c_midi_record_active :: IO CInt
 foreign import ccall "midi_ffi.h midi_read_mid" c_midi_read_mid :: CString -> IO CInt
@@ -216,17 +216,17 @@ midiRecordStop = do
     return (fromIntegral r)
 
 -- | Save recorded MIDI to standard MIDI file (.mid)
-midiRecordSave :: String -> IO Bool
-midiRecordSave filename = do
+midiSaveToFile :: String -> IO Bool
+midiSaveToFile filename = do
     withCString filename $ \cname -> do
-        r <- c_midi_record_save cname
+        r <- c_midi_save_mid cname
         return (r == 0)
 
 -- | Save recorded MIDI as Haskell source file (.hs)
-midiRecordSaveHs :: String -> IO Bool
-midiRecordSaveHs filename = do
+midiSaveToSource :: String -> IO Bool
+midiSaveToSource filename = do
     withCString filename $ \cname -> do
-        r <- c_midi_record_save_hs cname
+        r <- c_midi_save_hs cname
         return (r == 0)
 
 -- | Get current recording event count

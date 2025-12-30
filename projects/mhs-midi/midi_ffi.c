@@ -353,7 +353,7 @@ int midi_record_stop(void) {
     return capture_count;
 }
 
-int midi_record_save(const char* filename) {
+int midi_save_mid(const char* filename) {
     if (capture_count == 0) {
         printf("No events recorded.\n");
         return -1;
@@ -413,7 +413,7 @@ int midi_record_active(void) {
 }
 
 /* Save recording as Haskell source file */
-int midi_record_save_hs(const char* filename) {
+int midi_save_hs(const char* filename) {
     if (capture_count == 0) {
         printf("No events recorded.\n");
         return -1;

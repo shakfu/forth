@@ -462,10 +462,10 @@ midiRecordStart :: Int -> IO Bool
 midiRecordStop :: IO Int
 -- Stop recording, returns event count
 
-midiRecordSave :: String -> IO Bool
+midiSaveToFile :: String -> IO Bool
 -- Save recorded events to standard MIDI file (.mid)
 
-midiRecordSaveHs :: String -> IO Bool
+midiSaveToSource :: String -> IO Bool
 -- Save recorded events as Haskell source file (.hs)
 
 midiRecordCount :: IO Int
@@ -494,8 +494,8 @@ main = do
     chord (major g4)
 
     _ <- midiRecordStop
-    _ <- midiRecordSave "melody.mid"     -- Standard MIDI file
-    _ <- midiRecordSaveHs "melody.hs"    -- Haskell source file
+    _ <- midiSaveToFile "melody.mid"        -- Standard MIDI file
+    _ <- midiSaveToSource "melody.hs"    -- Haskell source file
 
     midiClose
 ```

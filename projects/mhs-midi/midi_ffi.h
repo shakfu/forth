@@ -63,8 +63,8 @@ int midi_random_range(int min, int max);
 /* MIDI recording functions */
 int midi_record_start(int bpm);
 int midi_record_stop(void);
-int midi_record_save(const char* filename);
-int midi_record_save_hs(const char* filename);
+int midi_save_mid(const char* filename);
+int midi_save_hs(const char* filename);
 int midi_record_count(void);
 int midi_record_active(void);
 
