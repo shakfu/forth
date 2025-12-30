@@ -1,4 +1,4 @@
--- | Unit tests for pure generative functions in Music.hs
+-- | Unit tests for Music.hs
 --
 -- Run with: mhs-midi -C -i<path> TestMusic
 --
@@ -25,6 +25,267 @@ printResult (Fail name msg) = putStrLn $ "  FAIL: " ++ name ++ " - " ++ msg
 isPassing :: TestResult -> Bool
 isPassing (Pass _) = True
 isPassing (Fail _ _) = False
+
+-----------------------------------------------------------
+-- Pitch Constants Tests
+-----------------------------------------------------------
+
+testPitchConstants :: [TestResult]
+testPitchConstants =
+    [ runTestEq "c4 = 60 (middle C)" 60 c4
+    , runTestEq "d4 = 62" 62 d4
+    , runTestEq "e4 = 64" 64 e4
+    , runTestEq "f4 = 65" 65 f4
+    , runTestEq "g4 = 67" 67 g4
+    , runTestEq "a4 = 69" 69 a4
+    , runTestEq "b4 = 71" 71 b4
+    , runTestEq "c5 = 72" 72 c5
+    , runTestEq "c0 = 12" 12 c0
+    , runTestEq "c3 = 48" 48 c3
+    , runTestEq "c7 = 96" 96 c7
+    , runTestEq "cs4 = 61 (C#4)" 61 cs4
+    , runTestEq "ds4 = 63 (D#4)" 63 ds4
+    , runTestEq "fs4 = 66 (F#4)" 66 fs4
+    , runTestEq "gs4 = 68 (G#4)" 68 gs4
+    , runTestEq "as4 = 70 (A#4)" 70 as4
+    -- Flat aliases
+    , runTestEq "db = cs (enharmonic)" db cs
+    , runTestEq "eb = ds (enharmonic)" eb ds
+    , runTestEq "gb = fs (enharmonic)" gb fs
+    , runTestEq "ab = gs (enharmonic)" ab gs
+    , runTestEq "bb = as (enharmonic)" bb as
+    -- Pitch class
+    , runTestEq "c = 0 (pitch class)" 0 c
+    , runTestEq "cs = 1 (pitch class)" 1 cs
+    , runTestEq "d = 2 (pitch class)" 2 d
+    , runTestEq "b = 11 (pitch class)" 11 b
+    ]
+
+-----------------------------------------------------------
+-- Duration Constants Tests
+-----------------------------------------------------------
+
+testDurationConstants :: [TestResult]
+testDurationConstants =
+    [ runTestEq "whole = 2000ms" 2000 whole
+    , runTestEq "half = 1000ms" 1000 half
+    , runTestEq "quarter = 500ms" 500 quarter
+    , runTestEq "eighth = 250ms" 250 eighth
+    , runTestEq "sixteenth = 125ms" 125 sixteenth
+    , runTestEq "dotted quarter = 750ms" 750 (dotted quarter)
+    , runTestEq "dotted half = 1500ms" 1500 (dotted half)
+    , runTestEq "bpm 120 = 500ms" 500 (bpm 120)
+    , runTestEq "bpm 60 = 1000ms" 1000 (bpm 60)
+    , runTestEq "bpm 240 = 250ms" 250 (bpm 240)
+    ]
+
+-----------------------------------------------------------
+-- Velocity Constants Tests
+-----------------------------------------------------------
+
+testVelocityConstants :: [TestResult]
+testVelocityConstants =
+    [ runTestEq "ppp = 16" 16 ppp
+    , runTestEq "pp = 33" 33 pp
+    , runTestEq "p = 49" 49 p
+    , runTestEq "mp = 64" 64 mp
+    , runTestEq "mf = 80" 80 mf
+    , runTestEq "ff = 96" 96 ff
+    , runTestEq "fff = 112" 112 fff
+    , runTest "ppp < pp" (ppp < pp)
+    , runTest "pp < p" (pp < p)
+    , runTest "p < mp" (p < mp)
+    , runTest "mp < mf" (mp < mf)
+    , runTest "mf < ff" (mf < ff)
+    , runTest "ff < fff" (ff < fff)
+    ]
+
+-----------------------------------------------------------
+-- Scale Building Tests
+-----------------------------------------------------------
+
+testScaleBuilding :: [TestResult]
+testScaleBuilding =
+    [ runTestEq "C major scale"
+        [60, 62, 64, 65, 67, 69, 71]
+        (buildScale c4 scaleMajor)
+    , runTestEq "C minor scale"
+        [60, 62, 63, 65, 67, 68, 70]
+        (buildScale c4 scaleMinor)
+    , runTestEq "C pentatonic"
+        [60, 62, 64, 67, 69]
+        (buildScale c4 scalePentatonic)
+    , runTestEq "C blues"
+        [60, 63, 65, 66, 67, 70]
+        (buildScale c4 scaleBlues)
+    , runTestEq "C chromatic length"
+        12 (length (buildScale c4 scaleChromatic))
+    , runTestEq "G major scale"
+        [67, 69, 71, 72, 74, 76, 78]
+        (buildScale g4 scaleMajor)
+    -- Scale degree tests
+    , runTestEq "scaleDegree 1 of C major = C"
+        c4 (scaleDegree c4 scaleMajor 1)
+    , runTestEq "scaleDegree 3 of C major = E"
+        e4 (scaleDegree c4 scaleMajor 3)
+    , runTestEq "scaleDegree 5 of C major = G"
+        g4 (scaleDegree c4 scaleMajor 5)
+    , runTestEq "scaleDegree 8 of C major = C5 (octave)"
+        c5 (scaleDegree c4 scaleMajor 8)
+    , runTestEq "scaleDegree 9 of C major = D5"
+        d5 (scaleDegree c4 scaleMajor 9)
+    -- inScale tests
+    , runTest "C4 in C major" (inScale c4 c4 scaleMajor)
+    , runTest "E4 in C major" (inScale e4 c4 scaleMajor)
+    , runTest "G4 in C major" (inScale g4 c4 scaleMajor)
+    , runTest "C#4 not in C major" (not (inScale cs4 c4 scaleMajor))
+    , runTest "F#4 not in C major" (not (inScale fs4 c4 scaleMajor))
+    -- quantize tests
+    , runTestEq "quantize C4 to C major = C4"
+        c4 (quantize c4 c4 scaleMajor)
+    , runTest "quantize C#4 to C major (in scale)"
+        (inScale (quantize cs4 c4 scaleMajor) c4 scaleMajor)  -- should snap to nearest scale tone
+    , runTestEq "quantize F#4 to C major = G4"
+        g4 (quantize fs4 c4 scaleMajor)  -- F#4 is closer to G4 (1 semitone) than F4 (1 semitone) - but test shows behavior
+    ]
+
+-----------------------------------------------------------
+-- Music DSL Constructor Tests
+-----------------------------------------------------------
+
+testMusicConstructors :: [TestResult]
+testMusicConstructors =
+    [ runTestEq "note creates MEvent ENote"
+        (MEvent (ENote c4 mf quarter))
+        (note c4 mf quarter)
+    , runTestEq "rest creates MEvent ERest"
+        (MEvent (ERest quarter))
+        (rest quarter)
+    , runTestEq "chord creates MPar"
+        (MPar [MEvent (ENote c4 mf quarter),
+               MEvent (ENote e4 mf quarter),
+               MEvent (ENote g4 mf quarter)])
+        (chord [c4, e4, g4] mf quarter)
+    , runTestEq "line creates MSeq"
+        (MSeq [MEvent (ENote c4 mf quarter),
+               MEvent (ENote e4 mf quarter),
+               MEvent (ENote g4 mf quarter)])
+        (line [c4, e4, g4] mf quarter)
+    , runTestEq "empty chord"
+        (MPar [])
+        (chord [] mf quarter)
+    , runTestEq "empty line"
+        (MSeq [])
+        (line [] mf quarter)
+    ]
+
+-----------------------------------------------------------
+-- Music Combinator Tests
+-----------------------------------------------------------
+
+testMusicCombinators :: [TestResult]
+testMusicCombinators =
+    [ runTestEq "sequential composition (+:+)"
+        (MSeq [note c4 mf quarter, note e4 mf quarter])
+        (note c4 mf quarter +:+ note e4 mf quarter)
+    , runTestEq "parallel composition (|||)"
+        (MPar [note c4 mf quarter, note e4 mf quarter])
+        (note c4 mf quarter ||| note e4 mf quarter)
+    , runTestEq "timesM 3"
+        (MSeq [note c4 mf quarter, note c4 mf quarter, note c4 mf quarter])
+        (timesM 3 (note c4 mf quarter))
+    , runTestEq "timesM 1"
+        (MSeq [note c4 mf quarter])
+        (timesM 1 (note c4 mf quarter))
+    , runTestEq "timesM 0"
+        (MSeq [])
+        (timesM 0 (note c4 mf quarter))
+    ]
+
+-----------------------------------------------------------
+-- Music Transformation Tests
+-----------------------------------------------------------
+
+testMusicTransformations :: [TestResult]
+testMusicTransformations =
+    [ -- transpose tests
+      runTestEq "transpose +12 = octave up"
+        [ENote c5 mf quarter]
+        (collectEvents (transpose 12 (note c4 mf quarter)))
+    , runTestEq "transpose -12 = octave down"
+        [ENote c3 mf quarter]
+        (collectEvents (transpose (-12) (note c4 mf quarter)))
+    , runTestEq "transpose 0 = identity"
+        (collectEvents (note c4 mf quarter))
+        (collectEvents (transpose 0 (note c4 mf quarter)))
+    , runTestEq "transpose preserves rest"
+        [ERest quarter]
+        (collectEvents (transpose 12 (rest quarter)))
+    -- louder tests
+    , runTestEq "louder +10"
+        [ENote c4 90 quarter]
+        (collectEvents (louder 10 (note c4 mf quarter)))
+    , runTestEq "louder clamps at 127"
+        [ENote c4 127 quarter]
+        (collectEvents (louder 100 (note c4 mf quarter)))
+    -- softer tests
+    , runTestEq "softer -10"
+        [ENote c4 70 quarter]
+        (collectEvents (softer 10 (note c4 mf quarter)))
+    , runTestEq "softer clamps at 0"
+        [ENote c4 0 quarter]
+        (collectEvents (softer 200 (note c4 mf quarter)))
+    -- stretch tests
+    , runTestEq "stretch 2 doubles duration"
+        [ENote c4 mf 1000]
+        (collectEvents (stretch 2 (note c4 mf quarter)))
+    , runTestEq "stretch preserves rest"
+        [ERest 1000]
+        (collectEvents (stretch 2 (rest quarter)))
+    -- compress tests
+    , runTestEq "compress 2 halves duration"
+        [ENote c4 mf 250]
+        (collectEvents (compress 2 (note c4 mf quarter)))
+    ]
+
+-----------------------------------------------------------
+-- Duration Calculation Tests
+-----------------------------------------------------------
+
+testDurationCalc :: [TestResult]
+testDurationCalc =
+    [ runTestEq "duration of single note"
+        quarter (duration (note c4 mf quarter))
+    , runTestEq "duration of rest"
+        quarter (duration (rest quarter))
+    , runTestEq "duration of sequence"
+        1500 (duration (line [c4, e4, g4] mf quarter))
+    , runTestEq "duration of chord"
+        quarter (duration (chord [c4, e4, g4] mf quarter))
+    , runTestEq "duration of nested seq"
+        1000 (duration (note c4 mf quarter +:+ note e4 mf quarter))
+    , runTestEq "duration of parallel = max"
+        quarter (duration (note c4 mf quarter ||| note e4 mf eighth))
+    ]
+
+-----------------------------------------------------------
+-- collectEvents Tests
+-----------------------------------------------------------
+
+testCollectEvents :: [TestResult]
+testCollectEvents =
+    [ runTestEq "collectEvents single note"
+        [ENote c4 mf quarter]
+        (collectEvents (note c4 mf quarter))
+    , runTestEq "collectEvents sequence"
+        [ENote c4 mf quarter, ENote e4 mf quarter]
+        (collectEvents (line [c4, e4] mf quarter))
+    , runTestEq "collectEvents chord"
+        [ENote c4 mf quarter, ENote e4 mf quarter]
+        (collectEvents (chord [c4, e4] mf quarter))
+    , runTestEq "collectEvents count"
+        3 (length (collectEvents (line [c4, e4, g4] mf quarter)))
+    ]
 
 -----------------------------------------------------------
 -- PRNG Tests
@@ -261,46 +522,85 @@ testDrunkWalk =
 
 main :: IO ()
 main = do
-    putStrLn "=== Music.hs Pure Generative Tests ==="
+    putStrLn "=== Music.hs Test Suite ==="
     putStrLn ""
 
-    putStrLn "PRNG Tests:"
+    putStrLn "Pitch Constants:"
+    mapM_ printResult testPitchConstants
+
+    putStrLn ""
+    putStrLn "Duration Constants:"
+    mapM_ printResult testDurationConstants
+
+    putStrLn ""
+    putStrLn "Velocity Constants:"
+    mapM_ printResult testVelocityConstants
+
+    putStrLn ""
+    putStrLn "Scale Building:"
+    mapM_ printResult testScaleBuilding
+
+    putStrLn ""
+    putStrLn "Music Constructors:"
+    mapM_ printResult testMusicConstructors
+
+    putStrLn ""
+    putStrLn "Music Combinators:"
+    mapM_ printResult testMusicCombinators
+
+    putStrLn ""
+    putStrLn "Music Transformations:"
+    mapM_ printResult testMusicTransformations
+
+    putStrLn ""
+    putStrLn "Duration Calculation:"
+    mapM_ printResult testDurationCalc
+
+    putStrLn ""
+    putStrLn "collectEvents:"
+    mapM_ printResult testCollectEvents
+
+    putStrLn ""
+    putStrLn "PRNG:"
     mapM_ printResult testPRNG
 
     putStrLn ""
-    putStrLn "Euclidean Rhythm Tests:"
+    putStrLn "Euclidean Rhythm:"
     mapM_ printResult testEuclidean
 
     putStrLn ""
-    putStrLn "Arpeggio Pattern Tests:"
+    putStrLn "Arpeggio Patterns:"
     mapM_ printResult testArpeggio
 
     putStrLn ""
-    putStrLn "Retrograde Tests:"
+    putStrLn "Retrograde:"
     mapM_ printResult testRetrograde
 
     putStrLn ""
-    putStrLn "Invert Tests:"
+    putStrLn "Invert:"
     mapM_ printResult testInvert
 
     putStrLn ""
-    putStrLn "Shuffle Tests:"
+    putStrLn "Shuffle:"
     mapM_ printResult testShuffle
 
     putStrLn ""
-    putStrLn "Pick Tests:"
+    putStrLn "Pick:"
     mapM_ printResult testPick
 
     putStrLn ""
-    putStrLn "Random Walk Tests:"
+    putStrLn "Random Walk:"
     mapM_ printResult testRandomWalk
 
     putStrLn ""
-    putStrLn "Drunk Walk Tests:"
+    putStrLn "Drunk Walk:"
     mapM_ printResult testDrunkWalk
 
     putStrLn ""
-    let allTests = testPRNG ++ testEuclidean ++ testArpeggio ++ testRetrograde
+    let allTests = testPitchConstants ++ testDurationConstants ++ testVelocityConstants
+                   ++ testScaleBuilding ++ testMusicConstructors ++ testMusicCombinators
+                   ++ testMusicTransformations ++ testDurationCalc ++ testCollectEvents
+                   ++ testPRNG ++ testEuclidean ++ testArpeggio ++ testRetrograde
                    ++ testInvert ++ testShuffle ++ testPick ++ testRandomWalk
                    ++ testDrunkWalk
         passed = length (filter isPassing allTests)
