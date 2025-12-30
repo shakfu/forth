@@ -1,12 +1,42 @@
 # Sequence System
 
-The sequence system allows building MIDI patterns that can be played back, transformed, and manipulated before playback. Unlike the immediate-play notation (`c4,`), sequences store events with timing information.
+MIDI Forth has two sequence systems:
 
-## Overview
+1. **Bracket sequences** `[ c4 e4 g4 ]` - First-class values for melodies and generative operations. See [Bracket Sequences](#bracket-sequences-quick-reference).
 
-Sequences store MIDI events (note-on, note-off, CC) with tick-based timing. They can be:
+2. **Tick-based sequences** (`seq-new`, `seq-note`, etc.) - Precise timing control with tick offsets. Documented below.
 
-- Built up note by note
+---
+
+## Bracket Sequences (Quick Reference)
+
+For most use cases, bracket sequences are simpler:
+
+```forth
+[ c4 e4 g4 ],               \ Create and play
+[ c4 e4 g4 ] shuffle,       \ Shuffle then play
+[ c4 e4 g4 ] reverse,       \ Reverse then play
+[ mf c4 ff e4 p g4 ],       \ With dynamics
+[ c4 r e4 r g4 ],           \ With rests
+60 3 8 random-walk,         \ Generate random walk
+
+\ Numbers for generative ops
+[ c4 50 e4 30 g4 20 ] weighted-pick,
+```
+
+For full documentation, see [api-reference.md](api-reference.md#bracket-sequences) and [bracket_syntax.md](bracket_syntax.md).
+
+---
+
+## Tick-Based Sequences
+
+For precise timing control, use the tick-based sequence system. Events are stored with explicit tick offsets and can be transformed before playback.
+
+### Overview
+
+Tick-based sequences store MIDI events (note-on, note-off, CC) with tick-based timing. They can be:
+
+- Built up note by note with explicit timing
 - Transformed (transpose, reverse, stretch)
 - Played back at any tempo
 

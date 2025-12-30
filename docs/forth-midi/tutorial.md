@@ -250,19 +250,69 @@ Pitch bend:
 1 0 pb          \ Full bend down
 ```
 
-## Lesson 14: Explicit Parameters
+## Lesson 14: Bracket Sequences
 
-Override all defaults with `[ch pitch vel dur]`:
+Brackets `[ ]` create sequences as first-class values:
 
 ```forth
-[1 60 127 1000],        \ Channel 1, C4, max velocity, 1 second
-[2 48 64 250],          \ Channel 2, C3, medium velocity, 250ms
+[ c4 e4 g4 ],           \ Create and play sequence
 ```
 
-For chords with explicit params:
+Unlike comma-per-note, you can manipulate sequences before playing:
 
 ```forth
-(c4 e4 g4) 1 100 750,   \ Chord on ch1, vel 100, 750ms
+[ c4 e4 g4 ] shuffle,   \ Shuffle then play
+[ c4 e4 g4 ] reverse,   \ Play backwards: g4 e4 c4
+```
+
+### Dynamics and Rests in Sequences
+
+```forth
+[ mf c4 ff e4 p g4 ],   \ Dynamics change mid-sequence
+[ c4 r e4 r g4 ],       \ Include rests
+[ quarter c4 eighth e4 e4 quarter g4 ],  \ Mix durations
+```
+
+### Chords in Sequences
+
+```forth
+[ (c4 e4 g4) (f4 a4 c5) (g4 b4 d5) ],   \ Chord progression
+```
+
+### Sequences as Values
+
+Store sequences in words:
+
+```forth
+[ c4 e4 g4 c5 ]
+: arpeggio ;
+
+arpeggio,               \ Play it
+arpeggio shuffle,       \ Shuffle and play
+arpeggio reverse,       \ Reverse and play
+```
+
+### Generative Operations
+
+```forth
+[ c4 e4 g4 b4 ] pick,           \ Pick one random note
+[ c4 e4 g4 b4 ] 2 pick-n,       \ Pick 2 random notes
+[ c4 e4 g4 ] 64 invert,         \ Invert around E4
+[ c4 e4 g4 ] arp-up-down,       \ Play: c4 e4 g4 e4
+```
+
+### Random Walks
+
+```forth
+60 3 8 random-walk,             \ 8 notes, starting C4, max 3 semitone steps
+```
+
+### Weighted Selection
+
+Sequences can hold numbers for weighted picks:
+
+```forth
+[ c4 50 e4 30 g4 20 ] weighted-pick,   \ c4 has 50% weight, e4 30%, g4 20%
 ```
 
 ## Example: Complete Piece
@@ -276,9 +326,9 @@ midi-open
 : V   (g4 b4 d5), ;
 : vi  (a4 c5 e5), ;
 
-\ Define a melody fragment
-: m1 mf c5, e5, g5, e5, ;
-: m2 f5, a5, f5, ;
+\ Define a melody using bracket sequence
+[ c5 e5 g5 e5 ]
+: melody ;
 
 \ Play progression
 500 dur!
@@ -287,10 +337,38 @@ I I IV IV I I V V
 \ Play with dynamics
 pp I ff I pp I ff I
 
-\ Generative ending
-: ending c5|e5|g5 75%, ;
-ending 8 times
+\ Generative ending using sequences
+[ c5 e5 g5 ] shuffle,
+[ c5 e5 g5 ] shuffle,
+60 2 4 random-walk,
 I
+```
+
+## Example: Generative Piece with Sequences
+
+```forth
+midi-open
+250 dur!
+
+\ Define scale sequence
+[ c4 d4 e4 f4 g4 a4 b4 ]
+: c-major-scale ;
+
+\ Drunk walk through the scale
+c-major-scale c4 2 16 drunk-walk,
+
+\ Weighted melody - root note more likely
+: weighted-melody
+    [ c4 40 e4 25 g4 25 c5 10 ] weighted-pick,
+;
+weighted-melody 8 times
+
+\ Shuffled arpeggios
+: random-arp [ c4 e4 g4 c5 ] shuffle, ;
+random-arp 4 times
+
+\ Final chord
+ff (c4 e4 g4 c5),
 ```
 
 ## Lesson 15: Scales
@@ -343,6 +421,7 @@ See `docs/scales.md` for the complete scale reference.
 ## Next Steps
 
 - Type `help` in the REPL for the full command reference
-- See `docs/syntax.md` for complete syntax documentation
-- See `docs/scales.md` for the 49 built-in scales
-- Explore the sequence system for non-blocking playback (`seq-new`, `seq-play`)
+- See [api-reference.md](api-reference.md) for complete API documentation
+- See [bracket_syntax.md](bracket_syntax.md) for advanced bracket sequence usage
+- See [scales.md](scales.md) for the 49 built-in scales
+- See [sequences.md](sequences.md) for tick-based sequences with precise timing control

@@ -268,8 +268,7 @@ void init_dictionary(void) {
     add_word("next-random", op_next_random, 1);
     add_word("srand-range", op_srand_range, 1);
     add_word("chance", op_chance, 1);
-    add_word("[[", op_list_begin, 1);
-    add_word("]]", op_list_end, 1);
+    /* Note: [[ and ]] removed - use [ ] for sequences which also serve as lists */
     add_word("euclidean", op_euclidean, 1);
     add_word("reverse", op_reverse, 1);
     add_word("arp-up", op_arp_up, 1);
@@ -283,8 +282,6 @@ void init_dictionary(void) {
     add_word("random-walk", op_random_walk, 1);
     add_word("drunk-walk", op_drunk_walk, 1);
     add_word("weighted-pick", op_weighted_pick, 1);
-    add_word("list.", op_list_print, 1);
-    add_word("list-len", op_list_len, 1);
 
     /* Scales */
     register_scale_words();

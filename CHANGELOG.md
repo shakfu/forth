@@ -64,6 +64,23 @@ All notable changes to midi-langs are documented in this file.
 
 ### Changed
 
+- **forth-midi Unified Bracket Syntax**: Sequences and lists now use single `[ ]` syntax
+  - Removed `[[` and `]]` list notation - use `[ ]` for both sequences and lists
+  - Sequences can now hold plain numbers in addition to pitches, chords, rests, dynamics, and durations
+  - Updated generative operations to work with sequences:
+    - `shuffle` - Fisher-Yates shuffle on sequence elements
+    - `reverse` - reverse sequence in place
+    - `pick` - pick random element from sequence
+    - `pick-n` - pick n random elements, returns new sequence
+    - `invert` - invert pitches around axis
+    - `arp-up-down` - create sequence with middle reversed appended
+    - `random-walk` - outputs sequence instead of stack values
+    - `drunk-walk` - takes scale sequence as input, outputs sequence
+    - `weighted-pick` - pick from sequence with value/weight pairs
+  - All generative operations maintain backward compatibility with alternatives syntax (`c4|e4|g4`)
+  - Removed `LIST_MARKER` constant (no longer needed)
+  - Removed dead code: `op_list_begin`, `op_list_end`, `op_list_print`, `op_list_len`
+
 - **mhs-midi Module Refactoring**: Clean separation of concerns
   - `Music.hs` - Pure music theory + DSL (no IO, no MIDI concepts)
     - Event type now `ENote Pitch Velocity Duration` (removed Channel)

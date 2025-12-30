@@ -30,6 +30,23 @@ char last_executed_word[MAX_WORD_LENGTH] = "";
 /* File loading depth */
 int load_depth = 0;
 
+/* Named parameter system state */
+int default_gate = 100;           /* Gate percentage (1-100) */
+int pending_channel = -1;         /* One-shot channel override (-1 if not set) */
+int pending_velocity = -1;        /* One-shot velocity override (-1 if not set) */
+int pending_duration = -1;        /* One-shot duration override (-1 if not set) */
+int pending_gate = -1;            /* One-shot gate override (-1 if not set) */
+
+/* Bracket sequence system */
+BracketSequence* bracket_seq_storage[MAX_BRACKET_SEQS];
+int bracket_seq_count = 0;
+int seq_capture_mode = 0;
+int seq_capture_count = 0;
+int seq_capture_chord_mode = 0;
+int seq_capture_chord_count = 0;
+int16_t seq_capture_chord_buffer[8];
+BracketSequence* current_bracket_seq = NULL;
+
 /* Forward declarations */
 void interpret(const char* input);
 
@@ -37,6 +54,363 @@ void interpret(const char* input);
 static int is_special_char(char c) {
     return c == ',' || c == '(' || c == ')' || c == '|' || c == '[' || c == ']' || c == '%'
         || c == '{' || c == '}';
+}
+
+/* ============================================================================
+ * Named Parameter System
+ * ============================================================================ */
+
+/* Get effective channel (pending override or default) */
+int effective_channel(void) {
+    return (pending_channel >= 0) ? pending_channel : default_channel;
+}
+
+/* Get effective velocity (pending override or default) */
+int effective_velocity(void) {
+    return (pending_velocity >= 0) ? pending_velocity : default_velocity;
+}
+
+/* Get effective duration (pending override or default) */
+int effective_duration(void) {
+    return (pending_duration >= 0) ? pending_duration : default_duration;
+}
+
+/* Get effective gate (pending override or default) */
+int effective_gate(void) {
+    return (pending_gate >= 0) ? pending_gate : default_gate;
+}
+
+/* Clear one-shot pending parameters after use */
+void clear_pending_params(void) {
+    pending_channel = -1;
+    pending_velocity = -1;
+    pending_duration = -1;
+    pending_gate = -1;
+}
+
+/* Parse duration value (number or duration word) */
+static int parse_duration_value(const char* str) {
+    /* Check for duration words */
+    if (strcmp(str, "whole") == 0) return 2000;
+    if (strcmp(str, "half") == 0) return 1000;
+    if (strcmp(str, "quarter") == 0) return 500;
+    if (strcmp(str, "eighth") == 0) return 250;
+    if (strcmp(str, "sixteenth") == 0) return 125;
+    /* Otherwise parse as number */
+    return atoi(str);
+}
+
+/* Parse parameter name, returns param type or 0 if unknown */
+static int parse_param_name(const char* name, int name_len, int* cc_number) {
+    *cc_number = -1;
+
+    if (name_len == 2 && strncmp(name, "ch", 2) == 0) return PARAM_CHANNEL;
+    if (name_len == 3 && strncmp(name, "vel", 3) == 0) return PARAM_VELOCITY;
+    if (name_len == 3 && strncmp(name, "dur", 3) == 0) return PARAM_DURATION;
+    if (name_len == 4 && strncmp(name, "gate", 4) == 0) return PARAM_GATE;
+    if (name_len == 3 && strncmp(name, "bpm", 3) == 0) return PARAM_BPM;
+    if (name_len == 4 && strncmp(name, "prog", 4) == 0) return PARAM_PROGRAM;
+    if (name_len == 3 && strncmp(name, "pan", 3) == 0) return PARAM_PAN;
+
+    /* Check for ccN pattern (e.g., cc64, cc1, cc127) */
+    if (name_len >= 3 && strncmp(name, "cc", 2) == 0) {
+        char num_buf[8];
+        int num_len = name_len - 2;
+        if (num_len > 0 && num_len < 8) {
+            strncpy(num_buf, name + 2, num_len);
+            num_buf[num_len] = '\0';
+            *cc_number = atoi(num_buf);
+            if (*cc_number >= 0 && *cc_number <= 127) {
+                return PARAM_CC;
+            }
+        }
+    }
+
+    return 0;  /* Unknown parameter */
+}
+
+/* Apply a parameter value based on type and scope */
+static void apply_param(int param_type, int value, int scope, int cc_number) {
+    if (scope == SCOPE_ONESHOT) {
+        /* One-shot: set pending value */
+        switch (param_type) {
+            case PARAM_CHANNEL:  pending_channel = value; break;
+            case PARAM_VELOCITY: pending_velocity = value; break;
+            case PARAM_DURATION: pending_duration = value; break;
+            case PARAM_GATE:     pending_gate = value; break;
+            default:
+                /* Global params don't support one-shot, fall through to persistent */
+                break;
+        }
+    }
+
+    if (scope == SCOPE_PERSISTENT || param_type >= PARAM_BPM) {
+        /* Persistent: set default/context value */
+        switch (param_type) {
+            case PARAM_CHANNEL:  default_channel = value; break;
+            case PARAM_VELOCITY: default_velocity = value; break;
+            case PARAM_DURATION: default_duration = value; break;
+            case PARAM_GATE:     default_gate = value; break;
+            case PARAM_BPM:
+                global_bpm = value;
+                /* Update duration constants proportionally (120 BPM base) */
+                default_duration = 60000 / value / 2;  /* quarter note */
+                break;
+            case PARAM_PROGRAM:
+                if (midi_out) {
+                    midi_send_program_change(value, default_channel);
+                }
+                break;
+            case PARAM_PAN:
+                if (midi_out) {
+                    midi_send_cc(10, value, default_channel);  /* CC 10 = Pan */
+                }
+                break;
+            case PARAM_CC:
+                if (midi_out && cc_number >= 0) {
+                    midi_send_cc(cc_number, value, default_channel);
+                }
+                break;
+        }
+    }
+}
+
+/* Parse parameter assignment (both = and :=)
+ * Returns 1 if parsed successfully, 0 otherwise */
+int parse_param_assign(const char* token) {
+    int cc_number = -1;
+    int param_type, value, scope;
+    const char* assign;
+    int name_len;
+    const char* val_str;
+
+    /* Check for := (persistent) first */
+    assign = strstr(token, ":=");
+    if (assign) {
+        scope = SCOPE_PERSISTENT;
+        name_len = assign - token;
+        val_str = assign + 2;
+
+        param_type = parse_param_name(token, name_len, &cc_number);
+        if (param_type == 0) return 0;
+
+        value = (param_type == PARAM_DURATION)
+            ? parse_duration_value(val_str)
+            : atoi(val_str);
+
+        apply_param(param_type, value, scope, cc_number);
+        return 1;
+    }
+
+    /* Check for = (one-shot) */
+    assign = strchr(token, '=');
+    if (assign) {
+        scope = SCOPE_ONESHOT;
+        name_len = assign - token;
+        val_str = assign + 1;
+
+        param_type = parse_param_name(token, name_len, &cc_number);
+        if (param_type == 0) return 0;
+
+        /* Global params (bpm, prog, pan, cc) don't support one-shot */
+        if (param_type >= PARAM_BPM) {
+            scope = SCOPE_PERSISTENT;
+        }
+
+        value = (param_type == PARAM_DURATION)
+            ? parse_duration_value(val_str)
+            : atoi(val_str);
+
+        apply_param(param_type, value, scope, cc_number);
+        return 1;
+    }
+
+    return 0;  /* Not a parameter assignment */
+}
+
+/* ============================================================================
+ * Bracket Sequence System
+ * ============================================================================ */
+
+/* Check if token is a dynamic word */
+static int is_dynamic_word(const char* word) {
+    return strcmp(word, "ppp") == 0 || strcmp(word, "pp") == 0 ||
+           strcmp(word, "p") == 0 || strcmp(word, "mp") == 0 ||
+           strcmp(word, "mf") == 0 || strcmp(word, "f") == 0 ||
+           strcmp(word, "ff") == 0 || strcmp(word, "fff") == 0;
+}
+
+/* Convert dynamic word to velocity */
+static int dynamic_to_velocity(const char* word) {
+    if (strcmp(word, "ppp") == 0) return 16;
+    if (strcmp(word, "pp") == 0) return 33;
+    if (strcmp(word, "p") == 0) return 49;
+    if (strcmp(word, "mp") == 0) return 64;
+    if (strcmp(word, "mf") == 0) return 80;
+    if (strcmp(word, "f") == 0) return 96;
+    if (strcmp(word, "ff") == 0) return 112;
+    if (strcmp(word, "fff") == 0) return 127;
+    return 80;  /* default to mf */
+}
+
+/* Check if token is a duration word */
+static int is_duration_word(const char* word) {
+    return strcmp(word, "whole") == 0 || strcmp(word, "half") == 0 ||
+           strcmp(word, "quarter") == 0 || strcmp(word, "eighth") == 0 ||
+           strcmp(word, "sixteenth") == 0;
+}
+
+/* Convert duration word to milliseconds */
+static int duration_word_to_ms(const char* word) {
+    if (strcmp(word, "whole") == 0) return 2000;
+    if (strcmp(word, "half") == 0) return 1000;
+    if (strcmp(word, "quarter") == 0) return 500;
+    if (strcmp(word, "eighth") == 0) return 250;
+    if (strcmp(word, "sixteenth") == 0) return 125;
+    return 500;  /* default quarter */
+}
+
+/* Parse pitch with optional articulation suffix for sequences */
+static int parse_pitch_with_artic(const char* word) {
+    /* Just use the base parse_pitch which already handles articulation */
+    return parse_pitch(word);
+}
+
+/* Add element to current bracket sequence */
+static void seq_add_element(uint8_t type, int16_t value) {
+    if (!current_bracket_seq || seq_capture_count >= MAX_SEQ_ELEMENTS) {
+        printf("Sequence full or not active\n");
+        return;
+    }
+    SeqElement* elem = &current_bracket_seq->elements[seq_capture_count++];
+    elem->type = type;
+    elem->value = value;
+    elem->chord_count = 0;
+}
+
+/* Add chord to current bracket sequence */
+static void seq_add_chord(int16_t* pitches, int count) {
+    if (!current_bracket_seq || seq_capture_count >= MAX_SEQ_ELEMENTS) {
+        printf("Sequence full or not active\n");
+        return;
+    }
+    SeqElement* elem = &current_bracket_seq->elements[seq_capture_count++];
+    elem->type = SEQ_ELEM_CHORD;
+    elem->value = pitches[0];  /* Store first pitch in value too */
+    elem->chord_count = count;
+    for (int i = 0; i < count && i < 8; i++) {
+        elem->chord_pitches[i] = pitches[i];
+    }
+}
+
+/* Finalize current bracket sequence and return its index */
+static int finalize_sequence(void) {
+    if (!current_bracket_seq) return -1;
+
+    current_bracket_seq->count = seq_capture_count;
+
+    /* Store in bracket_seq_storage */
+    if (bracket_seq_count >= MAX_BRACKET_SEQS) {
+        printf("Too many sequences\n");
+        free(current_bracket_seq);
+        current_bracket_seq = NULL;
+        return -1;
+    }
+
+    int idx = bracket_seq_count++;
+    bracket_seq_storage[idx] = current_bracket_seq;
+    current_bracket_seq = NULL;
+    seq_capture_count = 0;
+    return idx;
+}
+
+/* Execute a bracket sequence */
+void execute_bracket_sequence(BracketSequence* seq) {
+    if (!seq) return;
+
+    int vel = effective_velocity();
+    int dur = effective_duration();
+    int ch = effective_channel();
+    int gate = effective_gate();
+    int last_pitch = current_pitch;
+
+    for (int i = 0; i < seq->count; i++) {
+        SeqElement* elem = &seq->elements[i];
+
+        switch (elem->type) {
+            case SEQ_ELEM_PITCH:
+                last_pitch = elem->value;
+                current_pitch = last_pitch;
+                midi_send_note_on(last_pitch, vel, ch);
+                midi_sleep_ms(dur * gate / 100);
+                midi_send_note_off(last_pitch, ch);
+                if (gate < 100) {
+                    midi_sleep_ms(dur * (100 - gate) / 100);
+                }
+                break;
+
+            case SEQ_ELEM_INTERVAL:
+                last_pitch = current_pitch + elem->value;
+                if (last_pitch < 0) last_pitch = 0;
+                if (last_pitch > 127) last_pitch = 127;
+                current_pitch = last_pitch;
+                midi_send_note_on(last_pitch, vel, ch);
+                midi_sleep_ms(dur * gate / 100);
+                midi_send_note_off(last_pitch, ch);
+                if (gate < 100) {
+                    midi_sleep_ms(dur * (100 - gate) / 100);
+                }
+                break;
+
+            case SEQ_ELEM_REST:
+                midi_sleep_ms(dur);
+                break;
+
+            case SEQ_ELEM_DYNAMIC:
+                vel = elem->value;
+                break;
+
+            case SEQ_ELEM_DURATION:
+                dur = elem->value;
+                break;
+
+            case SEQ_ELEM_CHORD: {
+                /* Send all note-ons */
+                for (int j = 0; j < elem->chord_count; j++) {
+                    int pitch = elem->chord_pitches[j];
+                    midi_send_note_on(pitch, vel, ch);
+                }
+                /* Track the highest note for interval reference */
+                int highest = elem->chord_pitches[0];
+                for (int j = 1; j < elem->chord_count; j++) {
+                    if (elem->chord_pitches[j] > highest) {
+                        highest = elem->chord_pitches[j];
+                    }
+                }
+                current_pitch = highest;
+
+                /* Wait for duration */
+                midi_sleep_ms(dur * gate / 100);
+
+                /* Send all note-offs */
+                for (int j = 0; j < elem->chord_count; j++) {
+                    int pitch = elem->chord_pitches[j];
+                    midi_send_note_off(pitch, ch);
+                }
+                if (gate < 100) {
+                    midi_sleep_ms(dur * (100 - gate) / 100);
+                }
+                break;
+            }
+
+            case SEQ_ELEM_NUMBER:
+                /* Numbers are skipped when playing - they're for generative ops */
+                /* Could push to stack if needed: push(&stack, elem->value); */
+                break;
+        }
+    }
+
+    clear_pending_params();
 }
 
 /* Append a word to the current block body */
@@ -283,6 +657,13 @@ void process_token(const char* token) {
     Word* word = find_word(token);
 
     if (word == NULL) {
+        /* Try to parse as parameter assignment (vel=100, ch:=1, etc.) */
+        if (strchr(token, '=') != NULL) {
+            if (parse_param_assign(token)) {
+                return;
+            }
+        }
+
         /* Try to parse as relative interval (+N or -N) */
         if ((token[0] == '+' || token[0] == '-') && strlen(token) > 1) {
             char* end;
@@ -451,6 +832,107 @@ void interpret(const char* input) {
 
         if (strcmp(word, "}") == 0) {
             printf("Unexpected '}' outside of block\n");
+            continue;
+        }
+
+        /* Handle bracket sequence capture mode */
+        if (seq_capture_mode) {
+            if (strcmp(word, "[") == 0) {
+                printf("Nested sequences not allowed\n");
+                continue;
+            } else if (strcmp(word, "]") == 0) {
+                /* End of sequence - finalize it */
+                if (seq_capture_chord_mode) {
+                    printf("Unclosed '(' in sequence\n");
+                    seq_capture_chord_mode = 0;
+                    seq_capture_chord_count = 0;
+                }
+                int idx = finalize_sequence();
+                if (idx >= 0) {
+                    push(&stack, SEQ_MARKER | idx);
+                }
+                seq_capture_mode = 0;
+                continue;
+            } else if (strcmp(word, "(") == 0) {
+                /* Start chord within sequence */
+                seq_capture_chord_mode = 1;
+                seq_capture_chord_count = 0;
+                continue;
+            } else if (strcmp(word, ")") == 0) {
+                /* End chord within sequence */
+                if (seq_capture_chord_mode && seq_capture_chord_count > 0) {
+                    seq_add_chord(seq_capture_chord_buffer, seq_capture_chord_count);
+                }
+                seq_capture_chord_mode = 0;
+                seq_capture_chord_count = 0;
+                continue;
+            } else if (strcmp(word, "r") == 0) {
+                /* Rest */
+                seq_add_element(SEQ_ELEM_REST, 0);
+                continue;
+            } else if (is_dynamic_word(word)) {
+                /* Dynamic */
+                seq_add_element(SEQ_ELEM_DYNAMIC, dynamic_to_velocity(word));
+                continue;
+            } else if (is_duration_word(word)) {
+                /* Duration */
+                seq_add_element(SEQ_ELEM_DURATION, duration_word_to_ms(word));
+                continue;
+            } else if ((word[0] == '+' || word[0] == '-') && strlen(word) > 1) {
+                /* Interval */
+                char* end;
+                long interval = strtol(word, &end, 10);
+                if (*end == '\0') {
+                    seq_add_element(SEQ_ELEM_INTERVAL, (int16_t)interval);
+                    continue;
+                }
+            }
+
+            /* Try to parse as pitch */
+            int pitch = parse_pitch_with_artic(word);
+            if (pitch >= 0) {
+                if (seq_capture_chord_mode) {
+                    /* Add to chord buffer */
+                    if (seq_capture_chord_count < 8) {
+                        seq_capture_chord_buffer[seq_capture_chord_count++] = pitch;
+                    }
+                } else {
+                    /* Single pitch */
+                    seq_add_element(SEQ_ELEM_PITCH, (int16_t)pitch);
+                }
+                continue;
+            }
+
+            /* Try to parse as plain number */
+            {
+                char* endptr;
+                long num = strtol(word, &endptr, 10);
+                if (*endptr == '\0') {
+                    seq_add_element(SEQ_ELEM_NUMBER, (int16_t)num);
+                    continue;
+                }
+            }
+
+            /* Unknown token in sequence */
+            printf("Unknown element in sequence: %s\n", word);
+            continue;
+        }
+
+        /* Interpret mode: check for bracket sequence start */
+        if (strcmp(word, "[") == 0) {
+            seq_capture_mode = 1;
+            seq_capture_count = 0;
+            seq_capture_chord_mode = 0;
+            seq_capture_chord_count = 0;
+            current_bracket_seq = malloc(sizeof(BracketSequence));
+            if (current_bracket_seq) {
+                current_bracket_seq->count = 0;
+            }
+            continue;
+        }
+
+        if (strcmp(word, "]") == 0) {
+            printf("Unexpected ']' outside of sequence\n");
             continue;
         }
 

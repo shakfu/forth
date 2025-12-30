@@ -45,11 +45,38 @@
 
 /* Stack markers (sentinel values) */
 #define BLOCK_MARKER    0x40000000
+#define SEQ_MARKER      0x50000000
 #define REST_MARKER     0x7FFFFFFE
 #define CHORD_MARKER    0x7FFFFFFF
 #define ALT_MARKER      0x7FFFFFFD
 #define EXPLICIT_MARKER 0x7FFFFFFC
-#define LIST_MARKER     0x7FFFFFFB
+
+/* Parameter types for named parameter syntax */
+#define PARAM_CHANNEL   1
+#define PARAM_VELOCITY  2
+#define PARAM_DURATION  3
+#define PARAM_GATE      4
+#define PARAM_BPM       5
+#define PARAM_PROGRAM   6
+#define PARAM_PAN       7
+#define PARAM_CC        8
+
+/* Parameter scope */
+#define SCOPE_ONESHOT    0
+#define SCOPE_PERSISTENT 1
+
+/* Bracket sequence element types */
+#define SEQ_ELEM_PITCH    0
+#define SEQ_ELEM_INTERVAL 1
+#define SEQ_ELEM_REST     2
+#define SEQ_ELEM_DYNAMIC  3
+#define SEQ_ELEM_DURATION 4
+#define SEQ_ELEM_CHORD    5
+#define SEQ_ELEM_NUMBER   6   /* Plain number for generative ops */
+
+/* Bracket sequence constants */
+#define MAX_BRACKET_SEQS   32
+#define MAX_SEQ_ELEMENTS   256
 
 /* MIDI event types */
 #define EVT_NOTE_ON  0
@@ -107,6 +134,20 @@ typedef struct {
     uint8_t  data1;     /* pitch or cc number */
     uint8_t  data2;     /* velocity or cc value */
 } CapturedEvent;
+
+/* Bracket sequence element */
+typedef struct {
+    uint8_t type;           /* SEQ_ELEM_* */
+    int16_t value;          /* pitch, interval, velocity, or duration */
+    uint8_t chord_count;    /* for SEQ_ELEM_CHORD */
+    int16_t chord_pitches[8];
+} SeqElement;
+
+/* Bracket sequence structure */
+typedef struct {
+    SeqElement elements[MAX_SEQ_ELEMENTS];
+    int count;
+} BracketSequence;
 
 /* ============================================================================
  * Global Variables (extern declarations)
@@ -178,6 +219,23 @@ extern struct timespec capture_start_time;
 
 /* Generative music PRNG state */
 extern int32_t prng_seed;
+
+/* Named parameter system state */
+extern int default_gate;          /* Gate percentage (1-100) */
+extern int pending_channel;       /* One-shot channel override (-1 if not set) */
+extern int pending_velocity;      /* One-shot velocity override (-1 if not set) */
+extern int pending_duration;      /* One-shot duration override (-1 if not set) */
+extern int pending_gate;          /* One-shot gate override (-1 if not set) */
+
+/* Bracket sequence system */
+extern BracketSequence* bracket_seq_storage[MAX_BRACKET_SEQS];
+extern int bracket_seq_count;
+extern int seq_capture_mode;
+extern int seq_capture_count;
+extern int seq_capture_chord_mode;
+extern int seq_capture_chord_count;
+extern int16_t seq_capture_chord_buffer[8];
+extern BracketSequence* current_bracket_seq;
 
 /* ============================================================================
  * Inline Functions - Packed Notes
@@ -265,8 +323,6 @@ void op_next_random(Stack* stack);
 void op_srand_range(Stack* stack);
 void op_chance(Stack* stack);
 void op_random(Stack* stack);
-void op_list_begin(Stack* stack);
-void op_list_end(Stack* stack);
 void op_euclidean(Stack* stack);
 void op_reverse(Stack* stack);
 void op_arp_up(Stack* stack);
@@ -280,8 +336,6 @@ void op_pick_n(Stack* stack);
 void op_random_walk(Stack* stack);
 void op_drunk_walk(Stack* stack);
 void op_weighted_pick(Stack* stack);
-void op_list_print(Stack* stack);
-void op_list_len(Stack* stack);
 
 /* ============================================================================
  * Function Declarations - Sequences (sequences.c)
@@ -417,6 +471,17 @@ void op_times(Stack* stack);
 void op_star(Stack* stack);
 void op_load(Stack* stack);
 void op_help(Stack* stack);
+
+/* Parameter system functions */
+int parse_param_assign(const char* token);
+int effective_channel(void);
+int effective_velocity(void);
+int effective_duration(void);
+int effective_gate(void);
+void clear_pending_params(void);
+
+/* Bracket sequence functions */
+void execute_bracket_sequence(BracketSequence* seq);
 
 /* ============================================================================
  * Function Declarations - Arithmetic (primitives.c)

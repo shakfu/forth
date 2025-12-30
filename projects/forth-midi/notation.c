@@ -174,6 +174,17 @@ void op_comma(Stack* stack) {
         return;
     }
 
+    /* Check if top of stack is a bracket sequence */
+    int32_t top_val = peek(stack);
+    if ((top_val & 0xFF000000) == SEQ_MARKER) {
+        int idx = top_val & 0x00FFFFFF;
+        pop(stack);
+        if (idx >= 0 && idx < bracket_seq_count && bracket_seq_storage[idx]) {
+            execute_bracket_sequence(bracket_seq_storage[idx]);
+        }
+        return;
+    }
+
     /* First, check for alternatives (ALT_MARKER) */
     int alt_pos = -1;
     for (int i = stack->top; i >= 0; i--) {

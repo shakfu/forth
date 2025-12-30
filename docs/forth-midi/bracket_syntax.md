@@ -1,12 +1,14 @@
-# Proposal: Bracket Sequence Syntax
+# Bracket Sequence Syntax
 
-**Status:** Draft
+**Status:** Implemented
 **Author:** team-forth-midi
 **Date:** 2025-12-30
 
 ## Summary
 
-This proposal introduces a new bracket syntax `[ ... ]` for creating sequences of notes as first-class values. The closing bracket `]` creates a sequence object; the comma `,` plays it. This replaces the need for comma-per-note notation while enabling sequence manipulation before playback.
+The bracket syntax `[ ... ]` creates sequences of notes as first-class values. The closing bracket `]` creates a sequence object; the comma `,` plays it. This replaces the need for comma-per-note notation while enabling sequence manipulation before playback.
+
+Sequences can hold both musical elements (pitches, chords, rests, dynamics, durations) and plain numbers for use with generative operations.
 
 ## Motivation
 
@@ -476,49 +478,46 @@ song
 midi-close
 ```
 
-## Backwards Compatibility
+## Implementation Status
 
-### Breaking Changes
+### Implemented Features
 
-1. `[ ]` now creates sequence objects (first-class values)
-2. Old explicit params syntax `[1 c4 100 500],` is deprecated
+1. **Bracket sequences**: `[ ... ]` creates sequence objects as first-class values
+2. **Sequence playback**: `,` plays sequences when on top of stack
+3. **Musical elements in sequences**: pitches, chords `( )`, rests `r`, dynamics, durations
+4. **Plain numbers in sequences**: for use with generative operations
+5. **Generative operations on sequences**:
+   - `shuffle` - Fisher-Yates shuffle on sequence elements
+   - `reverse` - reverse sequence in place
+   - `pick` - pick random element from sequence
+   - `pick-n` - pick n random elements, returns new sequence
+   - `invert` - invert pitches around axis
+   - `arp-up-down` - create sequence with middle reversed appended
+   - `random-walk` - outputs sequence instead of stack values
+   - `drunk-walk` - takes scale sequence as input, outputs sequence
+   - `weighted-pick` - pick from sequence with value/weight pairs
 
-### Migration
+### Not Yet Implemented
 
-**Phase 1: Warning period**
-- Old explicit params syntax emits deprecation warning
-- Suggest migration to named parameters:
-  ```forth
-  \ Old explicit params (deprecated)
-  [1 c4 100 500],
+1. Named parameters (`vel=100`, `ch:=2`) - still use Forth-style `100 vel!`
+2. Gate parameter
+3. Sequence concatenation (`concat`)
+4. Sequence transpose operation (use `seq-transpose` on traditional sequences)
 
-  \ New named params
-  c4 ch=1 vel=100 dur=500,
-  ```
-- Suggest migration for context variables:
-  ```forth
-  \ Old Forth-style
-  1 ch! 100 vel! 500 dur!
-  120 bpm!
-  1 25 pc
-  1 10 64 cc
+### Backwards Compatibility
 
-  \ New assignment style
-  ch:=1 vel:=100 dur:=500
-  bpm:=120
-  prog:=25
-  pan:=64
-  ```
+The old explicit params syntax `[1 c4 100 500],` has been replaced by the sequence syntax. Use standard Forth-style parameter setting:
 
-**Phase 2: New behavior**
-- `[ ... ]` = create sequence object (on stack)
-- `[ ... ],` = create sequence and play
-- Named parameters fully supported
-- Old explicit params syntax removed
+```forth
+\ Set defaults
+1 ch! 100 vel! 500 dur!
 
-**Phase 3: Cleanup**
-- Remove old context syntax `100 vel!` entirely
-- `vel=100` for one-shot, `vel:=100` for persistent
+\ Play notes with those defaults
+c4, e4, g4,
+
+\ Or use sequences
+[ c4 e4 g4 ],
+```
 
 ## Implementation Notes
 

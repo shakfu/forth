@@ -278,16 +278,23 @@ Use cases:
 - `%` pops probability (0-100), plays if `random() < probability`, else silence
 - `|` requires tokenizer change to treat `|` as separator; picks one alternative at random
 
-### Square Brackets for Explicit Form
+### Square Brackets for Sequences
 
-Explicit grouping to avoid stack-depth heuristics:
+**Note:** The old explicit parameter syntax `[1 c4 100 500],` has been replaced by bracket sequences.
+
+Brackets now create first-class sequence values:
 
 ```forth
-[1 c4 100 500],         \ Explicit single note
-[(c4 e4 g4) 1 80 500],  \ Explicit chord
+[ c4 e4 g4 ],           \ Create and play sequence
+[ c4 e4 g4 ] shuffle,   \ Manipulate then play
 ```
 
-**Rationale**: The current heuristic (count stack items) is fragile if the stack has leftover values. Brackets provide explicit grouping. Could also enable partial overrides like `[c4 100],` (pitch + velocity only).
+For explicit parameters, use the Forth-style context variables:
+
+```forth
+1 ch! 100 vel! 500 dur!
+c4,                     \ Plays with those parameters
+```
 
 ## Priority 3: Convenience
 
@@ -497,9 +504,27 @@ This section demonstrates advanced composition techniques using nested definitio
 | Bracket | Purpose | Example |
 |---------|---------|---------|
 | `( )` | Chord grouping | `(c4 e4 g4),` |
-| `[ ]` | Explicit parameters | `[1 c4 100 500],` |
+| `[ ]` | Sequences | `[ c4 e4 g4 ] shuffle,` |
 | `{ }` | Anonymous blocks | `{ c4, e4, } 4 *` |
 | `: ;` | Word definitions | `: melody c4, e4, ;` |
+
+### Sequences with `[ ]`
+
+Brackets create first-class sequence values that can be manipulated before playback:
+
+```forth
+[ c4 e4 g4 ],           \ Create and play sequence
+[ c4 e4 g4 ] shuffle,   \ Shuffle then play
+[ c4 e4 g4 ] reverse,   \ Reverse then play
+[ c4 e4 g4 ] pick,      \ Pick random element and play
+
+\ Sequences can contain mixed elements
+[ mf c4 r ff e4 (g4 b4) ],   \ dynamics, pitches, rests, chords
+
+\ Plain numbers for generative operations
+[ 1 2 3 4 5 ] shuffle       \ Shuffle numbers
+[ c4 50 e4 30 g4 20 ] weighted-pick,  \ Weighted random selection
+```
 
 ## Building Blocks: Atomic Phrases
 
@@ -569,22 +594,24 @@ Use explicit parameters for multi-channel composition:
 ;
 ```
 
-## Explicit Parameters with Brackets
+## Sequence Manipulation
 
-Use `[ ]` for precise control within compositions:
+Use `[ ]` to create sequences that can be transformed:
 
 ```forth
-\ Mix of defaults and explicit
+\ Create and transform sequences
 : dynamic-phrase
-    c4,                       \ Use defaults
-    [1 e4 120 100],           \ Accent: louder, shorter
-    [1 g4 60 400],            \ Soft, sustained
-    c5,                       \ Back to defaults
+    [ mf c4 ff e4 p g4 c5 ],  \ Dynamics change mid-sequence
 ;
 
-\ Chord with explicit parameters
-: dramatic-chord
-    [(c3 c4 e4 g4 c5) 1 127 2000],   \ Full, loud, long
+\ Shuffle a chord arpeggio
+: random-arp
+    [ c4 e4 g4 c5 ] shuffle,
+;
+
+\ Use generative operations
+: evolving-melody
+    60 3 8 random-walk,       \ Random walk starting at C4
 ;
 ```
 

@@ -77,14 +77,26 @@ Override channel, velocity, and duration:
 (c4 e4 g4) 1 80 500,    \ C major, ch 1, vel 80, 500ms
 ```
 
-### Bracket Notation
+### Bracket Sequences
 
-Use `[ ]` for explicit parameter grouping:
+Use `[ ]` to create sequences as first-class values:
 
 ```forth
-[1 c4 100 500],         \ Explicit single note
-[(c4 e4 g4) 1 80 500],  \ Explicit chord
+[ c4 e4 g4 ],           \ Create and play sequence
+[ c4 e4 g4 ]            \ Create sequence (on stack, not played)
+dup,                    \ Play it
+shuffle,                \ Shuffle and play
+
+\ Sequences can contain:
+[ c4 e4 g4 ]            \ Pitches
+[ (c4 e4 g4) (f4 a4) ]  \ Chords
+[ c4 r e4 r g4 ]        \ Rests
+[ mf c4 ff e4 p g4 ]    \ Dynamics
+[ quarter c4 eighth e4 ]\ Durations
+[ 1 2 3 4 5 ]           \ Plain numbers (for generative ops)
 ```
+
+Sequences support generative operations like `shuffle`, `reverse`, `pick`, and more. See [Generative Music](#generative-music).
 
 ---
 
@@ -576,9 +588,9 @@ seq-play
 
 | Word | Stack | Description |
 |------|-------|-------------|
-| `%` | `( pitch probability -- pitch\|silence )` | Play with probability |
-| `random` | `( -- n )` | Random number 0-99 |
-| `pick` | `( ...items n -- item )` | Pick random from n items |
+| `%` | `( pitch probability -- pitch\|rest )` | Play with probability |
+| `random` | `( -- n )` | Random number 0-99 (system rand) |
+| `chance` | `( probability -- flag )` | Probability gate using seed |
 
 ```forth
 c4 75%,                 \ 75% chance to play
@@ -597,6 +609,78 @@ c4|e4,                  \ 50% C4, 50% E4
 c4|e4|g4,               \ 33% each
 c4|r,                   \ 50% C4, 50% rest
 (c4 e4 g4)|(f4 a4 c5),  \ 50% C major, 50% F major
+```
+
+### Seeded Random (Reproducible)
+
+| Word | Stack | Description |
+|------|-------|-------------|
+| `seed!` | `( n -- )` | Set PRNG seed |
+| `seed@` | `( -- n )` | Get current seed |
+| `next-random` | `( -- n )` | Get next random number |
+| `srand-range` | `( lo hi -- n )` | Random int in range [lo, hi] |
+
+```forth
+42 seed!                \ Set seed for reproducibility
+next-random .           \ Deterministic random number
+0 127 srand-range .     \ Random in range
+```
+
+### Sequence Operations
+
+These operations work on bracket sequences `[ ... ]`:
+
+| Word | Stack | Description |
+|------|-------|-------------|
+| `shuffle` | `( seq -- seq )` | Fisher-Yates shuffle in place |
+| `reverse` | `( seq -- seq )` | Reverse sequence in place |
+| `pick` | `( seq -- value )` | Pick one random element |
+| `pick-n` | `( seq n -- seq )` | Pick n random elements (new seq) |
+| `invert` | `( seq axis -- seq )` | Invert pitches around axis |
+| `arp-up` | `( seq -- seq )` | No change (ascending) |
+| `arp-down` | `( seq -- seq )` | Reverse (descending) |
+| `arp-up-down` | `( seq -- seq )` | Original + reversed middle |
+
+```forth
+[ c4 e4 g4 ] shuffle,       \ Play shuffled
+[ c4 e4 g4 ] reverse,       \ Play reversed (g4 e4 c4)
+[ c4 e4 g4 ] pick .         \ Print random pitch
+[ c4 e4 g4 b4 ] 2 pick-n,   \ Pick 2 random, play as sequence
+[ c4 e4 g4 ] 64 invert,     \ Invert around E4
+[ c4 e4 g4 ] arp-up-down,   \ c4 e4 g4 e4
+```
+
+### Random Walks
+
+| Word | Stack | Description |
+|------|-------|-------------|
+| `random-walk` | `( start max-step n -- seq )` | Generate random walk sequence |
+| `drunk-walk` | `( scale-seq start max-degrees n -- seq )` | Drunk walk within scale |
+
+```forth
+60 3 8 random-walk,         \ 8 notes starting at C4, max 3 semitone steps
+[ c4 d4 e4 f4 g4 a4 b4 ] c4 2 8 drunk-walk,  \ 8 notes in C major scale
+```
+
+### Weighted Selection
+
+| Word | Stack | Description |
+|------|-------|-------------|
+| `weighted-pick` | `( seq -- value )` | Pick from value/weight pairs |
+
+```forth
+\ Sequence of value/weight pairs: c4 has weight 50, e4 has weight 30, g4 has weight 20
+[ c4 50 e4 30 g4 20 ] weighted-pick,  \ Play weighted random pick
+```
+
+### Euclidean Rhythms
+
+| Word | Stack | Description |
+|------|-------|-------------|
+| `euclidean` | `( hits steps -- b1...bn )` | Bjorklund's algorithm |
+
+```forth
+3 8 euclidean .s            \ 1 0 0 1 0 0 1 0 (3 hits in 8 steps)
 ```
 
 ---
