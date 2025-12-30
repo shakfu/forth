@@ -1,6 +1,6 @@
 # Future Improvements
 
-Ideas for extending both MIDI implementations.
+Ideas for extending MIDI implementations.
 
 
 ## All Implementations
@@ -31,6 +31,8 @@ Ideas for extending both MIDI implementations.
 - [ ] Video tutorials
 - [ ] Example compositions
 - [ ] Comparison guide (when to use which)
+- [ ] Troubleshooting guide (common issues and solutions)
+- [ ] Document performance characteristics (startup time, memory usage)
 
 ### Integration
 
@@ -44,6 +46,7 @@ Ideas for extending both MIDI implementations.
 
 ### Sequencer / Timing
 
+- [ ] Timeline-based sequencing (more intuitive for complex compositions)
 - [ ] Non-blocking sequences with absolute timing
 - [ ] Tempo changes mid-sequence (`bpm` word)
 - [ ] Swing/shuffle timing modifier
@@ -129,7 +132,7 @@ Ideas for extending both MIDI implementations.
 - [ ] `onNoteOn :: (Pitch -> Velocity -> IO ()) -> IO ()`
 - [ ] Live reactive programming
 
-### MidiRepl Enhancements
+### MidiPerform Enhancements
 
 - [ ] `openPort :: Int -> IO ()` - open hardware port by index
 - [ ] `program :: Int -> IO ()` - quick program change
