@@ -188,6 +188,8 @@ void init_dictionary(void) {
     add_word("ch!", op_ch_store, 1);
     add_word("vel!", op_vel_store, 1);
     add_word("dur!", op_dur_store, 1);
+    add_word("gate!", op_gate_store, 1);
+    add_word("gate@", op_gate_fetch, 1);
     add_word("r", op_rest, 1);
     add_word("times", op_times, 1);
 
@@ -282,6 +284,8 @@ void init_dictionary(void) {
     add_word("random-walk", op_random_walk, 1);
     add_word("drunk-walk", op_drunk_walk, 1);
     add_word("weighted-pick", op_weighted_pick, 1);
+    add_word("concat", op_concat, 1);
+    add_word("btranspose", op_btranspose, 1);
 
     /* Scales */
     register_scale_words();

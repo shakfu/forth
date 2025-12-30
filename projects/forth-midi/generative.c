@@ -710,3 +710,111 @@ void op_weighted_pick(Stack* stack) {
     push(stack, 0);
 }
 
+/* concat ( seq1 seq2 -- seq ) Concatenate two sequences */
+void op_concat(Stack* stack) {
+    if (stack->top < 1) {
+        printf("concat needs two sequences\n");
+        return;
+    }
+
+    int32_t val2 = pop(stack);
+    int32_t val1 = pop(stack);
+
+    /* Both must be sequences */
+    if ((val1 & 0xFF000000) != SEQ_MARKER || (val2 & 0xFF000000) != SEQ_MARKER) {
+        printf("concat needs two sequences\n");
+        push(stack, 0);
+        return;
+    }
+
+    int idx1 = val1 & 0x00FFFFFF;
+    int idx2 = val2 & 0x00FFFFFF;
+
+    if (idx1 < 0 || idx1 >= bracket_seq_count || !bracket_seq_storage[idx1] ||
+        idx2 < 0 || idx2 >= bracket_seq_count || !bracket_seq_storage[idx2]) {
+        printf("Invalid sequence\n");
+        push(stack, 0);
+        return;
+    }
+
+    BracketSequence* seq1 = bracket_seq_storage[idx1];
+    BracketSequence* seq2 = bracket_seq_storage[idx2];
+
+    /* Create new sequence */
+    if (bracket_seq_count >= MAX_BRACKET_SEQS) {
+        printf("Too many sequences\n");
+        push(stack, 0);
+        return;
+    }
+
+    BracketSequence* out = malloc(sizeof(BracketSequence));
+    if (!out) {
+        printf("Out of memory\n");
+        push(stack, 0);
+        return;
+    }
+
+    out->count = 0;
+
+    /* Copy seq1 */
+    for (int i = 0; i < seq1->count && out->count < MAX_SEQ_ELEMENTS; i++) {
+        out->elements[out->count++] = seq1->elements[i];
+    }
+
+    /* Copy seq2 */
+    for (int i = 0; i < seq2->count && out->count < MAX_SEQ_ELEMENTS; i++) {
+        out->elements[out->count++] = seq2->elements[i];
+    }
+
+    int out_idx = bracket_seq_count++;
+    bracket_seq_storage[out_idx] = out;
+    push(stack, SEQ_MARKER | out_idx);
+}
+
+/* btranspose ( seq semitones -- seq ) Transpose all pitches in a bracket sequence */
+void op_btranspose(Stack* stack) {
+    if (stack->top < 1) {
+        printf("btranspose needs a sequence and semitones\n");
+        return;
+    }
+
+    int32_t semitones = pop(stack);
+    int32_t top_val = pop(stack);
+
+    if ((top_val & 0xFF000000) != SEQ_MARKER) {
+        printf("btranspose needs a sequence\n");
+        push(stack, 0);
+        return;
+    }
+
+    int idx = top_val & 0x00FFFFFF;
+    if (idx < 0 || idx >= bracket_seq_count || !bracket_seq_storage[idx]) {
+        printf("Invalid sequence\n");
+        push(stack, 0);
+        return;
+    }
+
+    BracketSequence* seq = bracket_seq_storage[idx];
+
+    /* Transpose pitches in place */
+    for (int i = 0; i < seq->count; i++) {
+        SeqElement* elem = &seq->elements[i];
+        if (elem->type == SEQ_ELEM_PITCH) {
+            int new_val = elem->value + semitones;
+            if (new_val < 0) new_val = 0;
+            if (new_val > 127) new_val = 127;
+            elem->value = new_val;
+        }
+        if (elem->type == SEQ_ELEM_CHORD) {
+            for (int j = 0; j < elem->chord_count; j++) {
+                int new_val = elem->chord_pitches[j] + semitones;
+                if (new_val < 0) new_val = 0;
+                if (new_val > 127) new_val = 127;
+                elem->chord_pitches[j] = new_val;
+            }
+        }
+    }
+
+    push(stack, top_val);
+}
+

@@ -309,6 +309,8 @@ void op_vel_store(Stack* stack);
 void op_vel_fetch_default(Stack* stack);
 void op_dur_store(Stack* stack);
 void op_dur_fetch_default(Stack* stack);
+void op_gate_store(Stack* stack);
+void op_gate_fetch(Stack* stack);
 void op_octave_up(Stack* stack);
 void op_octave_down(Stack* stack);
 void op_program_change(Stack* stack);
@@ -336,6 +338,8 @@ void op_pick_n(Stack* stack);
 void op_random_walk(Stack* stack);
 void op_drunk_walk(Stack* stack);
 void op_weighted_pick(Stack* stack);
+void op_concat(Stack* stack);
+void op_btranspose(Stack* stack);
 
 /* ============================================================================
  * Function Declarations - Sequences (sequences.c)

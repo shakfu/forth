@@ -497,26 +497,32 @@ midi-close
    - `drunk-walk` - takes scale sequence as input, outputs sequence
    - `weighted-pick` - pick from sequence with value/weight pairs
 
-### Not Yet Implemented
+### Also Implemented
 
-1. Named parameters (`vel=100`, `ch:=2`) - still use Forth-style `100 vel!`
-2. Gate parameter
-3. Sequence concatenation (`concat`)
-4. Sequence transpose operation (use `seq-transpose` on traditional sequences)
+1. **Named parameters**: `vel=100` (one-shot), `ch:=2` (persistent)
+2. **Gate parameter**: `gate=80` or `80 gate!` - percentage of duration to sound (1-100)
+3. **Sequence concatenation**: `[ c4 e4 ] [ g4 b4 ] concat` - join two sequences
+4. **Sequence transpose**: `[ c4 e4 g4 ] 5 btranspose` - transpose bracket sequence pitches
 
-### Backwards Compatibility
-
-The old explicit params syntax `[1 c4 100 500],` has been replaced by the sequence syntax. Use standard Forth-style parameter setting:
+### Example Usage
 
 ```forth
-\ Set defaults
-1 ch! 100 vel! 500 dur!
+\ Named parameters (one-shot - apply to next note only)
+vel=100 c4,                 \ Play C4 at velocity 100
+ch=2 dur=250 e4,            \ Play E4 on channel 2, 250ms
 
-\ Play notes with those defaults
+\ Named parameters (persistent - change defaults)
+vel:=100 ch:=2              \ Set defaults
+c4, e4, g4,                 \ All play with vel=100, ch=2
+
+\ Gate parameter (percentage of duration to sound)
+50 gate!                    \ Staccato-like: 50% sound, 50% silence
 c4, e4, g4,
+100 gate!                   \ Back to legato
 
-\ Or use sequences
-[ c4 e4 g4 ],
+\ Sequence operations
+[ c4 e4 ] [ g4 b4 ] concat,     \ Play c4 e4 g4 b4
+[ c4 e4 g4 ] 7 btranspose,      \ Play transposed up a fifth
 ```
 
 ## Implementation Notes

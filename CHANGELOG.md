@@ -81,6 +81,14 @@ All notable changes to midi-langs are documented in this file.
   - Removed `LIST_MARKER` constant (no longer needed)
   - Removed dead code: `op_list_begin`, `op_list_end`, `op_list_print`, `op_list_len`
 
+- **forth-midi Named Parameters and New Features**:
+  - Named parameter syntax: `vel=100` (one-shot), `ch:=2` (persistent)
+  - Gate parameter: `gate!`, `gate@`, `gate=80` - percentage of duration to sound (1-100)
+  - New sequence operations:
+    - `concat` - concatenate two sequences
+    - `btranspose` - transpose all pitches in a bracket sequence
+  - Notes and chords now use effective parameters (support one-shot overrides and gate)
+
 - **mhs-midi Module Refactoring**: Clean separation of concerns
   - `Music.hs` - Pure music theory + DSL (no IO, no MIDI concepts)
     - Event type now `ENote Pitch Velocity Duration` (removed Channel)

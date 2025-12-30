@@ -109,16 +109,43 @@ Set defaults to avoid repetition:
 | `ch!` | `( n -- )` | Set default channel (1-16) |
 | `vel!` | `( n -- )` | Set default velocity (0-127) |
 | `dur!` | `( n -- )` | Set default duration (ms) |
+| `gate!` | `( n -- )` | Set default gate (1-100, percentage of duration to sound) |
 | `ch@` | `( -- n )` | Get current channel |
 | `vel@` | `( -- n )` | Get current velocity |
 | `dur@` | `( -- n )` | Get current duration |
+| `gate@` | `( -- n )` | Get current gate |
 
 ```forth
 2 ch!                   \ Default to channel 2
 100 vel!                \ Default velocity 100
 250 dur!                \ Default duration 250ms
+50 gate!                \ 50% gate (staccato-like)
 
-c4,                     \ Uses ch=2, vel=100, dur=250
+c4,                     \ Uses ch=2, vel=100, dur=250, gate=50
+```
+
+### Named Parameter Syntax
+
+Use `=` for one-shot (next note only) or `:=` for persistent (change default):
+
+| Syntax | Effect |
+|--------|--------|
+| `vel=100` | Set velocity for next note only |
+| `vel:=100` | Change default velocity |
+| `ch=2` | Set channel for next note only |
+| `ch:=2` | Change default channel |
+| `dur=500` | Set duration for next note only |
+| `dur:=500` | Change default duration |
+| `gate=80` | Set gate for next note only |
+| `gate:=80` | Change default gate |
+| `bpm:=120` | Change tempo (persistent only) |
+| `prog:=25` | Send program change (persistent only) |
+| `pan:=64` | Send pan CC (persistent only) |
+
+```forth
+vel=100 c4,             \ C4 at velocity 100, then back to default
+vel:=100 c4, e4, g4,    \ All notes at velocity 100
+ch=2 dur=250 e4,        \ E4 on channel 2, 250ms duration
 ```
 
 ---
@@ -640,6 +667,8 @@ These operations work on bracket sequences `[ ... ]`:
 | `arp-up` | `( seq -- seq )` | No change (ascending) |
 | `arp-down` | `( seq -- seq )` | Reverse (descending) |
 | `arp-up-down` | `( seq -- seq )` | Original + reversed middle |
+| `concat` | `( seq1 seq2 -- seq )` | Concatenate two sequences |
+| `btranspose` | `( seq semitones -- seq )` | Transpose all pitches |
 
 ```forth
 [ c4 e4 g4 ] shuffle,       \ Play shuffled
@@ -648,6 +677,8 @@ These operations work on bracket sequences `[ ... ]`:
 [ c4 e4 g4 b4 ] 2 pick-n,   \ Pick 2 random, play as sequence
 [ c4 e4 g4 ] 64 invert,     \ Invert around E4
 [ c4 e4 g4 ] arp-up-down,   \ c4 e4 g4 e4
+[ c4 e4 ] [ g4 b4 ] concat, \ Play c4 e4 g4 b4
+[ c4 e4 g4 ] 7 btranspose,  \ Play transposed up a fifth
 ```
 
 ### Random Walks

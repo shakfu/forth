@@ -41,16 +41,17 @@ int parse_pitch(const char* token) {
 }
 
 /* Helper: play a single note with given params
- * Applies and resets articulation flags */
+ * Applies and resets articulation flags, uses effective params and gate */
 void play_single_note(Stack* stack, int pitch) {
     (void)stack;
 
     /* Always track current pitch for relative intervals */
     current_pitch = pitch;
 
-    int velocity = default_velocity;
-    int duration = default_duration;
-    int channel = default_channel;
+    int velocity = effective_velocity();
+    int duration = effective_duration();
+    int channel = effective_channel();
+    int gate = effective_gate();
 
     /* Apply articulation */
     if (articulation_staccato) {
@@ -65,19 +66,23 @@ void play_single_note(Stack* stack, int pitch) {
 
     if (midi_out == NULL) {
         printf("No MIDI output open\n");
+        clear_pending_params();
         return;
     }
 
     if (channel < 1 || channel > 16) {
         printf("Channel must be 1-16\n");
+        clear_pending_params();
         return;
     }
     if (pitch < 0 || pitch > 127) {
         printf("Pitch must be 0-127\n");
+        clear_pending_params();
         return;
     }
     if (velocity < 0 || velocity > 127) {
         printf("Velocity must be 0-127\n");
+        clear_pending_params();
         return;
     }
 
@@ -85,16 +90,24 @@ void play_single_note(Stack* stack, int pitch) {
     midi_send_note_on(pitch, velocity, channel);
     capture_add_event(0, channel - 1, pitch, velocity);
 
-    /* Wait */
-    midi_sleep_ms(duration);
+    /* Wait for gate portion of duration */
+    int gate_time = duration * gate / 100;
+    midi_sleep_ms(gate_time);
 
     /* Note off */
     midi_send_note_off(pitch, channel);
     capture_add_event(1, channel - 1, pitch, 0);
+
+    /* Wait for remaining duration (silence between notes) */
+    if (gate < 100) {
+        midi_sleep_ms(duration - gate_time);
+    }
+
+    clear_pending_params();
 }
 
 /* Helper: play chord notes
- * Applies and resets articulation flags */
+ * Applies and resets articulation flags, uses effective params and gate */
 void play_chord_notes(Stack* stack) {
     /* Find chord marker */
     int marker_pos = -1;
@@ -114,13 +127,15 @@ void play_chord_notes(Stack* stack) {
     if (count < 1 || count > 16) {
         printf("Chord must have 1-16 notes\n");
         while (stack->top >= marker_pos) pop(stack);
+        clear_pending_params();
         return;
     }
 
     int pitches[16];
-    int velocity = default_velocity;
-    int duration = default_duration;
-    int channel = default_channel;
+    int velocity = effective_velocity();
+    int duration = effective_duration();
+    int channel = effective_channel();
+    int gate = effective_gate();
 
     /* Apply articulation */
     if (articulation_staccato) {
@@ -148,6 +163,7 @@ void play_chord_notes(Stack* stack) {
 
     if (midi_out == NULL) {
         printf("No MIDI output open\n");
+        clear_pending_params();
         return;
     }
 
@@ -157,14 +173,22 @@ void play_chord_notes(Stack* stack) {
         capture_add_event(0, channel - 1, pitches[i], velocity);
     }
 
-    /* Wait */
-    midi_sleep_ms(duration);
+    /* Wait for gate portion */
+    int gate_time = duration * gate / 100;
+    midi_sleep_ms(gate_time);
 
     /* All notes off */
     for (int i = 0; i < count; i++) {
         midi_send_note_off(pitches[i], channel);
         capture_add_event(1, channel - 1, pitches[i], 0);
     }
+
+    /* Wait for remaining duration */
+    if (gate < 100) {
+        midi_sleep_ms(duration - gate_time);
+    }
+
+    clear_pending_params();
 }
 
 /* , ( stack contents -- ) The comma - universal play trigger */
@@ -429,6 +453,21 @@ void op_dur_store(Stack* stack) {
 /* dur@ ( -- n ) Get default duration */
 void op_dur_fetch_default(Stack* stack) {
     push(stack, default_duration);
+}
+
+/* gate! ( n -- ) Set default gate (percentage 1-100) */
+void op_gate_store(Stack* stack) {
+    int32_t gate = pop(stack);
+    if (gate < 1 || gate > 100) {
+        printf("Gate must be 1-100\n");
+        return;
+    }
+    default_gate = gate;
+}
+
+/* gate@ ( -- n ) Get default gate */
+void op_gate_fetch(Stack* stack) {
+    push(stack, default_gate);
 }
 
 /* ^ ( -- pitch ) Octave up from current pitch */
