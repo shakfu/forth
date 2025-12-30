@@ -202,13 +202,12 @@ void op_arp_up_down(Stack* stack) {
             return;
         }
 
-        BracketSequence* out = malloc(sizeof(BracketSequence));
+        BracketSequence* out = seq_alloc();
         if (!out) {
             printf("Out of memory\n");
             return;
         }
 
-        out->count = 0;
         /* Copy original */
         for (int i = 0; i < src->count && out->count < MAX_SEQ_ELEMENTS; i++) {
             out->elements[out->count++] = src->elements[i];
@@ -426,7 +425,7 @@ void op_pick_n(Stack* stack) {
             return;
         }
 
-        BracketSequence* out = malloc(sizeof(BracketSequence));
+        BracketSequence* out = seq_alloc();
         if (!out) {
             printf("Out of memory\n");
             push(stack, 0);
@@ -434,7 +433,6 @@ void op_pick_n(Stack* stack) {
         }
 
         if (n > MAX_SEQ_ELEMENTS) n = MAX_SEQ_ELEMENTS;
-        out->count = 0;
         for (int i = 0; i < n; i++) {
             int pick_idx = prng_next() % src->count;
             out->elements[out->count] = src->elements[pick_idx];
@@ -493,14 +491,13 @@ void op_random_walk(Stack* stack) {
         return;
     }
 
-    BracketSequence* seq = malloc(sizeof(BracketSequence));
+    BracketSequence* seq = seq_alloc();
     if (!seq) {
         printf("Out of memory\n");
         push(stack, 0);
         return;
     }
 
-    seq->count = 0;
     for (int i = 0; i < n; i++) {
         seq->elements[seq->count].type = SEQ_ELEM_PITCH;
         seq->elements[seq->count].value = pitch;
@@ -580,7 +577,7 @@ void op_drunk_walk(Stack* stack) {
         return;
     }
 
-    BracketSequence* out_seq = malloc(sizeof(BracketSequence));
+    BracketSequence* out_seq = seq_alloc();
     if (!out_seq) {
         printf("Out of memory\n");
         push(stack, 0);
@@ -588,7 +585,6 @@ void op_drunk_walk(Stack* stack) {
     }
 
     if (n > MAX_SEQ_ELEMENTS) n = MAX_SEQ_ELEMENTS;
-    out_seq->count = 0;
     for (int i = 0; i < n; i++) {
         out_seq->elements[out_seq->count].type = SEQ_ELEM_PITCH;
         out_seq->elements[out_seq->count].value = scale[idx];
@@ -747,14 +743,12 @@ void op_concat(Stack* stack) {
         return;
     }
 
-    BracketSequence* out = malloc(sizeof(BracketSequence));
+    BracketSequence* out = seq_alloc();
     if (!out) {
         printf("Out of memory\n");
         push(stack, 0);
         return;
     }
-
-    out->count = 0;
 
     /* Copy seq1 */
     for (int i = 0; i < seq1->count && out->count < MAX_SEQ_ELEMENTS; i++) {

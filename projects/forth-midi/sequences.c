@@ -81,7 +81,7 @@ void op_seq_note(Stack* stack) {
         return;
     }
 
-    int ch = 0;  /* default channel */
+    int ch = default_channel;  /* use current default channel */
     add_event(time, EVT_NOTE_ON, ch, pitch, vel);
     add_event(time + dur, EVT_NOTE_OFF, ch, pitch, 0);
 }

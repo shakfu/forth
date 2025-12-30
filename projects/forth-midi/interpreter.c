@@ -50,6 +50,72 @@ BracketSequence* current_bracket_seq = NULL;
 /* Forward declarations */
 void interpret(const char* input);
 
+/* ============================================================================
+ * Bracket Sequence Memory Management
+ * ============================================================================ */
+
+/* Allocate a new bracket sequence with ref_count=1 */
+BracketSequence* seq_alloc(void) {
+    BracketSequence* seq = malloc(sizeof(BracketSequence));
+    if (seq) {
+        seq->count = 0;
+        seq->ref_count = 1;
+    }
+    return seq;
+}
+
+/* Increment reference count */
+void seq_retain(BracketSequence* seq) {
+    if (seq) {
+        seq->ref_count++;
+    }
+}
+
+/* Decrement reference count and free if zero */
+void seq_release(BracketSequence* seq) {
+    if (seq && --seq->ref_count <= 0) {
+        free(seq);
+    }
+}
+
+/* Clean up all sequences in storage */
+void seq_cleanup_all(void) {
+    for (int i = 0; i < bracket_seq_count; i++) {
+        if (bracket_seq_storage[i]) {
+            seq_release(bracket_seq_storage[i]);
+            bracket_seq_storage[i] = NULL;
+        }
+    }
+    bracket_seq_count = 0;
+}
+
+/* seq-gc ( -- ) Garbage collect unreferenced sequences */
+void op_seq_gc(Stack* stack) {
+    (void)stack;
+    int freed = 0;
+    for (int i = 0; i < bracket_seq_count; i++) {
+        if (bracket_seq_storage[i] && bracket_seq_storage[i]->ref_count <= 1) {
+            /* Only referenced by storage, free it */
+            free(bracket_seq_storage[i]);
+            bracket_seq_storage[i] = NULL;
+            freed++;
+        }
+    }
+    /* Compact the storage array */
+    int write = 0;
+    for (int read = 0; read < bracket_seq_count; read++) {
+        if (bracket_seq_storage[read]) {
+            if (write != read) {
+                bracket_seq_storage[write] = bracket_seq_storage[read];
+                bracket_seq_storage[read] = NULL;
+            }
+            write++;
+        }
+    }
+    bracket_seq_count = write;
+    printf("seq-gc: freed %d sequences, %d remaining\n", freed, bracket_seq_count);
+}
+
 /* Check if character is a special single-char token */
 static int is_special_char(char c) {
     return c == ',' || c == '(' || c == ')' || c == '|' || c == '[' || c == ']' || c == '%'
@@ -953,10 +1019,7 @@ void interpret(const char* input) {
             seq_capture_count = 0;
             seq_capture_chord_mode = 0;
             seq_capture_chord_count = 0;
-            current_bracket_seq = malloc(sizeof(BracketSequence));
-            if (current_bracket_seq) {
-                current_bracket_seq->count = 0;
-            }
+            current_bracket_seq = seq_alloc();
             continue;
         }
 

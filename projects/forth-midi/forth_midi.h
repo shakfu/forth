@@ -147,6 +147,7 @@ typedef struct {
 typedef struct {
     SeqElement elements[MAX_SEQ_ELEMENTS];
     int count;
+    int ref_count;  /* Reference count for memory management */
 } BracketSequence;
 
 /* ============================================================================
@@ -485,6 +486,11 @@ void clear_pending_params(void);
 
 /* Bracket sequence functions */
 void execute_bracket_sequence(BracketSequence* seq);
+BracketSequence* seq_alloc(void);
+void seq_retain(BracketSequence* seq);
+void seq_release(BracketSequence* seq);
+void seq_cleanup_all(void);
+void op_seq_gc(Stack* stack);
 
 /* ============================================================================
  * Function Declarations - Arithmetic (primitives.c)

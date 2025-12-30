@@ -244,6 +244,7 @@ void init_dictionary(void) {
     add_word("seq-show", op_seq_show, 1);
     add_word("seq-reverse", op_seq_reverse, 1);
     add_word("seq-stretch", op_seq_stretch, 1);
+    add_word("seq-gc", op_seq_gc, 1);
 
     /* Pattern DSL */
     add_word("quarter", op_quarter, 1);
