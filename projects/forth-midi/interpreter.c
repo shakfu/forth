@@ -576,32 +576,45 @@ void op_times(Stack* stack) {
     }
 }
 
-/* * ( block-id|a b -- result ) Block repeat or multiplication */
+/* * ( seq|block|a n -- result ) Sequence/block repeat or multiplication */
 void op_star(Stack* stack) {
     if (stack->top < 1) {
         printf("* needs two values\n");
         return;
     }
     int32_t n = pop(stack);
-    int32_t block_id = pop(stack);
+    int32_t val = pop(stack);
 
-    /* Check if it's a valid block reference */
-    if ((block_id & BLOCK_MARKER) != BLOCK_MARKER) {
-        /* Not a block - treat as multiplication */
-        push(stack, block_id * n);
+    /* Check if it's a bracket sequence */
+    if ((val & 0xFF000000) == SEQ_MARKER) {
+        int idx = val & 0x00FFFFFF;
+        if (idx < 0 || idx >= bracket_seq_count || !bracket_seq_storage[idx]) {
+            printf("Invalid sequence\n");
+            return;
+        }
+        /* Execute sequence n times */
+        for (int i = 0; i < n; i++) {
+            execute_bracket_sequence(bracket_seq_storage[idx]);
+        }
         return;
     }
 
-    int idx = block_id & 0x0FFFFFFF;
-    if (idx < 0 || idx >= block_count || block_storage[idx] == NULL) {
-        printf("Invalid block reference\n");
+    /* Check if it's a block reference */
+    if ((val & BLOCK_MARKER) == BLOCK_MARKER) {
+        int idx = val & 0x0FFFFFFF;
+        if (idx < 0 || idx >= block_count || block_storage[idx] == NULL) {
+            printf("Invalid block reference\n");
+            return;
+        }
+        /* Execute block n times */
+        for (int i = 0; i < n; i++) {
+            interpret(block_storage[idx]);
+        }
         return;
     }
 
-    /* Execute block n times */
-    for (int i = 0; i < n; i++) {
-        interpret(block_storage[idx]);
-    }
+    /* Otherwise treat as multiplication */
+    push(stack, val * n);
 }
 
 /* load ( filename -- ) Load a file (handled specially) */
