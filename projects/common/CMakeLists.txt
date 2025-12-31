@@ -25,7 +25,7 @@ target_include_directories(midi_file PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-target_link_libraries(midi_file PRIVATE
+target_link_libraries(midi_file PUBLIC
     libremidi
 )
 

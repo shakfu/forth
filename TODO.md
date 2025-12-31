@@ -5,20 +5,7 @@ Ideas for extending MIDI implementations.
 
 ## All Implementations
 
-### REPL Improvements
-
-- [x] Readline support for all REPLs (command history, line editing)
-  - [x] forth-midi: readline support
-  - [x] lua-midi: readline support (optional)
-  - [x] s7-midi: readline support with history
-  - [x] pktpy-midi: readline support with history
-  - [x] mhs-midi: has builtin readline support
-- [x] Autocomplete for all REPLs
-  - [x] forth-midi: experimental autocomplete (pitches, words, builtins)
-  - [x] lua-midi: autocomplete for Lua keywords, MIDI functions, pitches, scales
-  - [x] s7-midi: autocomplete for Scheme keywords, MIDI functions, pitches, scales
-  - [x] pktpy-midi: autocomplete for Python keywords, midi module, pitches, scales
-  - [x] mhs-midi: has builtin autocomplete for Haskell functions, pitches
+### Polyphony and Sequencing cocurrent patterns
 
 ### Testing
 

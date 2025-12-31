@@ -25,7 +25,7 @@ if(READLINE_LIB)
 endif()
 
 # s7 requires math and dl libraries
-target_link_libraries(s7_midi PRIVATE libremidi music_theory midi_file m)
+target_link_libraries(s7_midi PRIVATE music_theory midi_file m)
 
 # Platform-specific dependencies
 if(APPLE)

@@ -14,7 +14,7 @@ if(READLINE_LIB)
 endif()
 
 # Link with libremidi, music_theory, and midi_file
-target_link_libraries(pktpy_midi PRIVATE libremidi music_theory midi_file)
+target_link_libraries(pktpy_midi PRIVATE music_theory midi_file)
 
 # Platform-specific dependencies
 if(APPLE)

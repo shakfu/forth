@@ -266,6 +266,108 @@ Note: MicroHs compiles Haskell to C at startup, which adds latency. Once running
 
 ---
 
+## Multi-Voice and Async Capabilities
+
+This section analyzes each implementation's ability to create complex multi-voice MIDI compositions and launch sequences asynchronously.
+
+### Capability Matrix
+
+| Feature | forth-midi | lua-midi | s7-midi | pktpy-midi | mhs-midi |
+|---------|------------|----------|---------|------------|----------|
+| **MIDI Channels** | 16 | 16 | 16 | 16 | 16 |
+| **Simultaneous Notes** | Chords | Chords/Arpeggio | Chords/Arpeggio | Chords/Arpeggio | Chords/Melody |
+| **Sequence System** | Yes (64 seq, 256 events) | No | No | No | No |
+| **Async Launch** | No (blocking) | No | No | No | No |
+| **Host Concurrency** | None | Coroutines (unused) | None | Threading (unused) | Lazy evaluation |
+
+### Multi-Voice Support
+
+All implementations support 16 MIDI channels, enabling multi-voice compositions. However, the approaches differ:
+
+**forth-midi** has the most structured support:
+```forth
+\ Explicit channel per note in sequences
+0 1 60 100 480 seq-note-ch   \ time=0, ch=1, C4, vel=100, dur=480
+0 2 64 100 480 seq-note-ch   \ time=0, ch=2, E4 on different channel
+480 1 62 100 480 seq-note-ch \ time=480, ch=1, D4
+seq-play
+```
+
+**lua-midi**, **pktpy-midi**, **s7-midi** use method calls with channel parameters:
+```lua
+-- Lua
+m:note_on(60, 100, 1)  -- C4 on channel 1
+m:note_on(64, 100, 2)  -- E4 on channel 2
+```
+
+**mhs-midi** uses Haskell's type system:
+```haskell
+-- Haskell
+melody [c4, e4, g4]  -- Sequential
+chord (major c4)     -- Simultaneous on same channel
+```
+
+### Asynchronous Limitations
+
+**Current State:** No implementation supports truly asynchronous sequence playback. All use blocking sleep calls for timing:
+
+- **forth-midi**: `seq-play` blocks until complete (uses `midi_sleep_ms()` between events)
+- **lua-midi/pktpy-midi/s7-midi**: Direct note methods block for duration via `usleep()`
+- **mhs-midi**: Relies on MicroHs host for timing control
+
+**Workaround for multi-voice:** Interleave notes from different voices manually with calculated timings, or use chord notation for vertically aligned events.
+
+### libremidi Recommendations
+
+The underlying libremidi library recommends two approaches for non-blocking MIDI (see [queue.md](https://celtera.github.io/libremidi/queue.html)):
+
+1. **Callback-based queue**: Build event processing on the callback mechanism, integrating with the application's event loop. Example in `thirdparty/libremidi/examples/qmidiin.cpp`:
+   ```cpp
+   // Ring buffer queue with callback
+   conf.on_message = [this](libremidi::message m) {
+       queue.push(std::move(m));
+   };
+   // Main loop polls queue non-blocking
+   while (!done) {
+       auto msg = midiin.get_message();
+       if (!msg.empty()) process(msg);
+       std::this_thread::sleep_for(10ms);
+   }
+   ```
+
+2. **Async runtime with coroutines**: Use C++20 coroutines for imperative-style non-blocking code. Example in `thirdparty/libremidi/examples/coroutines.cpp`:
+   ```cpp
+   // Boost.Cobalt coroutines
+   cobalt::channel<libremidi::message> channel_impl{64};
+   libremidi::midi_in midiin{{.on_message = channel}};
+   for (;;) {
+       auto msg = co_await channel_impl.read();  // Non-blocking await
+       process(msg);
+   }
+   ```
+
+### Architectural Gap
+
+To enable complex multi-voice songs with independent timing, future implementations could:
+
+1. **Event scheduler**: Timestamp-based event queue processed by a timer/callback
+2. **Thread-per-voice**: Each voice runs in its own thread (requires thread-safe MIDI output)
+3. **Coroutine integration**: Leverage host language coroutines (Lua, Python) for cooperative multitasking
+4. **Lock-free queue**: As libremidi suggests, use a proper lock-free queue (e.g., `atomic_queue` or `readerwriterqueue`)
+
+### Practical Guidance
+
+For complex multi-voice compositions today:
+
+| Approach | Recommended Implementation |
+|----------|---------------------------|
+| **Interleaved timeline** | forth-midi sequences with manual time offsets |
+| **Polyphonic chords** | Any implementation using chord functions |
+| **Algorithmic voices** | mhs-midi or s7-midi with functional composition |
+| **Live layering** | External DAW receiving from multiple instances |
+
+---
+
 ## Getting Started
 
 All implementations are built with:

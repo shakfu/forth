@@ -20,7 +20,7 @@ target_include_directories(midi_ffi PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/thirdparty/libremidi/include
 )
-target_link_libraries(midi_ffi PRIVATE libremidi music_theory midi_file)
+target_link_libraries(midi_ffi PUBLIC music_theory midi_file)
 
 # Platform-specific dependencies for midi_ffi
 if(APPLE)
@@ -78,7 +78,6 @@ function(add_mhs_midi_example NAME MODULE)
 
     target_link_libraries(${NAME} PRIVATE
         midi_ffi
-        libremidi
         m
     )
 
@@ -106,6 +105,7 @@ endfunction()
 # Build example executables (target_name, ModuleName)
 # NOTE: Dependencies are added between targets to prevent parallel MicroHs
 # compilations, which corrupt the shared .mhscache file
+if(BUILD_EXAMPLES)
 add_mhs_midi_example(hello_midi HelloMidi)
 add_mhs_midi_example(chords Chords)
 add_mhs_midi_example(melody_example Melody)
@@ -123,7 +123,7 @@ add_dependencies(list_ports arpeggio)
 add_custom_target(mhs-midi-examples
     DEPENDS hello_midi chords melody_example arpeggio list_ports
 )
-
+endif()
 # ============================================
 # mhs-midi: Interactive REPL with MIDI support
 # ============================================
@@ -156,7 +156,6 @@ target_include_directories(mhs-midi PRIVATE
 )
 
 target_link_libraries(mhs-midi PRIVATE
-    libremidi
     music_theory
     midi_file
     m

@@ -9,6 +9,7 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
 endif()
 
+option(BUILD_EXAMPLES "Build language standalone examples" OFF)
 # Option to enable address and undefined behavior sanitizers
 option(ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
 

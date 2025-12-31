@@ -19,7 +19,7 @@ set(FORTH_MIDI_CORE_SOURCES
 # Create a static library for unit testing
 add_library(forth_midi_lib STATIC ${FORTH_MIDI_CORE_SOURCES})
 target_compile_options(forth_midi_lib PRIVATE -Wall -Wextra)
-target_link_libraries(forth_midi_lib PUBLIC libremidi music_theory midi_file)
+target_link_libraries(forth_midi_lib PUBLIC music_theory midi_file)
 
 # Main executable
 add_executable(forth_midi main.c)
