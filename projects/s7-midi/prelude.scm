@@ -563,3 +563,125 @@
          (next-seed (cdr result)))
     (cons (< r probability) next-seed)))
 
+;; ============================================================================
+;; Async Scheduler Helpers
+;; ============================================================================
+;; The scheduler uses a thunk-based cooperative model:
+;; - (spawn thunk [name]) creates a voice from a procedure
+;; - The procedure takes no args and returns: number (ms to wait) or #f (done)
+;; - (run) runs until all voices complete
+;; - (stop [id]) stops one or all voices
+;; - (voices) returns count of active voices
+
+;; Create a voice that executes a sequence of (action . delay) pairs
+;; action is a thunk to call, delay is ms to wait after
+(define (make-sequence-voice steps)
+  "Create a voice from a list of (action . delay) pairs"
+  (let ((remaining steps))
+    (lambda ()
+      (if (null? remaining)
+          #f
+          (let ((step (car remaining)))
+            (set! remaining (cdr remaining))
+            ((car step))  ; Execute the action
+            (cdr step)))))) ; Return delay
+
+;; Create a voice that plays a note on the default port
+(define (make-note-voice pitch vel dur)
+  "Create a voice that plays a single note"
+  (let ((started #f))
+    (lambda ()
+      (if started
+          #f  ; Done after note-off
+          (begin
+            (set! started #t)
+            (if (not *midi*)
+                (error 'no-midi-port "No MIDI port open"))
+            (midi-note-on *midi* pitch vel 1)
+            ;; Return duration, next call will do note-off
+            dur)))))
+
+;; Create a voice that plays a melody (list of pitches with same duration)
+(define (make-melody-voice pitches vel dur)
+  "Create a voice that plays a sequence of notes"
+  (let ((remaining pitches)
+        (pending-off #f))
+    (lambda ()
+      (cond
+        ;; First, send note-off if pending
+        (pending-off
+         (midi-note-off *midi* pending-off 1)
+         (set! pending-off #f)
+         ;; If more notes, start next immediately
+         (if (null? remaining)
+             #f
+             0))
+        ;; No pending off, start next note
+        ((null? remaining)
+         #f)
+        (else
+         (let ((pitch (car remaining)))
+           (set! remaining (cdr remaining))
+           (midi-note-on *midi* pitch vel 1)
+           (set! pending-off pitch)
+           dur))))))
+
+;; Create a voice that plays a chord
+(define (make-chord-voice pitches vel dur)
+  "Create a voice that plays a chord (all notes at once)"
+  (let ((started #f))
+    (lambda ()
+      (if started
+          ;; Send all note-offs
+          (begin
+            (for-each (lambda (p) (midi-note-off *midi* p 1)) pitches)
+            #f)
+          ;; Send all note-ons
+          (begin
+            (set! started #t)
+            (for-each (lambda (p) (midi-note-on *midi* p vel 1)) pitches)
+            dur)))))
+
+;; Play a note asynchronously on default port
+(define (async-note pitch . args)
+  "Spawn a voice to play a note: (async-note pitch [vel] [dur])"
+  (if (not *midi*) (error 'no-midi-port "No MIDI port open"))
+  (let ((vel (if (>= (length args) 1) (car args) mf))
+        (dur (if (>= (length args) 2) (cadr args) quarter)))
+    (spawn (make-note-voice pitch vel dur))))
+
+;; Play a chord asynchronously on default port
+(define (async-chord pitches . args)
+  "Spawn a voice to play a chord: (async-chord pitches [vel] [dur])"
+  (if (not *midi*) (error 'no-midi-port "No MIDI port open"))
+  (let ((vel (if (>= (length args) 1) (car args) mf))
+        (dur (if (>= (length args) 2) (cadr args) quarter)))
+    (spawn (make-chord-voice pitches vel dur))))
+
+;; Play a melody asynchronously
+(define (async-melody pitches . args)
+  "Spawn a voice to play a melody: (async-melody pitches [vel] [dur])"
+  (if (not *midi*) (error 'no-midi-port "No MIDI port open"))
+  (let ((vel (if (>= (length args) 1) (car args) mf))
+        (dur (if (>= (length args) 2) (cadr args) eighth)))
+    (spawn (make-melody-voice pitches vel dur))))
+
+;; Create a repeating voice that calls a thunk n times with delay between
+(define (make-repeat-voice thunk n delay)
+  "Create a voice that calls thunk n times"
+  (let ((count n))
+    (lambda ()
+      (if (<= count 0)
+          #f
+          (begin
+            (set! count (- count 1))
+            (thunk)
+            delay)))))
+
+;; Create a looping voice that repeats forever until stopped
+(define (make-loop-voice thunk delay)
+  "Create a voice that loops forever"
+  (lambda ()
+    (thunk)
+    delay))
+

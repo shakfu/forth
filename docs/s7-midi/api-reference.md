@@ -993,3 +993,311 @@ Event types (in the type field):
 - `176` (`#xB0`) = Control Change
 - `192` (`#xC0`) = Program Change
 - `224` (`#xE0`) = Pitch Bend
+
+---
+
+## Async Scheduler
+
+The scheduler provides non-blocking concurrent playback using a thunk-based cooperative multitasking model. Each "voice" is a Scheme procedure that returns either a number (ms to wait) or `#f` (done).
+
+### spawn
+
+```scheme
+(spawn thunk [name]) -> voice-id
+```
+
+Create a new voice from a procedure. The procedure takes no arguments and should return:
+- A number (milliseconds to wait before next call)
+- `#f` (voice is complete)
+
+```scheme
+;; Simple voice that runs 3 times
+(define count 0)
+(spawn (lambda ()
+         (set! count (+ count 1))
+         (display count)
+         (newline)
+         (if (<= count 3) 100 #f))
+       "counter")
+```
+
+### run
+
+```scheme
+(run)
+```
+
+Run the scheduler until all voices complete. This is a blocking call that processes timer events.
+
+```scheme
+(spawn (lambda () (display "Hello!\n") #f))
+(run)   ; Prints "Hello!" then returns
+```
+
+### stop
+
+```scheme
+(stop) -> unspecified
+(stop voice-id) -> boolean
+```
+
+Stop all voices or a specific voice by ID.
+
+```scheme
+(define v (spawn (lambda () 1000)))  ; Would run forever
+(stop v)        ; Stop specific voice, returns #t
+(stop)          ; Stop all voices
+```
+
+### voices
+
+```scheme
+(voices) -> integer
+```
+
+Return the count of active voices.
+
+```scheme
+(spawn (lambda () #f))
+(spawn (lambda () #f))
+(voices)   ; => 2
+```
+
+### scheduler-status
+
+```scheme
+(scheduler-status) -> alist
+```
+
+Return scheduler status as an association list.
+
+```scheme
+(spawn (lambda () #f) "test")
+(scheduler-status)
+; => ((voices (1 "test" #f)) (active . 1) (running . #f))
+```
+
+The alist contains:
+- `voices` - List of `(id name waiting?)` for each active voice
+- `active` - Count of active voices
+- `running` - Whether the scheduler is currently running
+
+---
+
+## Voice Builders
+
+Helper functions to create common voice patterns. All use closures to maintain state.
+
+### make-sequence-voice
+
+```scheme
+(make-sequence-voice steps) -> procedure
+```
+
+Create a voice from a list of `(action . delay)` pairs.
+
+```scheme
+(spawn (make-sequence-voice
+         (list
+           (cons (lambda () (display "one\n")) 100)
+           (cons (lambda () (display "two\n")) 100)
+           (cons (lambda () (display "three\n")) 0))))
+(run)
+; Prints: one, two, three with 100ms delays
+```
+
+### make-note-voice
+
+```scheme
+(make-note-voice pitch vel dur) -> procedure
+```
+
+Create a voice that plays a single note on the default port.
+
+```scheme
+(open)
+(spawn (make-note-voice c4 mf quarter))
+(run)  ; Plays C4 for 500ms
+```
+
+### make-melody-voice
+
+```scheme
+(make-melody-voice pitches vel dur) -> procedure
+```
+
+Create a voice that plays a sequence of notes.
+
+```scheme
+(open)
+(spawn (make-melody-voice '(60 62 64 65 67) mf eighth))
+(run)  ; Plays C-D-E-F-G with 250ms each
+```
+
+### make-chord-voice
+
+```scheme
+(make-chord-voice pitches vel dur) -> procedure
+```
+
+Create a voice that plays a chord.
+
+```scheme
+(open)
+(spawn (make-chord-voice (major c4) mf half))
+(run)  ; Plays C major chord for 1 second
+```
+
+### make-repeat-voice
+
+```scheme
+(make-repeat-voice thunk n delay) -> procedure
+```
+
+Create a voice that calls a thunk n times with delay between.
+
+```scheme
+(spawn (make-repeat-voice
+         (lambda () (display "tick\n"))
+         5    ; repeat 5 times
+         200) ; 200ms between
+       "ticker")
+(run)
+```
+
+### make-loop-voice
+
+```scheme
+(make-loop-voice thunk delay) -> procedure
+```
+
+Create a voice that loops forever (until stopped).
+
+```scheme
+(define beat-id
+  (spawn (make-loop-voice
+           (lambda () (midi-note-on *midi* 36 100))
+           500)
+         "beat"))
+; ... later ...
+(stop beat-id)  ; Stop the loop
+```
+
+---
+
+## Async Convenience Functions
+
+These functions spawn voices automatically using the global `*midi*` port.
+
+### async-note
+
+```scheme
+(async-note pitch [vel] [dur]) -> voice-id
+```
+
+Spawn a voice to play a single note.
+
+```scheme
+(open)
+(async-note c4)
+(async-note e4 mf)
+(async-note g4 f half)
+(run)  ; All three notes play
+```
+
+### async-chord
+
+```scheme
+(async-chord pitches [vel] [dur]) -> voice-id
+```
+
+Spawn a voice to play a chord.
+
+```scheme
+(open)
+(async-chord (major c4) mf quarter)
+(run)
+```
+
+### async-melody
+
+```scheme
+(async-melody pitches [vel] [dur]) -> voice-id
+```
+
+Spawn a voice to play a melody.
+
+```scheme
+(open)
+(async-melody '(60 64 67 72) mf eighth)
+(run)
+```
+
+---
+
+## Concurrent Playback Examples
+
+### Multiple Voices
+
+```scheme
+(open)
+
+;; Bass voice
+(spawn (make-repeat-voice
+         (lambda () (midi-note *midi* c2 f sixteenth))
+         8
+         eighth)
+       "bass")
+
+;; Lead melody
+(spawn (make-melody-voice (scale c4 'pentatonic) mf quarter) "melody")
+
+(run)  ; Both play simultaneously
+(close)
+```
+
+### Polyrhythmic Pattern
+
+```scheme
+(open)
+
+;; 3 beats
+(spawn (make-repeat-voice
+         (lambda () (midi-note *midi* 60 mf 100))
+         3
+         400)
+       "3-beat")
+
+;; 4 beats (different rate)
+(spawn (make-repeat-voice
+         (lambda () (midi-note *midi* 67 mf 100))
+         4
+         300)
+       "4-beat")
+
+(run)
+(close)
+```
+
+### State Machine Voice
+
+```scheme
+(open)
+
+(define (make-random-walker)
+  (let ((pitch 60)
+        (steps 20))
+    (lambda ()
+      (if (<= steps 0)
+          #f
+          (begin
+            (midi-note *midi* pitch mf sixteenth)
+            (set! pitch (+ pitch (- (random 5) 2)))  ; random walk
+            (set! pitch (max 48 (min 84 pitch)))    ; clamp
+            (set! steps (- steps 1))
+            eighth)))))
+
+(spawn (make-random-walker) "walker")
+(run)
+(close)
+```

@@ -287,5 +287,77 @@ rm -f "$TMPFILE"
 echo "$result" | grep -q "ok" || { echo "FAIL: read-mid structure check failed: $result"; exit 1; }
 echo "  PASS"
 
+# ============================================================================
+# Async scheduler tests
+# ============================================================================
+
+# Test 31: spawn returns voice id
+echo "Test 31: spawn returns voice id..."
+result=$($S7MIDI -e "(number? (spawn (lambda () #f)))" 2>&1)
+echo "$result" | grep -q "#t" || { echo "FAIL: spawn should return number, got: $result"; exit 1; }
+echo "  PASS"
+
+# Test 32: voices count
+echo "Test 32: voices count..."
+result=$($S7MIDI -e "(begin (spawn (lambda () #f)) (voices))" 2>&1)
+echo "$result" | grep -q "1" || { echo "FAIL: voices should return 1, got: $result"; exit 1; }
+echo "  PASS"
+
+# Test 33: run completes all voices
+echo "Test 33: run completes all voices..."
+result=$($S7MIDI -e "(begin (spawn (lambda () #f)) (run) (voices))" 2>&1)
+echo "$result" | grep -q "0" || { echo "FAIL: voices after run should be 0, got: $result"; exit 1; }
+echo "  PASS"
+
+# Test 34: multi-step voice
+echo "Test 34: multi-step voice..."
+result=$($S7MIDI -e "(begin
+  (define count 0)
+  (spawn (lambda ()
+           (set! count (+ count 1))
+           (if (<= count 3) 10 #f)))
+  (run)
+  count)" 2>&1)
+echo "$result" | grep -q "4" || { echo "FAIL: multi-step voice count should be 4, got: $result"; exit 1; }
+echo "  PASS"
+
+# Test 35: multiple voices
+echo "Test 35: multiple concurrent voices..."
+result=$($S7MIDI -e "(begin
+  (define a 0)
+  (define b 0)
+  (spawn (lambda () (set! a (+ a 1)) (if (<= a 2) 10 #f)))
+  (spawn (lambda () (set! b (+ b 1)) (if (<= b 3) 10 #f)))
+  (run)
+  (list a b))" 2>&1)
+echo "$result" | grep -q "(3 4)" || { echo "FAIL: multi-voice counts should be (3 4), got: $result"; exit 1; }
+echo "  PASS"
+
+# Test 36: scheduler-status
+echo "Test 36: scheduler-status..."
+result=$($S7MIDI -e "(begin (spawn (lambda () #f) \"test\") (scheduler-status))" 2>&1)
+echo "$result" | grep -q "test" || { echo "FAIL: scheduler-status should contain voice name, got: $result"; exit 1; }
+echo "  PASS"
+
+# Test 37: stop voice
+echo "Test 37: stop voice..."
+result=$($S7MIDI -e "(begin
+  (define v (spawn (lambda () 1000)))  ; would wait 1 second
+  (stop v)
+  (voices))" 2>&1)
+echo "$result" | grep -q "0" || { echo "FAIL: voices after stop should be 0, got: $result"; exit 1; }
+echo "  PASS"
+
+# Test 38: sequential spawn/run cycles
+echo "Test 38: sequential spawn/run cycles..."
+result=$($S7MIDI -e "(begin
+  (spawn (lambda () #f))
+  (run)
+  (spawn (lambda () #f))
+  (run)
+  (display \"ok\"))" 2>&1)
+echo "$result" | grep -q "ok" || { echo "FAIL: sequential spawn/run failed: $result"; exit 1; }
+echo "  PASS"
+
 echo ""
 echo "All tests passed!"

@@ -6,6 +6,30 @@ All notable changes to midi-langs are documented in this file.
 
 ### Added
 
+- **s7-midi Async Scheduler**: Non-blocking concurrent playback using libuv and thunk-based cooperative multitasking
+  - `(spawn thunk [name])` - Create a new voice from a procedure
+  - `(run)` - Run scheduler until all voices complete
+  - `(stop [voice-id])` - Stop a specific voice or all voices
+  - `(voices)` - Get count of active voices
+  - `(scheduler-status)` - Get scheduler status alist
+  - Thunk-based design: each voice is a procedure that returns:
+    - Number (ms to wait before next call)
+    - `#f` (voice is complete)
+  - Voice builder helpers in prelude:
+    - `(make-sequence-voice steps)` - Create voice from `(action . delay)` pairs
+    - `(make-note-voice pitch vel dur)` - Single note voice
+    - `(make-melody-voice pitches vel dur)` - Sequential notes
+    - `(make-chord-voice pitches vel dur)` - Chord voice
+    - `(make-repeat-voice thunk n delay)` - Repeat thunk n times
+    - `(make-loop-voice thunk delay)` - Loop forever
+  - Async playback conveniences:
+    - `(async-note pitch [vel] [dur])` - Spawn note voice
+    - `(async-chord pitches [vel] [dur])` - Spawn chord voice
+    - `(async-melody pitches [vel] [dur])` - Spawn melody voice
+  - Up to 16 concurrent voices supported
+  - Single-threaded libuv event loop (runs on main thread during `(run)`)
+  - Full test coverage (8 new tests for async functionality)
+
 - **pktpy-midi Async Scheduler**: Non-blocking concurrent playback using libuv and Python generators
   - `spawn(func, [name])` - Create a new voice from a generator function
   - `run()` - Run scheduler until all voices complete

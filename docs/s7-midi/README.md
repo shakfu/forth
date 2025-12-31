@@ -13,6 +13,7 @@ A Scheme-based MIDI language using [s7](https://ccrma.stanford.edu/software/snd/
 - Virtual and hardware MIDI port support
 - Chord builders and transpose helpers
 - Tempo-aware duration constants
+- **Async scheduler**: concurrent voice playback using thunk-based cooperative multitasking
 
 ## Quick Start
 
@@ -99,6 +100,35 @@ Run with:
 ```bash
 ./build/s7_midi melody.scm
 ```
+
+## Async Playback
+
+Play multiple voices concurrently using the thunk-based scheduler:
+
+```scheme
+(open)
+
+;; Voice 1: Bass pattern (repeating)
+(spawn (make-repeat-voice
+         (lambda () (midi-note *midi* c2 f sixteenth))
+         8
+         eighth)
+       "bass")
+
+;; Voice 2: Chord progression
+(spawn (make-sequence-voice
+         (list
+           (cons (lambda () (midi-chord *midi* (major c4) mf half)) half)
+           (cons (lambda () (midi-chord *midi* (major f3) mf half)) half)
+           (cons (lambda () (midi-chord *midi* (major g3) f half)) half)
+           (cons (lambda () (midi-chord *midi* (major c4) mf whole)) 0)))
+       "chords")
+
+(run)   ; Both voices play simultaneously
+(close)
+```
+
+Each voice is a closure that returns ms-to-wait or `#f` when done. See [API Reference](api-reference.md#async-scheduler) for details.
 
 ## Why Scheme for MIDI?
 

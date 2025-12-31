@@ -15,6 +15,7 @@
 #include "scm_prelude.h"
 #include "music_theory.h"
 #include "midi_file.h"
+#include "scheduler.h"
 
 #define MAX_PORTS 64
 #define MAX_CAPTURE_EVENTS 4096
@@ -1259,11 +1260,15 @@ void s7_midi_init(s7_scheme *sc) {
     s7_define_function(sc, "read-mid", g_read_mid, 1, 0, false,
                        "(read-mid filename) reads MIDI file and returns alist with events");
 
+    /* Register scheduler functions (spawn, run, stop, voices, scheduler-status) */
+    s7_scheduler_register(sc);
+
     /* Load Scheme prelude */
     s7_load_c_string(sc, SCHEME_PRELUDE_MODULE, strlen(SCHEME_PRELUDE_MODULE));
 }
 
 void s7_midi_cleanup(void) {
+    s7_scheduler_cleanup();
     midi_cleanup_observer();
     global_sc = NULL;
 }

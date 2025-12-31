@@ -3,10 +3,14 @@ set(S7_DIR ${CMAKE_SOURCE_DIR}/thirdparty/s7)
 add_executable(s7_midi
     main.c
     midi_module.c
+    scheduler.c
     ${S7_DIR}/s7.c
 )
 
-target_include_directories(s7_midi PRIVATE ${S7_DIR})
+target_include_directories(s7_midi PRIVATE
+    ${S7_DIR}
+    ${CMAKE_SOURCE_DIR}/thirdparty/libuv/include
+)
 
 # Use -Os for size optimization (s7.c is very large)
 # Disable some s7 features to reduce size
@@ -24,8 +28,8 @@ if(READLINE_LIB)
     target_link_libraries(s7_midi PRIVATE ${READLINE_LIB})
 endif()
 
-# s7 requires math and dl libraries
-target_link_libraries(s7_midi PRIVATE music_theory midi_file m)
+# s7 requires math library, libuv for async scheduler
+target_link_libraries(s7_midi PRIVATE music_theory midi_file uv_a m)
 
 # Platform-specific dependencies
 if(APPLE)
