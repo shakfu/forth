@@ -527,6 +527,29 @@ test_contains "leave exits loop" "10 0 do i . i 3 = if leave then loop" "0 1 2 3
 
 echo ""
 
+echo "--- MIDI Output ---"
+# ============================================
+
+test_contains "midi-output-list runs" "midi-output-list" "Hardware MIDI outputs:"
+test_contains "midi-output-close runs" "midi-output-close" "ok"
+# Test aliases
+test_contains "midi-list alias runs" "midi-list" "Hardware MIDI outputs:"
+test_contains "midi-close alias runs" "midi-close" "ok"
+
+echo ""
+
+echo "--- MIDI Input ---"
+# ============================================
+
+test_contains "midi-input-list runs" "midi-input-list" "MIDI inputs:"
+test_contains "midi-input? returns flag" "midi-input? ." "0"
+test_contains "midi-input@ returns 4 values" "midi-input@ .s drop drop drop drop" "<4>"
+test_contains "midi-input@ flag is 0 when empty" "midi-input@ swap drop swap drop swap drop ." "0"
+test_contains "midi-input-flush runs" "midi-input-flush" "ok"
+test_contains "midi-input-close runs" "midi-input-close" "ok"
+
+echo ""
+
 echo "--- Error Handling ---"
 # ============================================
 

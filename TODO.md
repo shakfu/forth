@@ -67,7 +67,11 @@ Ideas for extending MIDI implementations.
 
 ### MIDI Input
 
-- [ ] MIDI input handling (note triggers)
+- [x] MIDI input handling - polling-based input with message queue
+  - `midi-input-list`, `midi-input-open`, `midi-input-virtual`, `midi-input-close`
+  - `midi-input?` (check pending), `midi-input@` (read message), `midi-input-flush`
+  - Lock-free ring buffer for callback thread safety
+- [ ] MIDI input handlers (note triggers) - event-driven callbacks
 - [ ] Live looping / overdub
 - [ ] MIDI learn for CC mapping
 

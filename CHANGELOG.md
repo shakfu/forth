@@ -30,6 +30,27 @@ All notable changes to midi-langs are documented in this file.
   - Usage: `yield midi.ms(100)` instead of `for ms in midi.wait(100): yield ms`
   - 2 new tests (Tests 54-55)
 
+- **forth-midi MIDI Input**: Polling-based MIDI input with lock-free message queue
+  - `midi-input-list` - List available MIDI input ports
+  - `midi-input-open` - Open hardware input port by index
+  - `midi-input-virtual` - Create virtual MIDI input port
+  - `midi-input-close` - Close the current input port
+  - `midi-input?` - Check if messages are pending (returns flag)
+  - `midi-input@` - Read next message (returns status data1 data2 flag)
+  - `midi-input-flush` - Discard all pending messages
+  - Lock-free ring buffer for thread-safe callback-to-main-thread communication
+  - Single producer (libremidi callback), single consumer (main thread) pattern
+  - 6 new tests for MIDI input
+
+- **forth-midi Consistent MIDI Port Naming**: Output words now mirror input naming
+  - `midi-output-list` - List available MIDI output ports
+  - `midi-output-open` - Open hardware output port by index
+  - `midi-output-virtual` - Create virtual MIDI output port
+  - `midi-output-open-as` - Create named virtual output port
+  - `midi-output-close` - Close the current output port
+  - Backward-compatible aliases: `midi-list`, `midi-open-port`, `midi-open`, `midi-open-as`, `midi-close`
+  - 4 new tests for MIDI output words
+
 - **mhs-midi Async Scheduler**: Concurrent voice playback using native Haskell threads
   - `spawn name action` - Spawn a new voice with a name, runs in its own thread
   - `run` - Block until all spawned voices complete

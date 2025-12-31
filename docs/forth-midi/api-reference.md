@@ -2,24 +2,98 @@
 
 ## MIDI Setup
 
-### Port Management
+### MIDI Output
 
 | Word | Stack | Description |
 |------|-------|-------------|
-| `midi-list` | `( -- )` | List available MIDI output ports |
-| `midi-apis` | `( -- )` | List available MIDI APIs |
-| `midi-open` | `( -- )` | Create virtual port "ForthMIDI" |
-| `midi-open-as` | `name ( -- )` | Create virtual port with custom name |
-| `midi-open-port` | `( n -- )` | Open hardware port by index |
-| `midi-close` | `( -- )` | Close current MIDI port |
+| `midi-output-list` | `( -- )` | List available MIDI output ports |
+| `midi-output-virtual` | `( -- )` | Create virtual port "ForthMIDI" |
+| `midi-output-open-as` | `name ( -- )` | Create virtual port with custom name |
+| `midi-output-open` | `( n -- )` | Open hardware port by index |
+| `midi-output-close` | `( -- )` | Close current MIDI port |
 | `panic` | `( -- )` | All notes off (emergency stop) |
 
+**Aliases** (for backward compatibility):
+- `midi-list` = `midi-output-list`
+- `midi-open` = `midi-output-virtual`
+- `midi-open-as` = `midi-output-open-as`
+- `midi-open-port` = `midi-output-open`
+- `midi-close` = `midi-output-close`
+
 ```forth
-midi-list               \ See available ports
-midi-open               \ Create virtual port
-midi-open-as MySynth    \ Named virtual port
-0 midi-open-port        \ Open first hardware port
-midi-close              \ Close when done
+midi-output-list            \ See available ports
+midi-output-virtual         \ Create virtual port
+midi-output-open-as MySynth \ Named virtual port
+0 midi-output-open          \ Open first hardware port
+midi-output-close           \ Close when done
+
+\ Or use the shorter aliases:
+midi-list                   \ See available ports
+midi-open                   \ Create virtual port
+0 midi-open-port            \ Open first hardware port
+midi-close                  \ Close when done
+```
+
+### MIDI Input
+
+Receive MIDI messages from external devices or other applications.
+
+| Word | Stack | Description |
+|------|-------|-------------|
+| `midi-input-list` | `( -- )` | List available MIDI input ports |
+| `midi-input-open` | `( n -- )` | Open input port by index |
+| `midi-input-virtual` | `( -- )` | Create virtual input port "ForthMIDI Input" |
+| `midi-input-close` | `( -- )` | Close current input port |
+| `midi-input?` | `( -- flag )` | Check if messages are pending |
+| `midi-input@` | `( -- status data1 data2 flag )` | Read next message |
+| `midi-input-flush` | `( -- )` | Discard all pending messages |
+
+The `midi-input@` word returns:
+- `status`: MIDI status byte (e.g., 0x90 = note on channel 1)
+- `data1`: First data byte (pitch for notes, CC number for CCs)
+- `data2`: Second data byte (velocity for notes, CC value for CCs)
+- `flag`: -1 if message read, 0 if queue was empty
+
+```forth
+\ List available input ports
+midi-input-list
+
+\ Open first hardware input
+0 midi-input-open
+
+\ Or create a virtual input port
+midi-input-virtual
+
+\ Poll for messages
+: check-input
+    midi-input? if
+        midi-input@
+        if  ( status data1 data2 )
+            ." Got: " rot . swap . . cr
+        then
+    then
+;
+
+\ Process all pending messages
+: process-all
+    begin
+        midi-input@
+    while
+        ( status data1 data2 )
+        \ Check for note-on (0x90-0x9F)
+        rot dup 0x90 >= over 0x9F <= and if
+            ." Note on: pitch=" over . ." vel=" dup . cr
+            ( data1 data2 )
+            drop ,  \ Play the received note
+        else
+            drop drop drop
+        then
+    repeat
+    drop drop drop  \ Clean up the 0 0 0 from empty read
+;
+
+\ Close when done
+midi-input-close
 ```
 
 ---

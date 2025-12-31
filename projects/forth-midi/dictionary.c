@@ -200,13 +200,27 @@ void init_dictionary(void) {
     /* Timing */
     add_word("ms", op_sleep, 1);
 
-    /* MIDI words */
-    add_word("midi-list", op_midi_list, 1);
-    /* midi-open handled specially in interpreter for optional string arg */
-    add_word("midi-open-port", op_midi_open, 1);
-    add_word("midi-close", op_midi_close, 1);
+    /* MIDI output words */
+    add_word("midi-output-list", op_midi_output_list, 1);
+    add_word("midi-output-open", op_midi_output_open, 1);
+    add_word("midi-output-close", op_midi_output_close, 1);
+    /* Aliases for backward compatibility */
+    add_word("midi-list", op_midi_output_list, 1);
+    add_word("midi-open-port", op_midi_output_open, 1);
+    add_word("midi-close", op_midi_output_close, 1);
+    /* midi-open / midi-output-virtual / midi-open-as / midi-output-open-as
+       handled specially in interpreter for optional string arg */
     add_word("cc", op_cc, 1);
     add_word("panic", op_all_notes_off, 1);
+
+    /* MIDI input words */
+    add_word("midi-input-list", op_midi_input_list, 1);
+    add_word("midi-input-open", op_midi_input_open, 1);
+    add_word("midi-input-virtual", op_midi_input_open_virtual, 1);
+    add_word("midi-input-close", op_midi_input_close, 1);
+    add_word("midi-input?", op_midi_input_pending, 1);
+    add_word("midi-input@", op_midi_input_read, 1);
+    add_word("midi-input-flush", op_midi_input_flush, 1);
 
     /* Concise notation */
     add_word(",", op_comma, 1);

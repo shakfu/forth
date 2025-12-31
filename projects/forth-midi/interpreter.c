@@ -705,7 +705,11 @@ void op_help(Stack* s) {
     printf("Dynamics: ppp pp p mp mf f ff fff\n");
     printf("Articulation: c4. (staccato) c4> (accent) c4- (tenuto)\n");
     printf("\n");
-    printf("MIDI: midi-open midi-close midi-list panic\n");
+    printf("MIDI Output: midi-output-list midi-output-open midi-output-virtual midi-output-close\n");
+    printf("  (aliases: midi-list midi-open-port midi-open midi-close)\n");
+    printf("MIDI Input: midi-input-list midi-input-open midi-input-virtual midi-input-close\n");
+    printf("  midi-input? midi-input@ midi-input-flush\n");
+    printf("MIDI Control: cc panic\n");
     printf("Sequences: seq-start seq-end seq-play seq-show\n");
     printf("Scales: scale-major scale-minor scale-blues ... scales\n");
     printf("\n");
@@ -1469,12 +1473,12 @@ void interpret(const char* input) {
             continue;
         }
 
-        if (strcmp(word, "midi-open-as") == 0) {
+        if (strcmp(word, "midi-open-as") == 0 || strcmp(word, "midi-output-open-as") == 0) {
             awaiting_filename = 4;
             continue;
         }
 
-        if (strcmp(word, "midi-open") == 0) {
+        if (strcmp(word, "midi-open") == 0 || strcmp(word, "midi-output-virtual") == 0) {
             /* Check if next non-whitespace is a quoted string */
             int peek = i;
             while (isspace(input[peek])) peek++;

@@ -85,6 +85,10 @@
 #define EVT_NOTE_OFF 1
 #define EVT_CC       2
 
+/* MIDI input constants */
+#define MAX_INPUT_PORTS 64
+#define MIDI_INPUT_QUEUE_SIZE 256
+
 /* Packed note format bit masks */
 #define NOTE_PITCH_MASK     0x0000007F
 #define NOTE_VEL_MASK       0x00003F80
@@ -152,6 +156,21 @@ typedef struct {
     int ref_count;  /* Reference count for memory management */
 } BracketSequence;
 
+/* MIDI input message (received from callback) */
+typedef struct {
+    uint8_t  status;    /* MIDI status byte (includes channel for channel messages) */
+    uint8_t  data1;     /* First data byte (pitch, CC number, etc.) */
+    uint8_t  data2;     /* Second data byte (velocity, CC value, etc.) */
+    uint8_t  length;    /* Message length (1-3) */
+} MidiInputMessage;
+
+/* Thread-safe ring buffer for MIDI input messages */
+typedef struct {
+    MidiInputMessage messages[MIDI_INPUT_QUEUE_SIZE];
+    volatile int head;  /* Write position (producer) */
+    volatile int tail;  /* Read position (consumer) */
+} MidiInputQueue;
+
 /* ============================================================================
  * ForthContext - Encapsulates all interpreter state
  * ============================================================================ */
@@ -189,11 +208,17 @@ typedef struct ForthContext {
     const char* current_file;  /* Current file being loaded (NULL if REPL) */
     int current_line;          /* Current line number in file */
 
-    /* MIDI handles */
+    /* MIDI output handles */
     libremidi_midi_observer_handle* midi_observer;
     libremidi_midi_out_handle* midi_out;
     libremidi_midi_out_port* out_ports[MAX_PORTS];
     int out_port_count;
+
+    /* MIDI input handles */
+    libremidi_midi_in_handle* midi_in;
+    libremidi_midi_in_port* in_ports[MAX_INPUT_PORTS];
+    int in_port_count;
+    MidiInputQueue input_queue;
 
     /* Context defaults for concise notation */
     int default_channel;
@@ -313,11 +338,17 @@ void forth_context_reset(ForthContext* ctx);
 #define current_file                (g_ctx.current_file)
 #define current_line                (g_ctx.current_line)
 
-/* MIDI globals */
+/* MIDI output globals */
 #define midi_observer               (g_ctx.midi_observer)
 #define midi_out                    (g_ctx.midi_out)
 #define out_ports                   (g_ctx.out_ports)
 #define out_port_count              (g_ctx.out_port_count)
+
+/* MIDI input globals */
+#define midi_in                     (g_ctx.midi_in)
+#define in_ports                    (g_ctx.in_ports)
+#define in_port_count               (g_ctx.in_port_count)
+#define input_queue                 (g_ctx.input_queue)
 
 /* Context defaults for concise notation */
 #define default_channel             (g_ctx.default_channel)
@@ -435,12 +466,25 @@ int forth_no_sleep(void);       /* Returns 1 if --no-sleep mode is active */
 void forth_set_no_sleep(int v); /* Set no-sleep mode (call from main) */
 
 int open_virtual_port(const char* name);
-void op_midi_list(Stack* s);
-void op_midi_open(Stack* s);
-void op_midi_open_port(Stack* s);
-void op_midi_close(Stack* s);
+void op_midi_output_list(Stack* s);
+void op_midi_output_open(Stack* s);
+void op_midi_output_virtual(Stack* s);
+void op_midi_output_close(Stack* s);
 void op_all_notes_off(Stack* s);
 void op_sleep(Stack* s);
+
+/* MIDI input functions */
+void midi_input_init(void);
+void midi_input_cleanup(void);
+int midi_input_pending(void);
+int midi_input_dequeue(MidiInputMessage* msg);
+void op_midi_input_list(Stack* s);
+void op_midi_input_open(Stack* s);
+void op_midi_input_open_virtual(Stack* s);
+void op_midi_input_close(Stack* s);
+void op_midi_input_pending(Stack* s);
+void op_midi_input_read(Stack* s);
+void op_midi_input_flush(Stack* s);
 
 /* ============================================================================
  * Function Declarations - Notation (notation.c)

@@ -119,13 +119,22 @@ void forth_context_init(ForthContext* ctx) {
     ctx->current_file = NULL;
     ctx->current_line = 0;
 
-    /* MIDI handles */
+    /* MIDI output handles */
     ctx->midi_observer = NULL;
     ctx->midi_out = NULL;
     for (int i = 0; i < MAX_PORTS; i++) {
         ctx->out_ports[i] = NULL;
     }
     ctx->out_port_count = 0;
+
+    /* MIDI input handles */
+    ctx->midi_in = NULL;
+    for (int i = 0; i < MAX_INPUT_PORTS; i++) {
+        ctx->in_ports[i] = NULL;
+    }
+    ctx->in_port_count = 0;
+    ctx->input_queue.head = 0;
+    ctx->input_queue.tail = 0;
 
     /* Context defaults for concise notation */
     ctx->default_channel = 1;       /* 1-16 */
