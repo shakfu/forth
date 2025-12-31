@@ -269,6 +269,31 @@ static s7_pointer g_run(s7_scheme *sc, s7_pointer args) {
     return s7_unspecified(sc);
 }
 
+/* (poll) - Process any ready voice timers without blocking
+ * Returns #t if there are still active voices, #f otherwise
+ * Use this for non-blocking playback while keeping REPL responsive
+ *
+ * Example:
+ *   (spawn melody-voice "melody")
+ *   (let loop ()
+ *     (when (poll)
+ *       ;; REPL stays responsive
+ *       (loop)))
+ */
+static s7_pointer g_poll(s7_scheme *sc, s7_pointer args) {
+    (void)args;
+
+    if (!sched.loop || sched.active_count == 0) {
+        return s7_f(sc);
+    }
+
+    /* Process any ready timers without blocking */
+    uv_run(sched.loop, UV_RUN_NOWAIT);
+
+    /* Return #t if voices still active */
+    return sched.active_count > 0 ? s7_t(sc) : s7_f(sc);
+}
+
 /* (stop [voice-id]) - Stop a specific voice or all voices */
 static s7_pointer g_stop(s7_scheme *sc, s7_pointer args) {
     if (args != s7_nil(sc)) {
@@ -353,6 +378,9 @@ void s7_scheduler_register(s7_scheme *sc) {
 
     s7_define_function(sc, "run", g_run, 0, 0, false,
         "(run) runs scheduler until all voices complete");
+
+    s7_define_function(sc, "poll", g_poll, 0, 0, false,
+        "(poll) process ready voices without blocking, returns #t if voices active");
 
     s7_define_function(sc, "stop", g_stop, 0, 1, false,
         "(stop [voice-id]) stops a specific voice or all voices");

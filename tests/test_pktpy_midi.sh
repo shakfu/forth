@@ -714,5 +714,79 @@ $PKTPY "$TMPFILE" 2>&1 | grep -q "ok" || { rm -f "$TMPFILE"; echo "FAIL: voices 
 rm -f "$TMPFILE"
 echo "  PASS"
 
+# ============================================================================
+# Poll Tests
+# ============================================================================
+
+# Test 48: poll function exists
+echo "Test 48: poll function exists..."
+echo 'import midi; print(callable(midi.poll))' | $PKTPY | grep -q "True" || { echo "FAIL: poll not callable"; exit 1; }
+echo "  PASS"
+
+# Test 49: poll returns False when no voices
+echo "Test 49: poll returns False when no voices..."
+echo 'import midi; print(midi.poll())' | $PKTPY | grep -q "False" || { echo "FAIL: poll() should return False when no voices"; exit 1; }
+echo "  PASS"
+
+# Test 50: poll returns True when voices active
+echo "Test 50: poll returns True when voices active..."
+TMPFILE=$(mktemp)
+cat > "$TMPFILE" << 'EOF'
+import midi
+def voice():
+    yield 100
+midi.spawn(voice)
+result = midi.poll()
+midi.stop()
+print(result)
+EOF
+$PKTPY "$TMPFILE" 2>&1 | grep -q "True" || { rm -f "$TMPFILE"; echo "FAIL: poll() should return True when voices active"; exit 1; }
+rm -f "$TMPFILE"
+echo "  PASS"
+
+# Test 51: poll loop can replace run
+echo "Test 51: poll loop replaces run..."
+TMPFILE=$(mktemp)
+cat > "$TMPFILE" << 'EOF'
+import midi
+done = False
+def voice():
+    global done
+    yield 10
+    done = True
+midi.spawn(voice)
+while midi.poll():
+    pass
+print("ok" if done and midi.voices() == 0 else "FAIL")
+EOF
+$PKTPY "$TMPFILE" 2>&1 | grep -q "ok" || { rm -f "$TMPFILE"; echo "FAIL: poll loop should complete voice"; exit 1; }
+rm -f "$TMPFILE"
+echo "  PASS"
+
+# Test 52: poll processes multiple voices
+echo "Test 52: poll processes multiple voices..."
+TMPFILE=$(mktemp)
+cat > "$TMPFILE" << 'EOF'
+import midi
+v1_done = False
+v2_done = False
+def voice1():
+    global v1_done
+    yield 10
+    v1_done = True
+def voice2():
+    global v2_done
+    yield 5
+    v2_done = True
+midi.spawn(voice1)
+midi.spawn(voice2)
+while midi.poll():
+    pass
+print("ok" if v1_done and v2_done else "FAIL")
+EOF
+$PKTPY "$TMPFILE" 2>&1 | grep -q "ok" || { rm -f "$TMPFILE"; echo "FAIL: poll should process all voices"; exit 1; }
+rm -f "$TMPFILE"
+echo "  PASS"
+
 echo ""
 echo "All tests passed!"

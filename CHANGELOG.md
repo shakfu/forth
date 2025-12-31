@@ -35,6 +35,13 @@ All notable changes to midi-langs are documented in this file.
   - Side-by-side code examples showing same musical idea in all languages
   - Guidance on when to use which language for async tasks
 
+- **Non-blocking `poll()` for REPL Responsiveness**: lua-midi, pktpy-midi, s7-midi
+  - Added `poll()` function to process ready voices without blocking
+  - Returns true/`#t` if voices still active, false/`#f` when done
+  - Allows REPL to stay responsive during playback
+  - Usage: `while poll() do ... end` (lua), `while midi.poll(): ...` (pktpy), `(let loop () (when (poll) (loop)))` (s7)
+  - Full test coverage: lua-midi (Tests 47-51), pktpy-midi (Tests 48-52), s7-midi (Tests 39-43)
+
 - **s7-midi Async Scheduler**: Non-blocking concurrent playback using libuv and thunk-based cooperative multitasking
   - `(spawn thunk [name])` - Create a new voice from a procedure
   - `(run)` - Run scheduler until all voices complete

@@ -6,13 +6,13 @@ This document compares the concurrent playback implementations across all five m
 
 All five languages now support concurrent voice playback, but each uses a different underlying model suited to the language's strengths:
 
-| Language | Model | Threading | Blocking |
-|----------|-------|-----------|----------|
-| **forth-midi** | libuv event loop | Background thread | No (REPL stays responsive) |
-| **lua-midi** | libuv + Lua coroutines | Background thread | Yes (`run()` blocks) |
-| **pktpy-midi** | libuv + Python generators | Background thread | Yes (`run()` blocks) |
-| **s7-midi** | libuv + Scheme thunks | Main thread | Yes (`run()` blocks) |
-| **mhs-midi** | Native Haskell threads | Multiple threads | Yes (`run` blocks) |
+| Language | Model | Threading | Blocking | Non-blocking |
+|----------|-------|-----------|----------|--------------|
+| **forth-midi** | libuv event loop | Background thread | N/A | `seq-play&` (always async) |
+| **lua-midi** | libuv + Lua coroutines | Background thread | `run()` | `poll()` |
+| **pktpy-midi** | libuv + Python generators | Background thread | `run()` | `poll()` |
+| **s7-midi** | libuv + Scheme thunks | Main thread | `(run)` | `(poll)` |
+| **mhs-midi** | Native Haskell threads | Multiple threads | `run` | N/A |
 
 ## forth-midi
 
@@ -60,11 +60,21 @@ end, "bass")
 run()  -- Blocks until all voices complete
 ```
 
+**Non-blocking mode with `poll()`**:
+```lua
+spawn(melody_voice)
+spawn(bass_voice)
+-- REPL stays responsive
+while poll() do
+    -- Can check for user input, display status, etc.
+end
+```
+
 **Key characteristics**:
 - `yield_ms(n)` for explicit timing control
 - `play()`, `play_chord()`, `play_arp()` are non-blocking within voices
 - Up to 16 concurrent voices
-- `run()` blocks the REPL
+- `run()` blocks, `poll()` is non-blocking
 
 ## pktpy-midi
 
@@ -90,11 +100,20 @@ midi.spawn(bass, "bass")
 midi.run()  # Blocks until complete
 ```
 
+**Non-blocking mode with `poll()`**:
+```python
+midi.spawn(melody)
+midi.spawn(bass)
+# REPL stays responsive
+while midi.poll():
+    pass  # Can do other work here
+```
+
 **Key characteristics**:
 - Generator-based: voice functions must contain `yield`
 - Use `for ms in midi.play(...): yield ms` pattern (not `yield from`)
 - Up to 16 concurrent voices
-- `run()` blocks the REPL
+- `run()` blocks, `poll()` is non-blocking
 - Known issue: sequential `run()` calls hang
 
 ## s7-midi
@@ -122,12 +141,22 @@ S7-midi uses a unique thunk-based model. Each voice is a closure that returns ei
 (run)  ; Blocks until complete
 ```
 
+**Non-blocking mode with `(poll)`**:
+```scheme
+(spawn melody-voice "melody")
+(spawn bass-voice "bass")
+;; REPL stays responsive
+(let loop ()
+  (when (poll)
+    (loop)))
+```
+
 **Key characteristics**:
 - Thunk-based: voice is a procedure called repeatedly
 - Return value controls timing (number = wait, `#f` = done)
 - Prelude provides voice builders: `make-sequence-voice`, `make-repeat-voice`, etc.
 - Up to 16 concurrent voices
-- Single-threaded libuv (runs on main thread during `run`)
+- `(run)` blocks, `(poll)` is non-blocking
 
 ## mhs-midi
 
@@ -174,12 +203,11 @@ main = do
 
 ### REPL Responsiveness
 
-| Non-blocking | Blocking |
-|--------------|----------|
-| forth-midi | lua-midi |
-| | pktpy-midi |
-| | s7-midi |
-| | mhs-midi |
+| Always Non-blocking | Non-blocking via `poll()` | Blocking only |
+|---------------------|---------------------------|---------------|
+| forth-midi | lua-midi | mhs-midi |
+| | pktpy-midi | |
+| | s7-midi | |
 
 ## Cross-Language Example
 

@@ -530,6 +530,7 @@ static const char *LUA_PRELUDE_MODULE =
 "spawn = scheduler.spawn\n"
 "yield_ms = scheduler.yield_ms\n"
 "run = scheduler.run\n"
+"poll = scheduler.poll\n"
 "stop = scheduler.stop\n"
 "voices = scheduler.voices\n"
 "\n"

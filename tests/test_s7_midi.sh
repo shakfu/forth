@@ -359,5 +359,49 @@ result=$($S7MIDI -e "(begin
 echo "$result" | grep -q "ok" || { echo "FAIL: sequential spawn/run failed: $result"; exit 1; }
 echo "  PASS"
 
+# ============================================================================
+# Poll Tests
+# ============================================================================
+
+# Test 39: poll function exists
+echo "Test 39: poll function exists..."
+result=$($S7MIDI -e '(procedure? poll)')
+[ "$result" = "#t" ] || { echo "FAIL: poll not a procedure, got $result"; exit 1; }
+echo "  PASS"
+
+# Test 40: poll returns #f when no voices
+echo "Test 40: poll returns #f when no voices..."
+result=$($S7MIDI -e '(poll)')
+[ "$result" = "#f" ] || { echo "FAIL: poll should return #f when no voices, got $result"; exit 1; }
+echo "  PASS"
+
+# Test 41: poll returns #t when voices active
+echo "Test 41: poll returns #t when voices active..."
+result=$($S7MIDI -e "(begin (spawn (lambda () 100)) (poll))" 2>&1)
+echo "$result" | grep -q "#t" || { echo "FAIL: poll should return #t when voices active, got: $result"; exit 1; }
+echo "  PASS"
+
+# Test 42: poll loop can replace run
+echo "Test 42: poll loop replaces run..."
+result=$($S7MIDI -e "(begin
+  (define done #f)
+  (spawn (lambda () (set! done #t) #f))
+  (let loop () (when (poll) (loop)))
+  (list done (voices)))" 2>&1)
+echo "$result" | grep -q "(#t 0)" || { echo "FAIL: poll loop should complete voice, got: $result"; exit 1; }
+echo "  PASS"
+
+# Test 43: poll processes multiple voices
+echo "Test 43: poll processes multiple voices..."
+result=$($S7MIDI -e "(begin
+  (define v1 #f)
+  (define v2 #f)
+  (spawn (lambda () (set! v1 #t) #f))
+  (spawn (lambda () (set! v2 #t) #f))
+  (let loop () (when (poll) (loop)))
+  (and v1 v2))" 2>&1)
+echo "$result" | grep -q "#t" || { echo "FAIL: poll should process all voices, got: $result"; exit 1; }
+echo "  PASS"
+
 echo ""
 echo "All tests passed!"

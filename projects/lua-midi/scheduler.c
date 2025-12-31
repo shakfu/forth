@@ -395,6 +395,30 @@ static int l_run(lua_State *L) {
     return 0;
 }
 
+/* poll() - Process any pending voice resumes without blocking
+ * Returns true if there are still active voices, false otherwise
+ * Use this for non-blocking playback while keeping REPL responsive
+ *
+ * Example:
+ *   spawn(melody)
+ *   while poll() do
+ *       -- REPL stays responsive, can check input, etc.
+ *   end
+ */
+static int l_poll(lua_State *L) {
+    if (!sched.loop || sched.active_count == 0) {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
+
+    /* Process any pending resumes */
+    process_pending_resumes(L);
+
+    /* Return true if voices still active */
+    lua_pushboolean(L, sched.active_count > 0);
+    return 1;
+}
+
 /* stop([voice_id]) - Stop a specific voice or all voices
  * With no argument, stops all voices
  */
@@ -474,6 +498,7 @@ static const luaL_Reg scheduler_funcs[] = {
     {"spawn", l_spawn},
     {"yield_ms", l_yield_ms},
     {"run", l_run},
+    {"poll", l_poll},
     {"stop", l_stop},
     {"status", l_status},
     {"voices", l_voices},

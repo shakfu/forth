@@ -29,7 +29,7 @@ Ideas for extending MIDI implementations.
 
 ### Enhance existing async features
 
-- [ ] REPL responsiveness during run (lua/pktpy/s7 block during run)
+- [x] REPL responsiveness during run - added `poll()` to lua/pktpy/s7
 - [ ] Inter-voice communication/sync primitives
 - [ ] Async MIDI input handling
 

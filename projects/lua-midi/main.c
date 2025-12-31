@@ -64,9 +64,9 @@ static const char* prelude_functions[] = {
     "transpose", "octave_up", "octave_down",
     "dotted", "rest", "sleep",
     /* Scheduler functions */
-    "spawn", "yield_ms", "run", "stop", "voices",
+    "spawn", "yield_ms", "run", "poll", "stop", "voices",
     "scheduler.spawn", "scheduler.yield_ms", "scheduler.run",
-    "scheduler.stop", "scheduler.status", "scheduler.voices",
+    "scheduler.poll", "scheduler.stop", "scheduler.status", "scheduler.voices",
     /* Async note helpers */
     "play", "play_chord",
     NULL

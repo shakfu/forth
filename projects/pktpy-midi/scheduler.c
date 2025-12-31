@@ -429,6 +429,35 @@ static bool pk_run(int argc, py_StackRef argv) {
     return true;
 }
 
+/* poll() - Process any pending voice resumes without blocking
+ * Returns True if there are still active voices, False otherwise
+ * Use this for non-blocking playback while keeping REPL responsive
+ *
+ * Example:
+ *   midi.spawn(melody)
+ *   while midi.poll():
+ *       # REPL stays responsive
+ *       pass
+ */
+static bool pk_poll(int argc, py_StackRef argv) {
+    (void)argv;
+    if (argc != 0) {
+        return py_exception(tp_TypeError, "poll() takes 0 arguments");
+    }
+
+    if (!sched.loop || sched.active_count == 0) {
+        py_newbool(py_retval(), false);
+        return true;
+    }
+
+    /* Process any pending resumes */
+    process_pending_resumes();
+
+    /* Return True if voices still active */
+    py_newbool(py_retval(), sched.active_count > 0);
+    return true;
+}
+
 /* stop([voice_id]) - Stop a specific voice or all voices */
 static bool pk_stop(int argc, py_StackRef argv) {
     if (argc > 1) {
@@ -503,6 +532,7 @@ static bool pk_status(int argc, py_StackRef argv) {
 void pk_scheduler_register(py_GlobalRef mod) {
     py_bindfunc(mod, "spawn", pk_spawn);
     py_bindfunc(mod, "run", pk_run);
+    py_bindfunc(mod, "poll", pk_poll);
     py_bindfunc(mod, "stop", pk_stop);
     py_bindfunc(mod, "voices", pk_voices);
     py_bindfunc(mod, "status", pk_status);

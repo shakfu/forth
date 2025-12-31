@@ -524,6 +524,7 @@ chance = midi.chance
 spawn = scheduler.spawn
 yield_ms = scheduler.yield_ms
 run = scheduler.run
+poll = scheduler.poll
 stop = scheduler.stop
 voices = scheduler.voices
 

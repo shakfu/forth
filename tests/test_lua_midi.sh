@@ -478,5 +478,57 @@ print(iterations > 0 and iterations < 100)
 [ "$result" = "true" ] || echo "  SKIP (timing dependent)"
 echo "  PASS"
 
+# ============================================================================
+# Poll Tests
+# ============================================================================
+
+# Test 47: poll function exists
+echo "Test 47: poll function exists..."
+result=$($LUAMIDI -e 'print(type(poll))')
+[ "$result" = "function" ] || { echo "FAIL: poll not a function, got $result"; exit 1; }
+echo "  PASS"
+
+# Test 48: poll returns false when no voices
+echo "Test 48: poll returns false when no voices..."
+result=$($LUAMIDI -e 'print(poll())')
+[ "$result" = "false" ] || { echo "FAIL: poll() should return false when no voices, got $result"; exit 1; }
+echo "  PASS"
+
+# Test 49: poll returns true when voices active
+echo "Test 49: poll returns true when voices active..."
+result=$($LUAMIDI -e '
+spawn(function() yield_ms(100) end)
+print(poll())
+stop()
+')
+[ "$result" = "true" ] || { echo "FAIL: poll() should return true when voices active, got $result"; exit 1; }
+echo "  PASS"
+
+# Test 50: poll loop can replace run
+echo "Test 50: poll loop replaces run..."
+result=$($LUAMIDI -e '
+local done = false
+spawn(function()
+  yield_ms(1)
+  done = true
+end)
+while poll() do end
+print(done, voices())
+')
+[ "$result" = "true	0" ] || { echo "FAIL: poll loop should complete voice, got $result"; exit 1; }
+echo "  PASS"
+
+# Test 51: poll processes multiple voices
+echo "Test 51: poll processes multiple voices..."
+result=$($LUAMIDI -e '
+local v1, v2 = false, false
+spawn(function() yield_ms(2); v1 = true end)
+spawn(function() yield_ms(1); v2 = true end)
+while poll() do end
+print(v1 and v2)
+')
+[ "$result" = "true" ] || { echo "FAIL: poll should process all voices, got $result"; exit 1; }
+echo "  PASS"
+
 echo ""
 echo "All tests passed!"
