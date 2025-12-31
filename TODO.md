@@ -27,6 +27,18 @@ Ideas for extending MIDI implementations.
 - [ ] Ableton Link for tempo sync
 - [ ] Jack audio connection kit support (Linux)
 
+### Enhance existing async features
+
+- [ ] REPL responsiveness during run (lua/pktpy/s7 block during run)
+- [ ] Inter-voice communication/sync primitives
+- [ ] Async MIDI input handling
+
+### Unify/document async patterns
+
+- [ ] Create cross-language async examples
+- [ ] Document the different async models
+
+
 ---
 
 ## forth-midi

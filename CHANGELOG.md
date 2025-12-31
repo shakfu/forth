@@ -6,6 +6,22 @@ All notable changes to midi-langs are documented in this file.
 
 ### Added
 
+- **mhs-midi Async Scheduler**: Concurrent voice playback using native Haskell threads
+  - `spawn name action` - Spawn a new voice with a name, runs in its own thread
+  - `run` - Block until all spawned voices complete
+  - `stop voiceId` - Stop a specific voice by ID
+  - `stopAll` - Stop all active voices
+  - `voices` - Get count of active voices
+  - `status` - Get scheduler status `(running, count, names)`
+  - Async note helpers:
+    - `asyncNote` - Play a note asynchronously
+    - `asyncChord` - Play a chord asynchronously
+    - `asyncPerform` - Perform a Music value asynchronously
+  - Pure Haskell implementation using `forkIO`, `MVar`, `ThreadId`
+  - No C FFI required for scheduling (unlike other languages that use libuv)
+  - Re-exported from `MusicPerform` module for convenience
+  - Full test coverage (6 async tests)
+
 - **s7-midi Async Scheduler**: Non-blocking concurrent playback using libuv and thunk-based cooperative multitasking
   - `(spawn thunk [name])` - Create a new voice from a procedure
   - `(run)` - Run scheduler until all voices complete

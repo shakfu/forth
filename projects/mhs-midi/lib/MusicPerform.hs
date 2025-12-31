@@ -1,7 +1,7 @@
 -- | Music Performance for MicroHs
 --
 -- IO functions for performing pure Music via MIDI.
--- Imports and re-exports Music (pure) and Midi (IO).
+-- Imports and re-exports Music (pure), Midi (IO), and Async (concurrent).
 --
 -- Example:
 --   import MusicPerform
@@ -11,10 +11,20 @@
 --       perform (chord [c4, e4, g4] ff half)
 --       midiClose
 --
+-- Async example:
+--   import MusicPerform
+--   main = do
+--       midiOpenVirtual "myApp"
+--       spawn "melody" $ perform (line [c4, e4, g4] mf quarter)
+--       spawn "bass" $ perform (note c2 f whole)
+--       run  -- Wait for all voices
+--       midiClose
+--
 module MusicPerform (
     -- * Re-exports
     module Music,
     module Midi,
+    module Async,
 
     -- * Music DSL interpretation
     perform,
@@ -27,6 +37,7 @@ module MusicPerform (
 
 import Music
 import Midi
+import Async
 
 -----------------------------------------------------------
 -- Microtonal IO

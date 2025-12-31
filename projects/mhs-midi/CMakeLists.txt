@@ -54,7 +54,7 @@ function(add_mhs_midi_example NAME MODULE)
             ${MODULE}
             -C
             -o${C_OUTPUT}
-        DEPENDS ${HS_SOURCE} ${MIDI_LIB_DIR}/Midi.hs ${MIDI_LIB_DIR}/Music.hs ${MIDI_LIB_DIR}/MusicPerform.hs
+        DEPENDS ${HS_SOURCE} ${MIDI_LIB_DIR}/Midi.hs ${MIDI_LIB_DIR}/Music.hs ${MIDI_LIB_DIR}/MusicPerform.hs ${MIDI_LIB_DIR}/Async.hs
         WORKING_DIRECTORY ${MHS_DIR}
         COMMENT "Compiling ${MODULE}.hs with MicroHs"
         VERBATIM
@@ -111,6 +111,7 @@ add_mhs_midi_example(chords Chords)
 add_mhs_midi_example(melody_example Melody)
 add_mhs_midi_example(arpeggio Arpeggio)
 add_mhs_midi_example(list_ports ListPorts)
+add_mhs_midi_example(async_test AsyncTest)
 
 # Serialize MicroHs compilations to avoid .mhscache corruption
 # Each target depends on the previous one
@@ -118,10 +119,11 @@ add_dependencies(chords hello_midi)
 add_dependencies(melody_example chords)
 add_dependencies(arpeggio melody_example)
 add_dependencies(list_ports arpeggio)
+add_dependencies(async_test list_ports)
 
 # Custom target to build all mhs-midi examples
 add_custom_target(mhs-midi-examples
-    DEPENDS hello_midi chords melody_example arpeggio list_ports
+    DEPENDS hello_midi chords melody_example arpeggio list_ports async_test
 )
 endif()
 # ============================================

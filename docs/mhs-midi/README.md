@@ -6,6 +6,7 @@ A Haskell MIDI library for MicroHs, providing both pure functional composition a
 
 - **Pure Music DSL**: Compose and transform music functionally before performance
 - **Immediate Playback**: Direct MIDI output for REPL-style interaction
+- **Async Scheduler**: Concurrent voice playback using native Haskell threads
 - **Generative Music**: Random selection, walks, euclidean rhythms, probability
 - **55 Built-in Scales**: Modes, pentatonics, world scales, ragas, maqamat
 - **Microtonal Support**: 10 cents-based scales with quarter-tones
@@ -17,7 +18,8 @@ A Haskell MIDI library for MicroHs, providing both pure functional composition a
 |--------|---------|
 | `Music.hs` | Pure music theory + DSL (no IO) |
 | `Midi.hs` | FFI bindings |
-| `MusicPerform.hs` | `perform` bridge for pure Music |
+| `Async.hs` | Concurrent scheduler using forkIO |
+| `MusicPerform.hs` | `perform` bridge for pure Music (re-exports Async) |
 | `MidiPerform.hs` | Immediate IO + generative functions |
 
 ## Quick Start
@@ -92,6 +94,43 @@ main = do
     perform piece
     perform (louder 20 (stretch 2 piece))
     midiClose
+```
+
+### Async - Concurrent Voices
+
+Play multiple independent voices simultaneously using Haskell threads:
+
+```haskell
+import MusicPerform
+
+main = do
+    midiOpenVirtual "MyApp"
+
+    -- Spawn concurrent voices
+    spawn "melody" $ perform (line [c4, e4, g4, c5] mf quarter)
+    spawn "bass" $ perform (note c2 ff whole)
+
+    run  -- Wait for all voices to complete
+    midiClose
+```
+
+Each voice runs in its own thread. The scheduler provides:
+
+```haskell
+spawn :: String -> IO () -> IO VoiceId  -- Spawn a named voice
+run :: IO ()                             -- Wait for all voices
+stop :: VoiceId -> IO Bool              -- Stop a specific voice
+stopAll :: IO ()                         -- Stop all voices
+voices :: IO Int                         -- Get count of active voices
+status :: IO (Bool, Int, [String])      -- (running, count, names)
+```
+
+Async note helpers for quick voice creation:
+
+```haskell
+asyncNote :: Channel -> Pitch -> Velocity -> Duration -> IO VoiceId
+asyncChord :: Channel -> [Pitch] -> Velocity -> Duration -> IO VoiceId
+asyncPerform :: Music -> IO VoiceId
 ```
 
 ## Generative Functions (MidiPerform)

@@ -5,7 +5,8 @@
 | Module | Import | Purpose |
 |--------|--------|---------|
 | `MidiPerform` | `import MidiPerform` | Immediate IO, generative music |
-| `MusicPerform` | `import MusicPerform` | Pure Music DSL + perform |
+| `MusicPerform` | `import MusicPerform` | Pure Music DSL + perform + Async |
+| `Async` | `import Async` | Concurrent scheduler (re-exported by MusicPerform) |
 | `Music` | `import Music` | Pure music theory (no IO) |
 | `Midi` | `import Midi` | Low-level FFI bindings |
 
@@ -166,6 +167,87 @@ centsToBend :: Int -> IO Int
 
 pitchBendCents :: Channel -> Int -> IO ()
 -- Send pitch bend in cents
+```
+
+---
+
+## Async Module
+
+```haskell
+import Async
+-- Or use via: import MusicPerform (which re-exports Async)
+```
+
+Concurrent voice scheduler using native Haskell threads (`forkIO`).
+
+### Types
+
+```haskell
+type VoiceId = ThreadId
+-- Voice identifier (wrapper around Haskell ThreadId)
+```
+
+### Scheduler Functions
+
+```haskell
+spawn :: String -> IO () -> IO VoiceId
+-- Spawn a new voice with a name. The action runs in its own thread.
+
+run :: IO ()
+-- Block until all spawned voices complete. Polls every 10ms.
+
+stop :: VoiceId -> IO Bool
+-- Stop a specific voice by its ID. Returns True if found and stopped.
+
+stopAll :: IO ()
+-- Stop all active voices immediately.
+
+voices :: IO Int
+-- Get count of currently active voices.
+
+status :: IO (Bool, Int, [String])
+-- Get scheduler status: (isRunning, voiceCount, voiceNames)
+```
+
+### Async Music Helpers
+
+```haskell
+asyncNote :: Channel -> Pitch -> Velocity -> Duration -> IO VoiceId
+-- Play a single note asynchronously
+
+asyncChord :: Channel -> [Pitch] -> Velocity -> Duration -> IO VoiceId
+-- Play a chord asynchronously
+
+asyncPerform :: Music -> IO VoiceId
+-- Perform a Music value asynchronously on channel 1
+```
+
+### Example
+
+```haskell
+import MusicPerform
+
+main :: IO ()
+main = do
+    midiOpenVirtual "AsyncDemo"
+
+    -- Two concurrent voices
+    spawn "melody" $ do
+        perform (line [c4, e4, g4] mf quarter)
+        perform (line [g4, e4, c4] mf quarter)
+
+    spawn "bass" $ do
+        perform (note c2 ff half)
+        perform (note g2 ff half)
+
+    run  -- Wait for both to finish
+
+    -- Using helpers
+    asyncNote 1 c4 80 500
+    asyncChord 1 [c4, e4, g4] 80 1000
+    run
+
+    midiClose
 ```
 
 ---
