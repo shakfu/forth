@@ -621,3 +621,76 @@ def _chance(seed, probability):
     r, next_seed = _random_range(seed, 0, 99)
     return (r < probability, next_seed)
 midi.chance = _chance
+
+# ============================================================================
+# Async Playback Helpers (for use with spawn/run)
+# ============================================================================
+# These are generator-based helpers for non-blocking multi-voice playback.
+# Usage:
+#   def melody():
+#       out = midi.open()
+#       for ms in midi.play(out, midi.c4, midi.mf, midi.quarter):
+#           yield ms
+#       for ms in midi.play(out, midi.e4, midi.mf, midi.quarter):
+#           yield ms
+#   midi.spawn(melody)
+#   midi.run()
+
+def _play(out, pitch, velocity=None, duration=None, channel=1):
+    '''Play a note asynchronously (generator).
+    Use with: for ms in midi.play(out, pitch, velocity, duration): yield ms'''
+    if velocity is None:
+        velocity = midi.mf
+    if duration is None:
+        duration = midi.quarter
+    if isinstance(pitch, str):
+        pitch = midi.note(pitch)
+    out.note_on(pitch, velocity, channel)
+    yield duration
+    out.note_off(pitch, 0, channel)
+midi.play = _play
+
+def _play_chord(out, pitches, velocity=None, duration=None, channel=1):
+    '''Play a chord asynchronously (generator).
+    Use with: for ms in midi.play_chord(out, [c4, e4, g4]): yield ms'''
+    if velocity is None:
+        velocity = midi.mf
+    if duration is None:
+        duration = midi.quarter
+    # Convert string pitches
+    resolved = []
+    for p in pitches:
+        if isinstance(p, str):
+            resolved.append(midi.note(p))
+        else:
+            resolved.append(p)
+    # Note on for all
+    for p in resolved:
+        out.note_on(p, velocity, channel)
+    yield duration
+    # Note off for all
+    for p in resolved:
+        out.note_off(p, 0, channel)
+midi.play_chord = _play_chord
+
+def _play_arp(out, pitches, velocity=None, note_duration=None, spacing=None, channel=1):
+    '''Play notes as arpeggio asynchronously (generator).
+    Use with: for ms in midi.play_arp(...): yield ms'''
+    if velocity is None:
+        velocity = midi.mf
+    if note_duration is None:
+        note_duration = midi.eighth
+    if spacing is None:
+        spacing = note_duration
+    for p in pitches:
+        for ms in _play(out, p, velocity, note_duration, channel):
+            yield ms
+        if spacing > note_duration:
+            yield spacing - note_duration
+midi.play_arp = _play_arp
+
+def _wait(ms):
+    '''Wait for given milliseconds asynchronously (generator).
+    Use with: yield from midi.wait(500)'''
+    yield ms
+midi.wait = _wait

@@ -10,6 +10,7 @@
 #include "py_prelude.h"
 #include "music_theory.h"
 #include "midi_file.h"
+#include "scheduler.h"
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
@@ -1273,6 +1274,9 @@ void pk_midi_module_init(void) {
     py_bindmagic(tp_MidiOut, py_name("__exit__"), MidiOut__exit__);
     py_bindmagic(tp_MidiOut, py_name("__repr__"), MidiOut__repr__);
 
+    // Register scheduler functions (spawn, run, stop, voices, status)
+    pk_scheduler_register(mod);
+
     // Execute Python prelude to add helper functions and constants
     py_Ref midi_mod = py_getmodule("midi");
     if (!py_exec(PY_PRELUDE_MODULE, "<midi_prelude>", EXEC_MODE, midi_mod)) {
@@ -1281,5 +1285,6 @@ void pk_midi_module_init(void) {
 }
 
 void pk_midi_module_cleanup(void) {
+    pk_scheduler_cleanup();
     midi_cleanup_observer();
 }

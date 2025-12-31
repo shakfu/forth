@@ -6,6 +6,22 @@ All notable changes to midi-langs are documented in this file.
 
 ### Added
 
+- **pktpy-midi Async Scheduler**: Non-blocking concurrent playback using libuv and Python generators
+  - `spawn(func, [name])` - Create a new voice from a generator function
+  - `run()` - Run scheduler until all voices complete
+  - `stop([voice_id])` - Stop a specific voice or all voices
+  - `voices()` - Get count of active voices
+  - `status()` - Get scheduler status dict (running, active)
+  - Async note helpers for use inside spawned voices:
+    - `midi.play(out, pitch, vel, dur, ch)` - Play note (generator)
+    - `midi.play_chord(out, pitches, vel, dur, ch)` - Play chord (generator)
+    - `midi.play_arp(out, pitches, vel, dur, spacing, ch)` - Arpeggiate (generator)
+    - `midi.wait(ms)` - Wait for ms (generator)
+  - Up to 16 concurrent voices supported
+  - Thread-safe design with dedicated libuv event loop thread
+  - Note: PocketPy's `yield from` has issues; use `for ms in ...: yield ms` pattern instead
+  - See [yield-from.md](docs/pktpy-midi/yield-from.md) for details on the PocketPy limitation
+
 - **lua-midi Async Scheduler**: Non-blocking concurrent playback using libuv and Lua coroutines
   - `spawn(func, [name])` - Create a new voice (coroutine) from a function
   - `yield_ms(ms)` - Pause the current voice for N milliseconds (non-blocking)

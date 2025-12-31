@@ -5,6 +5,7 @@ A Python-based MIDI language using [PocketPy](https://pocketpy.dev), a portable 
 ## Features
 
 - Pythonic API with context managers and classes
+- **Async multi-voice playback** using generators and libuv
 - Musical abstractions: pitches, durations, velocities, chords
 - 55 built-in scales including modes, pentatonics, world scales
 - Microtonal support with 10 scales featuring quarter-tones
@@ -92,11 +93,43 @@ with midi.open() as m:
     m.arpeggio(midi.min7("A3"), velocity=80, note_duration=100, spacing=150)
 ```
 
+### Async Multi-Voice Playback
+
+Play multiple voices concurrently using generators:
+
+```python
+import midi
+
+def melody():
+    out = midi.open()
+    for ms in midi.play(out, midi.c4, midi.mf, 200):
+        yield ms
+    for ms in midi.play(out, midi.e4, midi.mf, 200):
+        yield ms
+    for ms in midi.play(out, midi.g4, midi.mf, 200):
+        yield ms
+    out.close()
+
+def bass():
+    out = midi.open()
+    for ms in midi.play(out, midi.c2, midi.f, 300):
+        yield ms
+    for ms in midi.play(out, midi.g2, midi.f, 300):
+        yield ms
+    out.close()
+
+# Spawn voices and run
+midi.spawn(melody, "Melody")
+midi.spawn(bass, "Bass")
+midi.run()  # Blocks until all voices complete
+```
+
 ## Documentation
 
 - [API Reference](api-reference.md) - Complete function documentation
 - [Examples](examples.md) - More code examples
 - [Architecture](architecture.md) - How the C module works
+- [yield from Issue](yield-from.md) - Known limitation with PocketPy's `yield from`
 
 ## Requirements
 

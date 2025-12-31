@@ -883,3 +883,233 @@ Event types (in the `type` field):
 - `0xB0` = Control Change
 - `0xC0` = Program Change
 - `0xE0` = Pitch Bend
+
+---
+
+## Async Scheduler
+
+The async scheduler enables non-blocking multi-voice playback using Python generators and libuv timers. Multiple "voices" can play concurrently with independent timing.
+
+### midi.spawn
+
+```python
+midi.spawn(func, name=None) -> int
+```
+
+Spawn a new voice from a generator function. Returns the voice ID.
+
+- `func` - A generator function (must use `yield`)
+- `name` - Optional name for debugging
+
+The function is called immediately to create a generator. The generator should yield millisecond wait times.
+
+```python
+def my_voice():
+    out = midi.open()
+    out.note_on(60, 80, 1)
+    yield 500  # Wait 500ms
+    out.note_off(60, 0, 1)
+    out.close()
+
+voice_id = midi.spawn(my_voice, "Voice1")
+```
+
+### midi.run
+
+```python
+midi.run()
+```
+
+Run the scheduler until all voices complete. This is a blocking call.
+
+```python
+midi.spawn(voice_a, "A")
+midi.spawn(voice_b, "B")
+midi.run()  # Blocks until both A and B finish
+print("All voices done")
+```
+
+### midi.stop
+
+```python
+midi.stop() -> None
+midi.stop(voice_id) -> bool
+```
+
+Stop voices.
+
+- `stop()` - Stop all voices
+- `stop(voice_id)` - Stop specific voice, returns True if found
+
+```python
+midi.stop()      # Stop all
+midi.stop(1)     # Stop voice with ID 1
+```
+
+### midi.voices
+
+```python
+midi.voices() -> int
+```
+
+Return count of active voices.
+
+```python
+midi.spawn(voice_a)
+midi.spawn(voice_b)
+print(midi.voices())  # 2
+```
+
+### midi.status
+
+```python
+midi.status() -> dict
+```
+
+Return scheduler status as a dictionary.
+
+```python
+s = midi.status()
+print(s["running"])  # True/False - is run() active?
+print(s["active"])   # int - number of active voices
+```
+
+---
+
+## Async Playback Helpers
+
+Generator functions for use inside spawned voices. These yield wait times automatically.
+
+**Important**: Due to a limitation in PocketPy, `yield from` does not work correctly. Use the `for ms in ...: yield ms` pattern instead.
+
+### midi.play
+
+```python
+midi.play(out, pitch, velocity=None, duration=None, channel=1)
+```
+
+Play a note asynchronously (generator). Handles note_on, wait, note_off.
+
+- `out` - MidiOut instance
+- `pitch` - MIDI number or note name string
+- `velocity` - Note velocity (default: mf)
+- `duration` - Duration in ms (default: quarter)
+- `channel` - MIDI channel (default: 1)
+
+```python
+def voice():
+    out = midi.open()
+    # Play C4 for 500ms
+    for ms in midi.play(out, midi.c4, midi.mf, 500):
+        yield ms
+    # Play E4 for 250ms
+    for ms in midi.play(out, midi.e4):
+        yield ms
+    out.close()
+```
+
+### midi.play_chord
+
+```python
+midi.play_chord(out, pitches, velocity=None, duration=None, channel=1)
+```
+
+Play a chord asynchronously (generator).
+
+- `out` - MidiOut instance
+- `pitches` - List of MIDI numbers or note names
+- `velocity` - Note velocity (default: mf)
+- `duration` - Duration in ms (default: quarter)
+- `channel` - MIDI channel (default: 1)
+
+```python
+def voice():
+    out = midi.open()
+    for ms in midi.play_chord(out, midi.major("C4"), midi.f, midi.half):
+        yield ms
+    out.close()
+```
+
+### midi.play_arp
+
+```python
+midi.play_arp(out, pitches, velocity=None, note_duration=None, spacing=None, channel=1)
+```
+
+Play notes as arpeggio asynchronously (generator).
+
+- `out` - MidiOut instance
+- `pitches` - List of pitches to arpeggiate
+- `velocity` - Note velocity (default: mf)
+- `note_duration` - Duration of each note (default: eighth)
+- `spacing` - Time between note starts (default: same as duration)
+- `channel` - MIDI channel (default: 1)
+
+```python
+def voice():
+    out = midi.open()
+    for ms in midi.play_arp(out, midi.min7("A3"), midi.mp, midi.sixteenth):
+        yield ms
+    out.close()
+```
+
+### midi.wait
+
+```python
+midi.wait(ms)
+```
+
+Wait for milliseconds asynchronously (generator).
+
+```python
+def voice():
+    out = midi.open()
+    out.note_on(60, 80, 1)
+    for ms in midi.wait(1000):  # Wait 1 second
+        yield ms
+    out.note_off(60, 0, 1)
+    out.close()
+```
+
+---
+
+## Async Example
+
+Complete example with multiple voices:
+
+```python
+import midi
+
+def melody():
+    out = midi.open()
+    notes = [midi.c4, midi.e4, midi.g4, midi.c5]
+    for note in notes:
+        for ms in midi.play(out, note, midi.mf, 200):
+            yield ms
+    out.close()
+
+def bass():
+    out = midi.open()
+    for ms in midi.play(out, midi.c2, midi.f, 400):
+        yield ms
+    for ms in midi.play(out, midi.g2, midi.f, 400):
+        yield ms
+    out.close()
+
+def drums():
+    out = midi.open()
+    for i in range(4):
+        out.note_on(36, 100, 10)  # Kick on channel 10
+        yield 100
+        out.note_off(36, 0, 10)
+        yield 100
+    out.close()
+
+# Spawn all voices
+midi.spawn(melody, "Melody")
+midi.spawn(bass, "Bass")
+midi.spawn(drums, "Drums")
+
+# Run until all complete
+midi.run()
+print("Done!")

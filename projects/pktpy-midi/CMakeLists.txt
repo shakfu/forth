@@ -1,7 +1,12 @@
 add_executable(pktpy_midi
     main.c
     midi_module.c
+    scheduler.c
     pocketpy.c
+)
+
+target_include_directories(pktpy_midi PRIVATE
+    ${CMAKE_SOURCE_DIR}/thirdparty/libuv/include
 )
 
 target_compile_options(pktpy_midi PRIVATE -Wall -Wextra -Wno-unused-parameter)
@@ -13,8 +18,8 @@ if(READLINE_LIB)
     target_link_libraries(pktpy_midi PRIVATE ${READLINE_LIB})
 endif()
 
-# Link with libremidi, music_theory, and midi_file
-target_link_libraries(pktpy_midi PRIVATE music_theory midi_file)
+# Link with music_theory, midi_file, and libuv for async scheduler
+target_link_libraries(pktpy_midi PRIVATE music_theory midi_file uv_a)
 
 # Platform-specific dependencies
 if(APPLE)
