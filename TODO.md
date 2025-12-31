@@ -74,6 +74,17 @@ Ideas for extending MIDI implementations.
 
 ---
 
+## pktpy-midi
+
+### Improve pktpy-midi async
+
+- [ ] Add pktpy-midi async tests - the async scheduler works but has no automated tests yet. Could add tests similar to lua-midi's 16 async tests.
+- [ ] Voice naming/listing in `status()`
+- [ ] `yield_ms(n)` helper function for simpler syntax
+- [ ] Exception handling improvements
+
+---
+
 ## mhs-midi
 
 ### Music Module Enhancements
