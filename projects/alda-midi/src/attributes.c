@@ -7,6 +7,7 @@
 
 #include "alda/context.h"
 #include "alda/ast.h"
+#include "alda/scheduler.h"
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
@@ -139,8 +140,13 @@ int alda_eval_attribute(AldaContext* ctx, AldaPartState* part, AldaNode* lisp_li
                 /* Global if ends with !, otherwise per-part */
                 if (name[strlen(name) - 1] == '!' || !part) {
                     ctx->global_tempo = tempo;
+                    /* Schedule tempo change at current position */
+                    int tick = part ? part->current_tick : 0;
+                    alda_schedule_tempo(ctx, tick, tempo);
                 } else if (part) {
                     part->tempo = tempo;
+                    /* Schedule tempo change at part's current position */
+                    alda_schedule_tempo(ctx, part->current_tick, tempo);
                 }
             }
         }
@@ -190,13 +196,13 @@ int alda_eval_attribute(AldaContext* ctx, AldaPartState* part, AldaNode* lisp_li
         strcasecmp_local(name, "panning!") == 0) {
         if (has_num) {
             int pan = (int)num_val;
-            if (pan >= 0 && pan <= 100) {
-                /* Convert 0-100 to 0-127 */
-                int midi_pan = (pan * 127) / 100;
+            if (pan >= 0 && pan <= 127) {
                 if (name[strlen(name) - 1] == '!' || !part) {
-                    ctx->global_pan = midi_pan;
+                    ctx->global_pan = pan;
                 } else if (part) {
-                    part->pan = midi_pan;
+                    part->pan = pan;
+                    /* Schedule pan change at current position */
+                    alda_schedule_pan(ctx, part, part->current_tick, pan);
                 }
             }
         }

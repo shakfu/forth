@@ -61,6 +61,25 @@ int alda_schedule_note(AldaContext* ctx, AldaPartState* part,
 int alda_schedule_program_change(AldaContext* ctx, AldaPartState* part, int tick);
 
 /**
+ * @brief Schedule a pan change (CC 10).
+ * @param ctx Alda context.
+ * @param part Part state.
+ * @param tick Tick position.
+ * @param pan Pan value (0-127, 64=center).
+ * @return 0 on success, -1 on error.
+ */
+int alda_schedule_pan(AldaContext* ctx, AldaPartState* part, int tick, int pan);
+
+/**
+ * @brief Schedule a tempo change.
+ * @param ctx Alda context.
+ * @param tick Tick position.
+ * @param tempo New tempo in BPM.
+ * @return 0 on success, -1 on error.
+ */
+int alda_schedule_tempo(AldaContext* ctx, int tick, int tempo);
+
+/**
  * @brief Clear all scheduled events.
  * @param ctx Alda context.
  */

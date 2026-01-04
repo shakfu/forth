@@ -122,6 +122,10 @@ static void send_event(AldaScheduledEvent* evt) {
             msg[2] = evt->data1 & 0x7F;
             libremidi_midi_out_send_message(async_sys.midi_out, msg, 3);
             break;
+
+        case ALDA_EVT_TEMPO:
+            /* Tempo events are handled in on_timer, not sent as MIDI */
+            break;
     }
 }
 
@@ -139,7 +143,14 @@ static void on_timer(uv_timer_t* handle) {
 
     /* Send current event */
     AldaScheduledEvent* evt = &slot->events[slot->event_index];
-    send_event(evt);
+
+    if (evt->type == ALDA_EVT_TEMPO) {
+        /* Tempo event: update playback tempo for timing calculations */
+        slot->tempo = evt->data1;
+        if (slot->tempo <= 0) slot->tempo = ALDA_DEFAULT_TEMPO;
+    } else {
+        send_event(evt);
+    }
 
     slot->event_index++;
     schedule_next_event(slot);

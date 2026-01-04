@@ -82,6 +82,25 @@ All notable changes to midi-langs are documented in this file.
   - Prevents hanging notes when MidiOut objects are garbage collected
   - Matches behavior of `__exit__` context manager
 
+- **alda-midi**: Tempo changes now affect timing during playback
+  - Added `ALDA_EVT_TEMPO` event type to schedule tempo changes at tick positions
+  - Both synchronous and async playback paths update tempo dynamically
+  - `(tempo 120) c4 (tempo 60) d4` now plays d4 at half speed as expected
+
+- **alda-midi**: Panning now emits MIDI CC 10 and accepts 0-127 range
+  - Added `alda_schedule_pan()` to schedule pan events at current tick position
+  - Fixed input range from 0-100 to 0-127 as documented
+  - `(panning 0)` pans left, `(panning 64)` centers, `(panning 127)` pans right
+
+- **alda-midi**: Accidentals `#` and `b` now parse correctly
+  - Scanner now recognizes `#` as sharp token instead of comment start
+  - Implemented pending token mechanism for suffix accidentals (`cs`, `db`, etc.)
+  - Both `c#`/`d#` and `cs`/`db` notations work as documented
+
+- **alda-midi**: Stop command now silences all notes
+  - `stop` REPL command now calls `alda_midi_all_notes_off()` before cancelling timers
+  - Prevents hanging notes when stopping playback mid-phrase
+
 - **Sequential `run()` calls now work correctly**: lua-midi, pktpy-midi
   - Fixed bug where second `run()` call would hang after first completed
   - Root cause: `uv_timer_start` from main thread wasn't noticed by event loop thread

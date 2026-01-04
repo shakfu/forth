@@ -120,6 +120,7 @@ static void repl_loop(AldaContext* ctx) {
 
         if (strcmp(input, "stop") == 0) {
             alda_async_stop();
+            alda_midi_all_notes_off(ctx);
             printf("Playback stopped\n");
             free(input);
             continue;

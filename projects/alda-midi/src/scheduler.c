@@ -110,6 +110,24 @@ int alda_schedule_program_change(AldaContext* ctx, AldaPartState* part, int tick
                                channel, part->program, 0, part_index);
 }
 
+int alda_schedule_pan(AldaContext* ctx, AldaPartState* part, int tick, int pan) {
+    if (!ctx || !part) return -1;
+
+    int part_index = (int)(part - ctx->parts);
+    int channel = part->channel - 1;
+
+    return alda_schedule_event(ctx, tick, ALDA_EVT_PAN,
+                               channel, pan, 0, part_index);
+}
+
+int alda_schedule_tempo(AldaContext* ctx, int tick, int tempo) {
+    if (!ctx) return -1;
+
+    /* Tempo events use channel -1 as a sentinel (not channel-specific) */
+    return alda_schedule_event(ctx, tick, ALDA_EVT_TEMPO,
+                               -1, tempo, 0, -1);
+}
+
 void alda_events_clear(AldaContext* ctx) {
     if (!ctx) return;
     ctx->event_count = 0;
@@ -209,6 +227,12 @@ int alda_events_play(AldaContext* ctx) {
 
             case ALDA_EVT_PAN:
                 alda_midi_send_cc(ctx, channel, 10, evt->data1);  /* CC 10 = Pan */
+                break;
+
+            case ALDA_EVT_TEMPO:
+                /* Update playback tempo for subsequent timing calculations */
+                tempo = evt->data1;
+                if (tempo <= 0) tempo = ALDA_DEFAULT_TEMPO;
                 break;
         }
     }

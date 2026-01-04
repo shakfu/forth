@@ -42,7 +42,8 @@ typedef enum {
     ALDA_EVT_NOTE_OFF,
     ALDA_EVT_PROGRAM,
     ALDA_EVT_CC,
-    ALDA_EVT_PAN
+    ALDA_EVT_PAN,
+    ALDA_EVT_TEMPO
 } AldaEventType;
 
 /* ============================================================================

@@ -45,6 +45,8 @@ struct AldaScanner {
     int line_start;
     int sexp_depth;
     AldaError* error;
+    int has_pending;      /* Flag for pending accidental token */
+    AldaToken pending;    /* Pending token (for suffix accidentals like 's' or 'b') */
 };
 
 /* Helper functions */
@@ -80,11 +82,6 @@ static void skip_whitespace(AldaScanner* s) {
         char c = peek(s);
         if (c == ' ' || c == '\t' || c == '\r') {
             advance(s);
-        } else if (c == '#') {
-            /* Comment - skip to end of line */
-            while (!is_at_end(s) && peek(s) != '\n') {
-                advance(s);
-            }
         } else {
             break;
         }
@@ -359,6 +356,12 @@ static AldaToken scan_lisp_token(AldaScanner* s) {
 }
 
 static AldaToken scan_normal_token(AldaScanner* s) {
+    /* Return pending token if we have one (from suffix accidentals) */
+    if (s->has_pending) {
+        s->has_pending = 0;
+        return s->pending;
+    }
+
     skip_whitespace(s);
 
     s->start = s->current;
@@ -378,7 +381,8 @@ static AldaToken scan_normal_token(AldaScanner* s) {
 
     /* Single-character tokens */
     switch (c) {
-        case '+': return make_token(s, ALDA_TOK_SHARP);
+        case '+':
+        case '#': return make_token(s, ALDA_TOK_SHARP);
         case '-': return make_token(s, ALDA_TOK_FLAT);
         case '_': return make_token(s, ALDA_TOK_NATURAL);
         case '>': return make_token(s, ALDA_TOK_OCTAVE_UP);
@@ -412,11 +416,43 @@ static AldaToken scan_normal_token(AldaScanner* s) {
         return scan_voice_marker(s);
     }
 
-    /* Note letters: a-g followed by non-letter (digits, accidentals, etc.) */
-    if (is_note_letter(c) && !isalpha((unsigned char)peek(s))) {
-        AldaToken tok = make_token(s, ALDA_TOK_NOTE_LETTER);
-        tok.literal.char_val = c;
-        return tok;
+    /* Note letters: a-g
+     * Can be followed by:
+     * - Non-letter (digits, +, #, -, _, etc.) - just the note
+     * - 's' suffix for sharp (cs, ds, fs, gs, as)
+     * - 'b' suffix for flat (db, eb, gb, ab, bb) - but 'b' alone is note B
+     */
+    if (is_note_letter(c)) {
+        char next = peek(s);
+
+        /* Check for suffix accidentals: 's' for sharp, 'b' for flat */
+        if (next == 's' && !isalpha((unsigned char)peek_next(s))) {
+            /* Note followed by 's' (sharp suffix) - e.g., cs, fs */
+            AldaToken tok = make_token(s, ALDA_TOK_NOTE_LETTER);
+            tok.literal.char_val = c;
+            /* Consume the 's' and queue it as a SHARP token */
+            advance(s);
+            s->start = s->current - 1;
+            s->pending = make_token(s, ALDA_TOK_SHARP);
+            s->has_pending = 1;
+            return tok;
+        } else if (c != 'b' && next == 'b' && !isalpha((unsigned char)peek_next(s))) {
+            /* Non-b note followed by 'b' (flat suffix) - e.g., db, eb */
+            AldaToken tok = make_token(s, ALDA_TOK_NOTE_LETTER);
+            tok.literal.char_val = c;
+            /* Consume the 'b' and queue it as a FLAT token */
+            advance(s);
+            s->start = s->current - 1;
+            s->pending = make_token(s, ALDA_TOK_FLAT);
+            s->has_pending = 1;
+            return tok;
+        } else if (!isalpha((unsigned char)next)) {
+            /* Just a plain note letter */
+            AldaToken tok = make_token(s, ALDA_TOK_NOTE_LETTER);
+            tok.literal.char_val = c;
+            return tok;
+        }
+        /* Otherwise fall through to identifier handling (e.g., "piano") */
     }
 
     /* Numbers (note lengths, durations) */
@@ -471,6 +507,8 @@ AldaScanner* alda_scanner_new(const char* source, const char* filename) {
     s->line_start = 0;
     s->sexp_depth = 0;
     s->error = NULL;
+    s->has_pending = 0;
+    memset(&s->pending, 0, sizeof(s->pending));
 
     return s;
 }
