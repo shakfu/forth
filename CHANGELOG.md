@@ -71,6 +71,9 @@ All notable changes to midi-langs are documented in this file.
   - Root cause: `uv_timer_start` from main thread wasn't noticed by event loop thread
   - Fix: Added `uv_async_send(&sched.wake_async)` after starting timers in `spawn()`
   - Added regression tests: lua-midi (Test 52), pktpy-midi (Test 53), s7-midi (Test 44)
+- **pktpy-midi**: Fixed crash in `midi.list_ports()`
+  - Root cause: Incorrect use of pocketpy tuple API - was using `py_peek()` and `py_tuple_getitem()` instead of using the return value of `py_newtuple()` directly
+  - Fix: Use `py_newtuple()` return value to access tuple slots directly via array indexing
 
 ### Added
 
