@@ -127,6 +127,23 @@ All notable changes to midi-langs are documented in this file.
   - Pattern now spans `steps * dur` as expected
   - Pulses evenly distributed instead of collapsed together
 
+- **s7-midi**: Tempo now affects all durations in the C layer
+  - Added `global_tempo_bpm` and `scale_duration_for_tempo()` in C layer
+  - `(set-tempo! bpm)` now updates both Scheme globals AND C-layer tempo
+  - All durations in `midi-note`, `midi-chord`, and `midi-sleep` are scaled
+  - At 60 BPM, all durations double; at 240 BPM, they halve
+
+- **s7-midi**: Replay scripts now use proper timing
+  - Updated `save-midi` to generate `play-timed` function with delta delays
+  - Notes sleep for `(start-ms - last-time)` before each note-on
+  - Playback timing now matches original recorded performance
+
+- **s7-midi**: Async `make-note-voice` now sends note-off
+  - Fixed `make-note-voice` to track `pending-off` state
+  - First call sends note-on and returns duration
+  - Second call sends note-off and returns `#f`
+  - Async voices no longer leave notes hanging
+
 - **Sequential `run()` calls now work correctly**: lua-midi, pktpy-midi
   - Fixed bug where second `run()` call would hang after first completed
   - Root cause: `uv_timer_start` from main thread wasn't noticed by event loop thread

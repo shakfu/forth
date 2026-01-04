@@ -22,6 +22,7 @@
 
 (define (set-tempo! bpm)
   (set! *bpm* bpm)
+  (set-tempo-c! bpm)  ; Update C layer for duration scaling
   (let ((beat-ms (floor (/ 60000 bpm))))
     (set! quarter beat-ms)
     (set! half (* beat-ms 2))
@@ -589,17 +590,20 @@
 ;; Create a voice that plays a note on the default port
 (define (make-note-voice pitch vel dur)
   "Create a voice that plays a single note"
-  (let ((started #f))
+  (let ((pending-off #f))
     (lambda ()
-      (if started
-          #f  ; Done after note-off
-          (begin
-            (set! started #t)
-            (if (not *midi*)
-                (error 'no-midi-port "No MIDI port open"))
-            (midi-note-on *midi* pitch vel 1)
-            ;; Return duration, next call will do note-off
-            dur)))))
+      (cond
+        ;; Send note-off if pending
+        (pending-off
+         (midi-note-off *midi* pitch 1)
+         #f)  ; Done after note-off
+        ;; Start the note
+        (else
+         (if (not *midi*)
+             (error 'no-midi-port "No MIDI port open"))
+         (midi-note-on *midi* pitch vel 1)
+         (set! pending-off #t)
+         dur)))))
 
 ;; Create a voice that plays a melody (list of pitches with same duration)
 (define (make-melody-voice pitches vel dur)

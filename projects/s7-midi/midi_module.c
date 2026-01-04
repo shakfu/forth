@@ -20,8 +20,18 @@
 #define MAX_PORTS 64
 #define MAX_CAPTURE_EVENTS 4096
 #define TICKS_PER_QUARTER 480
+#define BASE_TEMPO 120
 
 /* Global state */
+static int global_tempo_bpm = 120;
+
+/* Scale duration for current tempo (120 BPM = 1x, 60 BPM = 2x, 240 BPM = 0.5x) */
+static int scale_duration_for_tempo(int duration_ms) {
+    if (global_tempo_bpm <= 0 || global_tempo_bpm == BASE_TEMPO) {
+        return duration_ms;
+    }
+    return (int)((double)duration_ms * BASE_TEMPO / global_tempo_bpm);
+}
 static libremidi_midi_observer_handle* midi_observer = NULL;
 static libremidi_midi_out_port* out_ports[MAX_PORTS];
 static int out_port_count = 0;
@@ -462,9 +472,10 @@ static s7_pointer g_midi_note(s7_scheme *sc, s7_pointer args) {
     libremidi_midi_out_send_message(data->handle, msg, 3);
     capture_add_event(0, channel - 1, pitch, velocity);
 
-    /* Wait */
-    if (duration > 0) {
-        usleep(duration * 1000);
+    /* Wait (scaled for tempo) */
+    int scaled_dur = scale_duration_for_tempo(duration);
+    if (scaled_dur > 0) {
+        usleep(scaled_dur * 1000);
     }
 
     /* Note off */
@@ -535,9 +546,10 @@ static s7_pointer g_midi_chord(s7_scheme *sc, s7_pointer args) {
         capture_add_event(0, channel - 1, pitches[i], velocity);
     }
 
-    /* Wait */
-    if (duration > 0) {
-        usleep(duration * 1000);
+    /* Wait (scaled for tempo) */
+    int scaled_dur = scale_duration_for_tempo(duration);
+    if (scaled_dur > 0) {
+        usleep(scaled_dur * 1000);
     }
 
     /* Send note-offs */
@@ -635,10 +647,26 @@ static s7_pointer g_midi_all_notes_off(s7_scheme *sc, s7_pointer args) {
 /* (midi-sleep ms) */
 static s7_pointer g_midi_sleep(s7_scheme *sc, s7_pointer args) {
     int ms = (int)s7_integer(s7_car(args));
-    if (ms > 0) {
-        usleep(ms * 1000);
+    int scaled_ms = scale_duration_for_tempo(ms);
+    if (scaled_ms > 0) {
+        usleep(scaled_ms * 1000);
     }
     return s7_unspecified(sc);
+}
+
+/* (set-tempo-c! bpm) - Set C layer tempo for duration scaling */
+static s7_pointer g_set_tempo_c(s7_scheme *sc, s7_pointer args) {
+    int bpm = (int)s7_integer(s7_car(args));
+    if (bpm > 0) {
+        global_tempo_bpm = bpm;
+    }
+    return s7_unspecified(sc);
+}
+
+/* (get-tempo-c) - Get C layer tempo */
+static s7_pointer g_get_tempo_c(s7_scheme *sc, s7_pointer args) {
+    (void)args;
+    return s7_make_integer(sc, global_tempo_bpm);
 }
 
 /* ============================================================================
@@ -969,13 +997,27 @@ static s7_pointer g_save_midi(s7_scheme *sc, s7_pointer args) {
 
     fprintf(f, "))\n\n");
 
-    /* Write playback code */
-    fprintf(f, ";; Playback\n");
-    fprintf(f, "(for-each (lambda (n)\n");
-    fprintf(f, "  (midi-note m (cadr n) (caddr n) (cadddr n) (car (cddddr n))))\n");
-    fprintf(f, "  notes)\n\n");
+    /* Write playback code with proper timing using delta sleeps */
+    fprintf(f, ";; Playback with original timing (uses delta delays between notes)\n");
+    fprintf(f, "(define (play-timed)\n");
+    fprintf(f, "  (let loop ((ns notes) (last-time 0))\n");
+    fprintf(f, "    (if (not (null? ns))\n");
+    fprintf(f, "        (let* ((n (car ns))\n");
+    fprintf(f, "               (start-ms (car n))\n");
+    fprintf(f, "               (pitch (cadr n))\n");
+    fprintf(f, "               (vel (caddr n))\n");
+    fprintf(f, "               (dur (cadddr n))\n");
+    fprintf(f, "               (ch (car (cddddr n)))\n");
+    fprintf(f, "               (delay (- start-ms last-time)))\n");
+    fprintf(f, "          (if (> delay 0) (midi-sleep delay))\n");
+    fprintf(f, "          (midi-note-on m pitch vel ch)\n");
+    fprintf(f, "          (midi-sleep dur)\n");
+    fprintf(f, "          (midi-note-off m pitch ch)\n");
+    fprintf(f, "          (loop (cdr ns) (+ start-ms dur))))))\n\n");
 
-    fprintf(f, "(midi-close m)\n");
+    fprintf(f, ";; Run: (play-timed)\n");
+    fprintf(f, ";; Or sequential playback: (for-each (lambda (n) (midi-note m (cadr n) (caddr n) (cadddr n) (car (cddddr n)))) notes)\n");
+    fprintf(f, ";; Close when done: (midi-close m)\n");
     fprintf(f, ";; %d notes written\n", notes_written);
 
     fclose(f);
@@ -1220,6 +1262,12 @@ void s7_midi_init(s7_scheme *sc) {
 
     s7_define_function(sc, "midi-sleep", g_midi_sleep, 1, 0, false,
                        "(midi-sleep ms) sleeps for given milliseconds");
+
+    s7_define_function(sc, "set-tempo-c!", g_set_tempo_c, 1, 0, false,
+                       "(set-tempo-c! bpm) sets C layer tempo for duration scaling");
+
+    s7_define_function(sc, "get-tempo-c", g_get_tempo_c, 0, 0, false,
+                       "(get-tempo-c) gets C layer tempo");
 
     /* Scale functions */
     s7_define_function(sc, "build-scale", g_build_scale, 2, 0, false,
