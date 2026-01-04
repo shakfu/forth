@@ -259,15 +259,20 @@ All implementations support MIDI event recording:
 
 ## Use Case Recommendations
 
-### Live Performance
-**Recommended:** forth-midi
+### Musicians / Quick Sketching
+**Recommended:** alda-midi
 
-The concise notation and immediate execution make it ideal for live coding. Type `c4,` and hear it instantly.
+Traditional music notation is instantly familiar. Write `c4 d e f | g2` and hear a melody without learning programming concepts.
+
+### Live Performance
+**Recommended:** forth-midi or alda-midi
+
+Both offer immediate feedback. forth-midi for programmers who want stack manipulation; alda-midi for musicians who think in notes.
 
 ### Teaching/Learning
-**Recommended:** lua-midi or pktpy-midi
+**Recommended:** lua-midi, pktpy-midi, or alda-midi
 
-Familiar syntax makes it easy for students. Good error messages and conventional programming concepts.
+lua-midi and pktpy-midi use familiar syntax for programmers. alda-midi is ideal for teaching music concepts without programming overhead.
 
 ### Algorithmic Composition
 **Recommended:** s7-midi or mhs-midi
@@ -275,9 +280,9 @@ Familiar syntax makes it easy for students. Good error messages and conventional
 Functional programming excels at algorithmic music. s7 for Lisp macros, mhs-midi for type-safe pure functions.
 
 ### Quick Prototyping
-**Recommended:** lua-midi
+**Recommended:** lua-midi or alda-midi
 
-Full standard library, familiar syntax, fast iteration. Easy to translate ideas to other languages later.
+lua-midi for programmers; alda-midi for musicians. Both offer fast iteration.
 
 ### Production Code
 **Recommended:** mhs-midi
@@ -291,12 +296,12 @@ Type safety catches errors early. Pure functional style makes code easier to rea
 
 ## Performance Comparison
 
-| Metric | forth-midi | lua-midi | s7-midi | pktpy-midi | mhs-midi |
-|--------|------------|----------|---------|------------|----------|
-| Startup | <1ms | <1ms | <1ms | <1ms | ~500ms |
-| Note latency | <1ms | <1ms | <1ms | <1ms | <1ms |
-| Memory usage | ~2MB | ~4MB | ~3MB | ~5MB | ~10MB |
-| Test count | 82 | 26 | 33 | 22 | 149 |
+| Metric | alda-midi | forth-midi | lua-midi | s7-midi | pktpy-midi | mhs-midi |
+|--------|-----------|------------|----------|---------|------------|----------|
+| Startup | <1ms | <1ms | <1ms | <1ms | <1ms | ~500ms |
+| Note latency | <1ms | <1ms | <1ms | <1ms | <1ms | <1ms |
+| Memory usage | ~3MB | ~2MB | ~4MB | ~3MB | ~5MB | ~10MB |
+| Test count | 3 | 82 | 26 | 33 | 22 | 149 |
 
 Note: MicroHs compiles Haskell to C at startup, which adds latency. Once running, performance is equivalent.
 
@@ -308,19 +313,30 @@ This section analyzes each implementation's ability to create complex multi-voic
 
 ### Capability Matrix
 
-| Feature | forth-midi | lua-midi | s7-midi | pktpy-midi | mhs-midi |
-|---------|------------|----------|---------|------------|----------|
-| **MIDI Channels** | 16 | 16 | 16 | 16 | 16 |
-| **Simultaneous Notes** | Chords | Chords/Arpeggio | Chords/Arpeggio | Chords/Arpeggio | Chords/Melody |
-| **Sequence System** | Yes (64 seq, 256 events) | No | No | No | No |
-| **Async Launch** | No (blocking) | No | No | No | No |
-| **Host Concurrency** | None | Coroutines (unused) | None | Threading (unused) | Lazy evaluation |
+| Feature | alda-midi | forth-midi | lua-midi | s7-midi | pktpy-midi | mhs-midi |
+|---------|-----------|------------|----------|---------|------------|----------|
+| **MIDI Channels** | 16 | 16 | 16 | 16 | 16 | 16 |
+| **Simultaneous Notes** | Chords/Voices | Chords | Chords/Arpeggio | Chords/Arpeggio | Chords/Arpeggio | Chords/Melody |
+| **Sequence System** | Tick-based events | Yes (64 seq, 256 events) | No | No | No | No |
+| **Async Launch** | Yes (always) | Yes (seq-play&) | Yes (spawn/run) | Yes (spawn/run) | Yes (spawn/run) | Yes (spawn/run) |
+| **Host Concurrency** | libuv thread | libuv thread | libuv + coroutines | libuv + thunks | libuv + generators | Native threads |
 
 ### Multi-Voice Support
 
 All implementations support 16 MIDI channels, enabling multi-voice compositions. However, the approaches differ:
 
-**forth-midi** has the most structured support:
+**alda-midi** uses parts and voices for natural multi-voice composition:
+```alda
+piano:
+V1: c4 d e f     # Voice 1: melody
+V2: o3 c1        # Voice 2: bass (plays simultaneously)
+V0:              # Merge voices
+
+violin:          # Different instrument, auto-assigned channel
+c4 d e f
+```
+
+**forth-midi** has structured sequence support:
 ```forth
 \ Explicit channel per note in sequences
 0 1 60 100 480 seq-note-ch   \ time=0, ch=1, C4, vel=100, dur=480
@@ -343,15 +359,14 @@ melody [c4, e4, g4]  -- Sequential
 chord (major c4)     -- Simultaneous on same channel
 ```
 
-### Asynchronous Limitations
+### Asynchronous Playback
 
-**Current State:** No implementation supports truly asynchronous sequence playback. All use blocking sleep calls for timing:
+All implementations now support non-blocking async playback:
 
-- **forth-midi**: `seq-play` blocks until complete (uses `midi_sleep_ms()` between events)
-- **lua-midi/pktpy-midi/s7-midi**: Direct note methods block for duration via `usleep()`
-- **mhs-midi**: Relies on MicroHs host for timing control
-
-**Workaround for multi-voice:** Interleave notes from different voices manually with calculated timings, or use chord notation for vertically aligned events.
+- **alda-midi**: Always async - REPL stays responsive, concurrent mode for layering parts
+- **forth-midi**: `seq-play&` and `seq-loop&` for background sequence playback
+- **lua-midi/pktpy-midi/s7-midi**: `spawn()` and `run()` for voice-based async; `poll()` for non-blocking checks
+- **mhs-midi**: Native Haskell threads via `forkIO`; `spawn` and `run` functions
 
 ### libremidi Recommendations
 
@@ -382,25 +397,26 @@ The underlying libremidi library recommends two approaches for non-blocking MIDI
    }
    ```
 
-### Architectural Gap
+### Implementation Notes
 
-To enable complex multi-voice songs with independent timing, future implementations could:
+All implementations now use one or more of these patterns:
 
-1. **Event scheduler**: Timestamp-based event queue processed by a timer/callback
-2. **Thread-per-voice**: Each voice runs in its own thread (requires thread-safe MIDI output)
-3. **Coroutine integration**: Leverage host language coroutines (Lua, Python) for cooperative multitasking
-4. **Lock-free queue**: As libremidi suggests, use a proper lock-free queue (e.g., `atomic_queue` or `readerwriterqueue`)
+1. **Event scheduler**: alda-midi uses tick-based event scheduling with libuv timers
+2. **Thread-per-voice**: mhs-midi uses native Haskell threads (`forkIO`)
+3. **Coroutine integration**: lua-midi, pktpy-midi, s7-midi use host language concurrency primitives with libuv timers
+4. **Background event loop**: forth-midi uses a dedicated libuv thread for sequence playback
 
 ### Practical Guidance
 
-For complex multi-voice compositions today:
+For complex multi-voice compositions:
 
 | Approach | Recommended Implementation |
 |----------|---------------------------|
+| **Multi-part scores** | alda-midi with parts (piano:, violin:) and voices (V1:, V2:) |
 | **Interleaved timeline** | forth-midi sequences with manual time offsets |
 | **Polyphonic chords** | Any implementation using chord functions |
 | **Algorithmic voices** | mhs-midi or s7-midi with functional composition |
-| **Live layering** | External DAW receiving from multiple instances |
+| **Live layering** | alda-midi concurrent mode, or DAW receiving from multiple instances |
 
 ---
 
@@ -413,6 +429,7 @@ make
 
 Run any implementation:
 ```bash
+./build/alda_midi     # Alda
 ./build/forth_midi    # Forth
 ./build/lua_midi      # Lua
 ./build/s7_midi       # Scheme
