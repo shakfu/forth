@@ -134,7 +134,9 @@ Commands:
 
 **Write and compile a program:**
 ```haskell
--- demo.hs
+-- DemoMhs.hs
+module DemoMhs(main) where
+
 import MusicPerform
 
 main = do
@@ -147,7 +149,7 @@ main = do
     perform piece
 
     -- Concurrent voices with native threads
-    spawn "arp" $ perform (arpUp (major c4) mp sixteenth)
+    spawn "arp" $ perform (line (arpUp [c4, e4, g4]) mp sixteenth)
     spawn "pad" $ perform (chord [c3, g3, e4] pp whole)
     run
     midiClose
@@ -314,7 +316,7 @@ python scripts/fluidsynth-gm.py ~/Music/sf2/FluidR3_GM.sf2
 ./build/lua_midi
 ```
 
-Install FluidSynth and a SoundFont:
+Install [FluidSynth](https://www.fluidsynth.org) and a SoundFont:
 
 | Platform | Install |
 |----------|---------|

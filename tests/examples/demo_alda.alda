@@ -1,0 +1,11 @@
+# README.md example for alda-midi
+# Tests the quick example from the project README
+
+piano:
+  (tempo 120)
+  o4 c4 d e f g a b > c2
+
+violin:
+  V1: c4 d e f
+  V2: e4 f g a
+  V0: c1

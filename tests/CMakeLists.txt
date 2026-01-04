@@ -268,3 +268,53 @@ set_tests_properties(
     alda_midi_basic
     PROPERTIES LABELS "quick"
 )
+
+# README example tests - verify examples from README.md work
+# These use --no-sleep to run quickly without actual audio delays
+
+add_test(
+    NAME demo_example_alda
+    COMMAND $<TARGET_FILE:alda_midi> --no-sleep ${CMAKE_CURRENT_SOURCE_DIR}/examples/demo_alda.alda
+)
+
+add_test(
+    NAME demo_example_forth
+    COMMAND $<TARGET_FILE:forth_midi> --no-sleep --script ${CMAKE_CURRENT_SOURCE_DIR}/examples/demo_forth.4th
+)
+
+add_test(
+    NAME demo_example_lua
+    COMMAND $<TARGET_FILE:lua_midi> ${CMAKE_CURRENT_SOURCE_DIR}/examples/demo_lua.lua
+)
+
+add_test(
+    NAME demo_example_pktpy
+    COMMAND $<TARGET_FILE:pktpy_midi> ${CMAKE_CURRENT_SOURCE_DIR}/examples/demo_pktpy.py
+)
+
+add_test(
+    NAME demo_example_s7
+    COMMAND $<TARGET_FILE:s7_midi> ${CMAKE_CURRENT_SOURCE_DIR}/examples/demo_s7.scm
+)
+
+add_test(
+    NAME demo_example_mhs
+    COMMAND ${CMAKE_SOURCE_DIR}/scripts/mhs-midi run ${CMAKE_CURRENT_SOURCE_DIR}/examples/DemoMhs.hs
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+)
+
+set_tests_properties(
+    demo_example_alda
+    demo_example_forth
+    demo_example_lua
+    demo_example_pktpy
+    demo_example_s7
+    PROPERTIES LABELS "quick"
+)
+
+set_tests_properties(
+    demo_example_mhs
+    PROPERTIES
+        LABELS "integration"
+        TIMEOUT 120
+)

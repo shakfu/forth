@@ -4,6 +4,22 @@ All notable changes to midi-langs are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **tests**: README example tests in `tests/examples/`
+  - `readme_alda.alda` - Alda quick example
+  - `readme_forth.4th` - Forth quick example
+  - `readme_lua.lua` - Lua quick example
+  - `ReadmeMhs.hs` - MicroHs quick example
+  - `readme_pktpy.py` - PocketPy quick example
+  - `readme_s7.scm` - s7 Scheme quick example
+
+### Fixed
+
+- **mhs-midi**: Fixed `mhs-midi compile/run` to link music_theory and midi_file libraries
+- **docs**: Fixed CLAUDE.md to correctly reference `seq-play&` (non-blocking) instead of `seq-play`
+- **docs**: Updated README.md "Common Features" section to clarify alda-midi doesn't use music_theory.c
+
 ## [0.1.5]
 
 ### Added
