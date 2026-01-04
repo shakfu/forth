@@ -48,6 +48,7 @@ static const char *LUA_PRELUDE_MODULE =
 "\n"
 "function midi.set_tempo(bpm)\n"
 "  midi._tempo = bpm\n"
+"  midi._set_c_tempo(bpm)  -- Update C layer for duration scaling\n"
 "  local q = math.floor(60000 / bpm)\n"
 "  midi.quarter = q\n"
 "  midi.whole = q * 4\n"

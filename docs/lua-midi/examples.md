@@ -263,10 +263,13 @@ Quantize random pitches to a scale:
 m = midi.open()
 
 local root = c4
+local seed = 42  -- Deterministic seed for reproducibility
 
 -- Generate random pitches and quantize to C pentatonic
 for i = 1, 16 do
-    local random_pitch = c4 + math.random(-12, 12)
+    local offset
+    offset, seed = random_range(seed, -12, 12)
+    local random_pitch = c4 + offset
     local quantized = quantize(random_pitch, root, "pentatonic")
     m:note(quantized, mf, sixteenth)
 end
@@ -342,9 +345,12 @@ m:note(c5, mf, half)
 rest(quarter)
 
 -- Avaroha (descending) with ornamentation
+local seed = 123  -- Deterministic seed
 for i = #bhairav, 1, -1 do
-    -- Add slight grace note
-    if i > 1 and math.random() > 0.5 then
+    -- Add slight grace note (50% chance)
+    local r
+    r, seed = chance(seed, 50)
+    if i > 1 and r then
         m:note(bhairav[i] + 1, pp, sixteenth)
     end
     m:note(bhairav[i], mf, quarter)
@@ -370,13 +376,16 @@ for _, p in ipairs(blues) do
     table.insert(full_blues, p + 12)
 end
 
--- Random blues licks
+-- Random blues licks with deterministic RNG
+local seed = 42  -- Set seed for reproducible results
 for bar = 1, 4 do
     for beat = 1, 4 do
-        local note_count = math.random(1, 3)
+        local note_count
+        note_count, seed = random_range(seed, 1, 3)
         for n = 1, note_count do
-            local pitch = full_blues[math.random(#full_blues)]
-            local vel = math.random(60, 100)
+            local pitch, vel
+            pitch, seed = pick(seed, full_blues)
+            vel, seed = random_range(seed, 60, 100)
             local dur = sixteenth
             m:note(pitch, vel, dur)
         end
@@ -544,24 +553,18 @@ m:close()
 m = midi.open()
 midi.set_tempo(140)
 
--- Random note from a table
-function random_element(t)
-    return t[math.random(#t)]
-end
-
--- Random velocity in range
-function random_velocity(min, max)
-    return min + math.random(max - min)
-end
+-- Use the built-in deterministic RNG functions:
+--   pick(seed, table) -> element, next_seed
+--   random_range(seed, min, max) -> value, next_seed
 
 -- Play 32 random notes from C major 7
 local chord = maj7(c4)
+local seed = 42  -- Set seed for reproducible results
 for i = 1, 32 do
-    m:note(
-        random_element(chord),
-        random_velocity(60, 100),
-        sixteenth
-    )
+    local note, vel
+    note, seed = pick(seed, chord)
+    vel, seed = random_range(seed, 60, 100)
+    m:note(note, vel, sixteenth)
 end
 
 m:close()
@@ -572,9 +575,14 @@ m:close()
 ```lua
 m = midi.open()
 
+-- Use the built-in chance(seed, percent) function for probability
+local seed = 42
+
 -- Play note with probability
-function maybe_play(pitch, prob)
-    if math.random(100) < prob then
+local function maybe_play(pitch, prob)
+    local should_play
+    should_play, seed = chance(seed, prob)
+    if should_play then
         m:note(pitch, mf, sixteenth)
     else
         rest(sixteenth)
@@ -794,19 +802,25 @@ midi.set_tempo(90)
 
 local pentatonic = scale(c4, "pentatonic")
 
--- Random high notes
+-- Random high notes (deterministic with seed)
 spawn(function()
+    local seed = 100  -- Different seed per voice
     for i = 1, 16 do
-        local p = pentatonic[math.random(#pentatonic)] + 12
-        play(p, math.random(40, 80), sixteenth)
+        local p, vel
+        p, seed = pick(seed, pentatonic)
+        vel, seed = random_range(seed, 40, 80)
+        play(p + 12, vel, sixteenth)
     end
 end, "high")
 
--- Random low notes (slower)
+-- Random low notes (slower, different seed)
 spawn(function()
+    local seed = 200
     for i = 1, 8 do
-        local p = pentatonic[math.random(#pentatonic)] - 12
-        play(p, math.random(60, 100), eighth)
+        local p, vel
+        p, seed = pick(seed, pentatonic)
+        vel, seed = random_range(seed, 60, 100)
+        play(p - 12, vel, eighth)
     end
 end, "low")
 

@@ -101,6 +101,17 @@ All notable changes to midi-langs are documented in this file.
   - `stop` REPL command now calls `alda_midi_all_notes_off()` before cancelling timers
   - Prevents hanging notes when stopping playback mid-phrase
 
+- **lua-midi**: Tempo now affects all durations in the C layer
+  - Added `global_tempo_bpm` and `scale_duration_for_tempo()` in C layer
+  - `midi.set_tempo(bpm)` now updates both Lua constants AND C-layer tempo
+  - All durations in `midiout:note()`, `midiout:chord()`, `midiout:arpeggio()`, and `midi.sleep()` are scaled
+  - At 60 BPM, all durations double; at 240 BPM, they halve
+
+- **lua-midi**: Replay scripts now use wall-clock timing
+  - Replaced busy-polling `os.clock()` loop with delta-sleep approach
+  - Generated `play_timed()` function uses `midi.sleep()` for accurate timing
+  - Playback timing now consistent regardless of CPU load
+
 - **Sequential `run()` calls now work correctly**: lua-midi, pktpy-midi
   - Fixed bug where second `run()` call would hang after first completed
   - Root cause: `uv_timer_start` from main thread wasn't noticed by event loop thread

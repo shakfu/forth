@@ -42,6 +42,7 @@ midi._tempo = 120
 
 function midi.set_tempo(bpm)
   midi._tempo = bpm
+  midi._set_c_tempo(bpm)  -- Update C layer for duration scaling
   local q = math.floor(60000 / bpm)
   midi.quarter = q
   midi.whole = q * 4

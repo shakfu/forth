@@ -32,6 +32,20 @@ static lua_State *global_L = NULL;
 /* Default MIDI output for REPL convenience functions */
 static libremidi_midi_out_handle* default_midi_out = NULL;
 
+/* Tempo state for duration scaling */
+static int global_tempo_bpm = 120;
+#define BASE_TEMPO_BPM 120
+
+/* Scale duration based on current tempo */
+static inline int scale_duration_for_tempo(int duration_ms) {
+    if (global_tempo_bpm == BASE_TEMPO_BPM || duration_ms <= 0) {
+        return duration_ms;
+    }
+    /* At 60 BPM, durations double (120/60 = 2x)
+       At 240 BPM, durations halve (120/240 = 0.5x) */
+    return (int)((int64_t)duration_ms * BASE_TEMPO_BPM / global_tempo_bpm);
+}
+
 /* MIDI capture system */
 typedef struct {
     uint32_t time_ms;
@@ -400,8 +414,8 @@ static int l_note(lua_State *L) {
     libremidi_midi_out_send_message(data->handle, msg, 3);
     capture_add_event(0, channel - 1, pitch, velocity);
 
-    /* Sleep */
-    usleep(duration * 1000);
+    /* Sleep (scaled by tempo) */
+    usleep(scale_duration_for_tempo(duration) * 1000);
 
     /* Note off */
     msg[0] = 0x80 | ((channel - 1) & 0x0F);
@@ -451,8 +465,8 @@ static int l_chord(lua_State *L) {
         capture_add_event(0, channel - 1, pitches[i], velocity);
     }
 
-    /* Sleep */
-    usleep(duration * 1000);
+    /* Sleep (scaled by tempo) */
+    usleep(scale_duration_for_tempo(duration) * 1000);
 
     /* Note off for all */
     for (int i = 0; i < count; i++) {
@@ -497,7 +511,8 @@ static int l_arpeggio(lua_State *L) {
             libremidi_midi_out_send_message(data->handle, msg, 3);
             capture_add_event(0, channel - 1, pitch, velocity);
 
-            usleep(duration * 1000);
+            /* Sleep (scaled by tempo) */
+            usleep(scale_duration_for_tempo(duration) * 1000);
 
             /* Note off */
             msg[0] = 0x80 | ((channel - 1) & 0x0F);
@@ -598,9 +613,24 @@ static int l_parse_note(lua_State *L) {
 static int l_sleep(lua_State *L) {
     int ms = luaL_checkinteger(L, 1);
     if (ms > 0) {
-        usleep(ms * 1000);
+        usleep(scale_duration_for_tempo(ms) * 1000);
     }
     return 0;
+}
+
+/* midi._set_c_tempo(bpm) - Set tempo in C layer for duration scaling */
+static int l_set_c_tempo(lua_State *L) {
+    int bpm = luaL_checkinteger(L, 1);
+    if (bpm < 1) bpm = 1;
+    if (bpm > 999) bpm = 999;
+    global_tempo_bpm = bpm;
+    return 0;
+}
+
+/* midi._get_c_tempo() -> bpm - Get current C layer tempo */
+static int l_get_c_tempo(lua_State *L) {
+    lua_pushinteger(L, global_tempo_bpm);
+    return 1;
 }
 
 /* midi.transpose(pitch, semitones) -> pitch */
@@ -914,25 +944,23 @@ static int l_save_midi(lua_State *L) {
 
     fprintf(f, "}\n\n");
 
-    /* Write playback code */
-    fprintf(f, "-- Playback function\n");
-    fprintf(f, "local function play()\n");
-    fprintf(f, "  local start = os.clock() * 1000\n");
-    fprintf(f, "  local next_idx = 1\n");
-    fprintf(f, "  while next_idx <= #notes do\n");
-    fprintf(f, "    local now = os.clock() * 1000 - start\n");
-    fprintf(f, "    while next_idx <= #notes and notes[next_idx][1] <= now do\n");
-    fprintf(f, "      local n = notes[next_idx]\n");
-    fprintf(f, "      m:note(n[2], n[3], n[4], n[5])\n");
-    fprintf(f, "      next_idx = next_idx + 1\n");
+    /* Write playback code - use sleep deltas for accurate wall-clock timing */
+    fprintf(f, "-- Timed playback (preserves original timing between notes)\n");
+    fprintf(f, "local function play_timed()\n");
+    fprintf(f, "  local last_start = 0\n");
+    fprintf(f, "  for _, n in ipairs(notes) do\n");
+    fprintf(f, "    -- Wait until this note's start time\n");
+    fprintf(f, "    local delay = n[1] - last_start\n");
+    fprintf(f, "    if delay > 0 then\n");
+    fprintf(f, "      midi.sleep(delay)\n");
     fprintf(f, "    end\n");
-    fprintf(f, "    if next_idx <= #notes then\n");
-    fprintf(f, "      midi.sleep(10)\n");
-    fprintf(f, "    end\n");
+    fprintf(f, "    last_start = n[1]\n");
+    fprintf(f, "    -- Play note (blocking for duration)\n");
+    fprintf(f, "    m:note(n[2], n[3], n[4], n[5])\n");
     fprintf(f, "  end\n");
     fprintf(f, "end\n\n");
 
-    fprintf(f, "-- Simple sequential playback\n");
+    fprintf(f, "-- Sequential playback (plays notes back-to-back)\n");
     fprintf(f, "for _, n in ipairs(notes) do\n");
     fprintf(f, "  m:note(n[2], n[3], n[4], n[5])\n");
     fprintf(f, "end\n\n");
@@ -1225,6 +1253,8 @@ static const luaL_Reg midi_funcs[] = {
     {"open", l_open},
     {"note", l_parse_note},
     {"sleep", l_sleep},
+    {"_set_c_tempo", l_set_c_tempo},
+    {"_get_c_tempo", l_get_c_tempo},
     {"transpose", l_transpose},
     {"octave_up", l_octave_up},
     {"octave_down", l_octave_down},

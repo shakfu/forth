@@ -1024,12 +1024,15 @@ close()
 ```lua
 open()
 
--- Random melody voice
+-- Random melody voice using deterministic RNG (reproducible with same seed)
 spawn(function()
     local scale_pitches = scale(c4, "pentatonic")
+    local seed = 42  -- Set seed for reproducibility
     for i = 1, 16 do
-        local p = scale_pitches[math.random(#scale_pitches)]
-        play(p, math.random(60, 100), sixteenth)
+        local p, vel
+        p, seed = pick(seed, scale_pitches)     -- deterministic pick
+        vel, seed = random_range(seed, 60, 100) -- deterministic range
+        play(p, vel, sixteenth)
     end
 end, "random_melody")
 
