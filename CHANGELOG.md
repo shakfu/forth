@@ -112,6 +112,21 @@ All notable changes to midi-langs are documented in this file.
   - Generated `play_timed()` function uses `midi.sleep()` for accurate timing
   - Playback timing now consistent regardless of CPU load
 
+- **mhs-midi**: Parallel compositions now respect individual note durations
+  - Rewrote `performPar` in `MusicPerform.hs` and `Async.hs` to use threads
+  - Each parallel branch runs in its own `forkIO` thread with `MVar` completion signaling
+  - A quarter note now releases after 480ms even when played alongside a half note
+
+- **mhs-midi**: Exported `.hs` recordings now reproduce original timing
+  - Updated `midi_save_hs` to generate `replay` function with delta delays
+  - Events sleep for `(currentTime - lastTime)` ms instead of fixed 10ms
+  - Playback timing now matches original performance
+
+- **mhs-midi**: Euclidean rhythms now maintain proper step spacing
+  - Fixed `euclideanWith` to advance clock by `dur` for both hits and misses
+  - Pattern now spans `steps * dur` as expected
+  - Pulses evenly distributed instead of collapsed together
+
 - **Sequential `run()` calls now work correctly**: lua-midi, pktpy-midi
   - Fixed bug where second `run()` call would hang after first completed
   - Root cause: `uv_timer_start` from main thread wasn't noticed by event loop thread

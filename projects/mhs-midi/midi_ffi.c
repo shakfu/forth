@@ -445,13 +445,19 @@ int midi_save_hs(const char* filename) {
     fprintf(f, "playEvent (_, 1, ch, pitch, _)   = do _ <- noteOff ch pitch; return ()\n");
     fprintf(f, "playEvent (_, 2, ch, ctrl, val)  = do _ <- cc ch ctrl val; return ()\n");
     fprintf(f, "playEvent _                       = return ()\n\n");
+    fprintf(f, "-- Replay with original timing (uses delta delays between events)\n");
     fprintf(f, "replay :: IO ()\n");
     fprintf(f, "replay = do\n");
     fprintf(f, "  _ <- openVirtual \"MhsMidi\"\n");
-    fprintf(f, "  mapM_ (\\(t, ty, ch, d1, d2) -> do\n");
-    fprintf(f, "    playEvent (t, ty, ch, d1, d2)\n");
-    fprintf(f, "    sleep 10) events\n");
+    fprintf(f, "  go 0 events\n");
     fprintf(f, "  panic\n");
+    fprintf(f, "  where\n");
+    fprintf(f, "    go _ [] = return ()\n");
+    fprintf(f, "    go lastTime ((t, ty, ch, d1, d2):rest) = do\n");
+    fprintf(f, "      let delay = t - lastTime\n");
+    fprintf(f, "      if delay > 0 then sleep delay else return ()\n");
+    fprintf(f, "      playEvent (t, ty, ch, d1, d2)\n");
+    fprintf(f, "      go t rest\n");
 
     fclose(f);
     printf("Saved %d events to %s\n", capture_count, filename);

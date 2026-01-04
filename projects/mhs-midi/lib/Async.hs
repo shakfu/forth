@@ -181,10 +181,12 @@ performOn ch music = go music
         midiNoteOff ch' pit
     performEvent _ (ERest d) = midiSleep d
 
+    -- Perform parallel music using threads so each note respects its duration
     performPar ch' ms = do
-        let events = concatMap collectEvents ms
-            notes = [ev | ev@(ENote _ _ _) <- events]
-            maxDur = maximum (0 : [d | ENote _ _ d <- notes])
-        mapM_ (\(ENote pit v _) -> midiNoteOn ch' pit v) notes
-        midiSleep maxDur
-        mapM_ (\(ENote pit _ _) -> midiNoteOff ch' pit) notes
+        doneVars <- mapM (\_ -> newEmptyMVar) ms
+        mapM_ (\(m, doneVar) -> forkIO (go' m >> putMVar doneVar ())) (zip ms doneVars)
+        mapM_ takeMVar doneVars
+      where
+        go' (MEvent ev) = performEvent ch' ev
+        go' (MSeq subMs) = mapM_ go' subMs
+        go' (MPar subMs) = performPar ch' subMs

@@ -38,6 +38,7 @@ module MusicPerform (
 import Music
 import Midi
 import Async
+import Control.Concurrent (forkIO, newEmptyMVar, putMVar, takeMVar)
 
 -----------------------------------------------------------
 -- Microtonal IO
@@ -77,12 +78,17 @@ performEvent ch (ENote pit v d) = do
     midiNoteOff ch pit
 performEvent _ (ERest d) = midiSleep d
 
--- | Perform parallel music (all start together, wait for longest)
+-- | Perform parallel music (each branch runs in its own thread)
+-- Each note respects its individual duration.
 performPar :: Channel -> [Music] -> IO ()
 performPar ch ms = do
-    let events = concatMap collectEvents ms
-        notes = [ev | ev@(ENote _ _ _) <- events]
-        maxDur = maximum (0 : [d | ENote _ _ d <- notes])
-    mapM_ (\(ENote pit v _) -> midiNoteOn ch pit v) notes
-    midiSleep maxDur
-    mapM_ (\(ENote pit _ _) -> midiNoteOff ch pit) notes
+    -- Create an MVar for each branch to signal completion
+    doneVars <- mapM (\_ -> newEmptyMVar) ms
+    -- Fork a thread for each parallel branch
+    mapM_ (\(m, doneVar) -> forkIO (go m >> putMVar doneVar ())) (zip ms doneVars)
+    -- Wait for all branches to complete
+    mapM_ takeMVar doneVars
+  where
+    go (MEvent ev) = performEvent ch ev
+    go (MSeq subMs) = mapM_ go subMs
+    go (MPar subMs) = performPar ch subMs
