@@ -1,165 +1,76 @@
-# PocketPy `yield from` Issue
+# PocketPy `yield from` Support
 
-This document describes a limitation discovered in PocketPy's `yield from` implementation that affects the async scheduler in pktpy-midi.
+This document describes `yield from` support in PocketPy as used by pktpy-midi.
 
-## Summary
+## Status: Working
 
-PocketPy's `yield from` statement does not correctly delegate to sub-generators when used with the async scheduler. The yielded values from the inner generator are not passed through to the outer generator.
+As of PocketPy 2.1.6, `yield from` works correctly and can be used with the async scheduler.
 
-## Expected Behavior (CPython)
+## Usage
 
-In standard Python, `yield from` delegates iteration to a sub-generator:
-
-```python
-def inner():
-    yield 100
-    yield 200
-
-def outer():
-    print("start")
-    yield from inner()  # Should yield 100, then 200
-    print("end")
-
-gen = outer()
-print(next(gen))  # start, 100
-print(next(gen))  # 200
-print(next(gen))  # end, StopIteration
-```
-
-The `yield from inner()` statement should:
-1. Call `inner()` to get a generator
-2. Iterate the inner generator, yielding each value to the caller
-3. Resume after all values are exhausted
-
-## Observed Behavior (PocketPy)
-
-In PocketPy, `yield from` appears to consume the inner generator but does not yield its values to the caller:
+You can use `yield from` to delegate to sub-generators:
 
 ```python
-def inner():
-    print("inner: yielding 100")
-    yield 100
-    print("inner: yielding 200")
-    yield 200
+import midi
 
-def outer():
-    print("outer: start")
-    yield from inner()
-    print("outer: after inner")
-    yield 300
-    print("outer: done")
+def play_note(out, pitch, vel, dur):
+    yield from midi.play(out, pitch, vel, dur)
 
-gen = outer()
-# First next() prints:
-#   outer: start
-#   outer: after inner  <-- inner's yields were skipped!
-# Returns 300
-```
-
-The inner generator's `yield 100` and `yield 200` are never seen by the caller.
-
-## Workaround
-
-Use explicit iteration instead of `yield from`:
-
-```python
-# Instead of:
-yield from inner()
-
-# Use:
-for value in inner():
-    yield value
-```
-
-This works correctly because it explicitly yields each value from the inner generator.
-
-## Impact on pktpy-midi
-
-The async playback helpers (`midi.play`, `midi.play_chord`, etc.) are generators that yield wait times. Users must use the explicit iteration pattern:
-
-```python
-# This does NOT work:
-def voice():
+def melody():
     out = midi.open()
-    yield from midi.play(out, 60, 80, 500)  # BUG: yields are lost
+    yield from play_note(out, midi.c4, midi.mf, 200)
+    yield from play_note(out, midi.e4, midi.mf, 200)
+    yield from play_note(out, midi.g4, midi.mf, 200)
     out.close()
 
-# This WORKS:
-def voice():
-    out = midi.open()
-    for ms in midi.play(out, 60, 80, 500):
-        yield ms
-    out.close()
+midi.spawn(melody)
+midi.run()
 ```
 
-## Test Case for PocketPy
-
-The following test case demonstrates the issue:
+## Example: Multi-Voice with yield from
 
 ```python
-# test_yield_from.py
-def inner():
-    yield 1
-    yield 2
-    yield 3
+import midi
 
-def outer_yield_from():
-    yield from inner()
+def voice1():
+    out = midi.open()
+    for note in [midi.c4, midi.e4, midi.g4]:
+        yield from midi.play(out, note, midi.mf, 200)
+    out.close()
 
-def outer_explicit():
-    for x in inner():
-        yield x
+def voice2():
+    out = midi.open()
+    for note in [midi.c3, midi.g3]:
+        yield from midi.play(out, note, midi.f, 300)
+    out.close()
 
-# Test yield from
-print("Testing yield from:")
-gen = outer_yield_from()
-results = list(gen)
-print(f"  Results: {results}")
-print(f"  Expected: [1, 2, 3]")
-print(f"  Pass: {results == [1, 2, 3]}")
-
-# Test explicit iteration
-print("\nTesting explicit for loop:")
-gen = outer_explicit()
-results = list(gen)
-print(f"  Results: {results}")
-print(f"  Expected: [1, 2, 3]")
-print(f"  Pass: {results == [1, 2, 3]}")
+midi.spawn(voice1)
+midi.spawn(voice2)
+midi.run()
 ```
 
-Expected output (CPython):
+## How It Works
+
+PocketPy's `yield from` implementation:
+
+1. Calls `iter()` on the expression to get an iterator
+2. Repeatedly calls `next()` on the iterator
+3. Each value from the inner iterator is yielded to the outer caller
+4. When `StopIteration` is raised, `yield from` completes and returns the value (if any)
+
+This matches Python's PEP 380 semantics for basic generator delegation.
+
+## Historical Note
+
+Earlier versions of this document described a bug where `yield from` would skip yielded values. This issue has been resolved in PocketPy 2.1.6. The explicit `for` loop workaround is no longer necessary, though it remains functionally equivalent:
+
+```python
+# Both of these work correctly:
+
+# Using yield from (recommended)
+yield from midi.play(out, note, vel, dur)
+
+# Using explicit for loop (also works)
+for ms in midi.play(out, note, vel, dur):
+    yield ms
 ```
-Testing yield from:
-  Results: [1, 2, 3]
-  Expected: [1, 2, 3]
-  Pass: True
-
-Testing explicit for loop:
-  Results: [1, 2, 3]
-  Expected: [1, 2, 3]
-  Pass: True
-```
-
-Actual output (PocketPy):
-```
-Testing yield from:
-  Results: []
-  Expected: [1, 2, 3]
-  Pass: False
-
-Testing explicit for loop:
-  Results: [1, 2, 3]
-  Expected: [1, 2, 3]
-  Pass: True
-```
-
-## Environment
-
-- PocketPy version: v2.1.6 (embedded in pktpy-midi)
-- Discovered: December 2024
-- pktpy-midi project: https://github.com/your-repo/midi-langs
-
-## Related
-
-- PocketPy repository: https://github.com/pocketpy/pocketpy
-- Python PEP 380 (yield from): https://peps.python.org/pep-0380/

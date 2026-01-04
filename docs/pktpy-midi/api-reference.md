@@ -980,7 +980,7 @@ print(s["active"])   # int - number of active voices
 
 Generator functions for use inside spawned voices. These yield wait times automatically.
 
-**Important**: Due to a limitation in PocketPy, `yield from` does not work correctly. Use the `for ms in ...: yield ms` pattern instead.
+Use `yield from` to delegate to these generators:
 
 ### midi.play
 
@@ -999,12 +999,8 @@ Play a note asynchronously (generator). Handles note_on, wait, note_off.
 ```python
 def voice():
     out = midi.open()
-    # Play C4 for 500ms
-    for ms in midi.play(out, midi.c4, midi.mf, 500):
-        yield ms
-    # Play E4 for 250ms
-    for ms in midi.play(out, midi.e4):
-        yield ms
+    yield from midi.play(out, midi.c4, midi.mf, 500)  # Play C4 for 500ms
+    yield from midi.play(out, midi.e4)                 # Play E4 for 250ms (default)
     out.close()
 ```
 
@@ -1025,8 +1021,7 @@ Play a chord asynchronously (generator).
 ```python
 def voice():
     out = midi.open()
-    for ms in midi.play_chord(out, midi.major("C4"), midi.f, midi.half):
-        yield ms
+    yield from midi.play_chord(out, midi.major("C4"), midi.f, midi.half)
     out.close()
 ```
 
@@ -1048,8 +1043,7 @@ Play notes as arpeggio asynchronously (generator).
 ```python
 def voice():
     out = midi.open()
-    for ms in midi.play_arp(out, midi.min7("A3"), midi.mp, midi.sixteenth):
-        yield ms
+    yield from midi.play_arp(out, midi.min7("A3"), midi.mp, midi.sixteenth)
     out.close()
 ```
 
@@ -1121,16 +1115,13 @@ def melody():
     out = midi.open()
     notes = [midi.c4, midi.e4, midi.g4, midi.c5]
     for note in notes:
-        for ms in midi.play(out, note, midi.mf, 200):
-            yield ms
+        yield from midi.play(out, note, midi.mf, 200)
     out.close()
 
 def bass():
     out = midi.open()
-    for ms in midi.play(out, midi.c2, midi.f, 400):
-        yield ms
-    for ms in midi.play(out, midi.g2, midi.f, 400):
-        yield ms
+    yield from midi.play(out, midi.c2, midi.f, 400)
+    yield from midi.play(out, midi.g2, midi.f, 400)
     out.close()
 
 def drums():

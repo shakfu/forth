@@ -102,20 +102,15 @@ import midi
 
 def melody():
     out = midi.open()
-    for ms in midi.play(out, midi.c4, midi.mf, 200):
-        yield ms
-    for ms in midi.play(out, midi.e4, midi.mf, 200):
-        yield ms
-    for ms in midi.play(out, midi.g4, midi.mf, 200):
-        yield ms
+    yield from midi.play(out, midi.c4, midi.mf, 200)
+    yield from midi.play(out, midi.e4, midi.mf, 200)
+    yield from midi.play(out, midi.g4, midi.mf, 200)
     out.close()
 
 def bass():
     out = midi.open()
-    for ms in midi.play(out, midi.c2, midi.f, 300):
-        yield ms
-    for ms in midi.play(out, midi.g2, midi.f, 300):
-        yield ms
+    yield from midi.play(out, midi.c2, midi.f, 300)
+    yield from midi.play(out, midi.g2, midi.f, 300)
     out.close()
 
 # Spawn voices and run
@@ -129,7 +124,7 @@ midi.run()  # Blocks until all voices complete
 - [API Reference](api-reference.md) - Complete function documentation
 - [Examples](examples.md) - More code examples
 - [Architecture](architecture.md) - How the C module works
-- [yield from Issue](yield-from.md) - Known limitation with PocketPy's `yield from`
+- [yield from](yield-from.md) - Using `yield from` with async generators
 
 ## Requirements
 
