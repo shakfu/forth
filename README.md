@@ -172,6 +172,43 @@ docs/               # Per-language documentation
 tests/              # Test suite
 ```
 
+## MIDI Playback
+
+All languages output MIDI via virtual ports. To hear sound, connect to a General MIDI synthesizer.
+
+### FluidSynth (Recommended)
+
+Use the included helper script:
+
+```bash
+# Set up SoundFont directory (one-time)
+export ALDA_SF2_DIR=~/Music/sf2
+
+# Start FluidSynth (in one terminal)
+python scripts/fluidsynth-gm.py
+
+# Run any midi-langs interpreter (in another terminal)
+./build/alda_midi
+./build/forth_midi
+./build/lua_midi
+```
+
+Install FluidSynth and a SoundFont:
+
+| Platform | Install |
+|----------|---------|
+| macOS | `brew install fluidsynth` |
+| Ubuntu/Debian | `sudo apt install fluidsynth` |
+| Fedora | `sudo dnf install fluidsynth` |
+
+Download a GM SoundFont like [FluidR3_GM.sf2](https://musical-artifacts.com/artifacts/738) and place it in your `ALDA_SF2_DIR`.
+
+### Other Options
+
+- **DAW**: Route the virtual MIDI port to any DAW (Logic, Ableton, Reaper)
+- **Hardware**: Connect to GM-compatible synthesizers or sound modules
+- **Software synths**: Use any virtual instrument that accepts MIDI input
+
 ## Documentation
 
 | Language | Docs |
