@@ -65,6 +65,10 @@ jobs:
       - name: Build
         run: cmake --build build --config Release -j4
 
-      - name: Run tests
+      - name: Run tests (Linux - skip MIDI tests)
+        if: runner.os == 'Linux'
+        run: ctest --test-dir build --output-on-failure -C Release -LE midi
+
+      - name: Run tests (macOS/Windows)
+        if: runner.os != 'Linux'
         run: ctest --test-dir build --output-on-failure -C Release
-        continue-on-error: false

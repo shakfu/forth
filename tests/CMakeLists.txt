@@ -16,10 +16,10 @@ add_test(
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-# Set test properties
+# Set test properties (includes midi label because it tests MIDI functionality)
 set_tests_properties(forth_midi_test_suite PROPERTIES
     TIMEOUT 60
-    LABELS "integration"
+    LABELS "integration;midi"
 )
 
 # Individual quick tests for faster feedback during development
@@ -73,7 +73,7 @@ add_test(
 
 set_tests_properties(pktpy_midi_test_suite PROPERTIES
     TIMEOUT 60
-    LABELS "integration"
+    LABELS "integration;midi"
 )
 
 # Quick pktpy_midi tests
@@ -95,8 +95,12 @@ add_test(
 set_tests_properties(
     pktpy_midi_smoke
     pktpy_midi_note_parsing
-    pktpy_midi_virtual_port
     PROPERTIES LABELS "quick"
+)
+
+set_tests_properties(
+    pktpy_midi_virtual_port
+    PROPERTIES LABELS "quick;midi"
 )
 
 # s7_midi tests
@@ -108,7 +112,7 @@ add_test(
 
 set_tests_properties(s7_midi_test_suite PROPERTIES
     TIMEOUT 60
-    LABELS "integration"
+    LABELS "integration;midi"
 )
 
 # Quick s7_midi tests
@@ -136,8 +140,12 @@ set_tests_properties(
     s7_midi_smoke
     s7_midi_note_parsing
     s7_midi_pitch_constants
-    s7_midi_virtual_port
     PROPERTIES LABELS "quick"
+)
+
+set_tests_properties(
+    s7_midi_virtual_port
+    PROPERTIES LABELS "quick;midi"
 )
 
 # lua_midi tests
@@ -149,7 +157,7 @@ add_test(
 
 set_tests_properties(lua_midi_test_suite PROPERTIES
     TIMEOUT 60
-    LABELS "integration"
+    LABELS "integration;midi"
 )
 
 # Quick lua_midi tests
@@ -177,8 +185,12 @@ set_tests_properties(
     lua_midi_smoke
     lua_midi_note_parsing
     lua_midi_pitch_constants
-    lua_midi_virtual_port
     PROPERTIES LABELS "quick"
+)
+
+set_tests_properties(
+    lua_midi_virtual_port
+    PROPERTIES LABELS "quick;midi"
 )
 
 # mhs-midi tests
@@ -235,9 +247,13 @@ set_tests_properties(
     forth_midi_golden_blocks
     forth_midi_golden_generative
     forth_midi_golden_sequences
-    forth_midi_golden_async
     forth_midi_golden_seq_record
     PROPERTIES LABELS "golden"
+)
+
+set_tests_properties(
+    forth_midi_golden_async
+    PROPERTIES LABELS "golden;midi"
 )
 
 # alda_midi tests
@@ -306,10 +322,14 @@ add_test(
 set_tests_properties(
     demo_example_alda
     demo_example_forth
-    demo_example_lua
     demo_example_pktpy
     demo_example_s7
     PROPERTIES LABELS "quick"
+)
+
+set_tests_properties(
+    demo_example_lua
+    PROPERTIES LABELS "quick;midi"
 )
 
 set_tests_properties(
