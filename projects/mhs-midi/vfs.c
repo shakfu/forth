@@ -2,11 +2,18 @@
  *
  * Pure memory-based approach using fmemopen() to serve embedded files
  * directly from memory without any filesystem operations.
+ *
+ * For compilation to executable (-o without .c), files can be extracted
+ * to a temp directory so that cc can access them.
  */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <errno.h>
+#include <libgen.h>
+#include <unistd.h>
 
 /* Include the generated embedded libraries header */
 #include "mhs_embedded_libs.h"
@@ -133,5 +140,115 @@ void vfs_list_files(void) {
     printf("Embedded files:\n");
     for (const EmbeddedFile* ef = embedded_files; ef->path; ef++) {
         printf("  %s (%zu bytes)\n", ef->path, ef->length);
+    }
+}
+
+/*-----------------------------------------------------------
+ * File extraction (for compilation to executable)
+ *-----------------------------------------------------------*/
+
+/* Recursively create directories for a path */
+static int mkdirs(const char* path) {
+    char tmp[4096];
+    char* p = NULL;
+    size_t len;
+
+    snprintf(tmp, sizeof(tmp), "%s", path);
+    len = strlen(tmp);
+    if (tmp[len - 1] == '/') {
+        tmp[len - 1] = 0;
+    }
+    for (p = tmp + 1; *p; p++) {
+        if (*p == '/') {
+            *p = 0;
+            if (mkdir(tmp, 0755) != 0 && errno != EEXIST) {
+                return -1;
+            }
+            *p = '/';
+        }
+    }
+    if (mkdir(tmp, 0755) != 0 && errno != EEXIST) {
+        return -1;
+    }
+    return 0;
+}
+
+/* Extract all embedded files to a temp directory.
+ * Returns the path to the temp directory, or NULL on failure.
+ * The caller is responsible for cleaning up the directory.
+ */
+char* vfs_extract_to_temp(void) {
+    /* Create temp directory */
+    char template[] = "/tmp/mhs-XXXXXX";
+    char* temp_dir = mkdtemp(template);
+    if (!temp_dir) {
+        fprintf(stderr, "Error: Could not create temp directory: %s\n", strerror(errno));
+        return NULL;
+    }
+
+    /* Need to return a copy since template is on stack */
+    char* result = strdup(temp_dir);
+    if (!result) {
+        fprintf(stderr, "Error: Memory allocation failed\n");
+        return NULL;
+    }
+
+    VFS_LOG("Extracting to: %s\n", result);
+
+    /* Extract each embedded file */
+    for (const EmbeddedFile* ef = embedded_files; ef->path; ef++) {
+        char full_path[4096];
+        snprintf(full_path, sizeof(full_path), "%s/%s", result, ef->path);
+
+        /* Create parent directories */
+        char* dir_path = strdup(full_path);
+        if (dir_path) {
+            char* dir = dirname(dir_path);
+            if (mkdirs(dir) != 0) {
+                fprintf(stderr, "Error: Could not create directory: %s\n", dir);
+                free(dir_path);
+                free(result);
+                return NULL;
+            }
+            free(dir_path);
+        }
+
+        /* Write file */
+        FILE* f = fopen(full_path, "wb");
+        if (!f) {
+            fprintf(stderr, "Error: Could not create file: %s: %s\n", full_path, strerror(errno));
+            free(result);
+            return NULL;
+        }
+
+        size_t written = fwrite(ef->content, 1, ef->length, f);
+        fclose(f);
+
+        if (written != ef->length) {
+            fprintf(stderr, "Error: Could not write file: %s\n", full_path);
+            free(result);
+            return NULL;
+        }
+
+        VFS_LOG("Extracted: %s (%zu bytes)\n", ef->path, ef->length);
+    }
+
+    VFS_LOG("Extracted %d files to %s\n", EMBEDDED_FILE_COUNT, result);
+    return result;
+}
+
+/* Recursively remove a directory and its contents */
+static int rmdir_recursive(const char* path) {
+    char cmd[4096];
+    snprintf(cmd, sizeof(cmd), "rm -rf '%s'", path);
+    return system(cmd);
+}
+
+/* Clean up extracted temp directory */
+void vfs_cleanup_temp(char* temp_dir) {
+    if (temp_dir) {
+        VFS_LOG("Cleaning up: %s\n", temp_dir);
+        rmdir_recursive(temp_dir);
+        free(temp_dir);
     }
 }

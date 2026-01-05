@@ -1,6 +1,17 @@
 # Self-Contained mhs-midi Binary
 
-A self-contained `mhs-midi-standalone` binary with all Micro Haskell libraries embedded, eliminating external file dependencies.
+A self-contained `mhs-midi-standalone` binary with all MicroHs libraries embedded, eliminating external file dependencies.
+
+## Two Executables
+
+The mhs-midi project builds two separate executables with distinct entry points:
+
+| Executable | Entry Point | Description |
+|------------|-------------|-------------|
+| `mhs-midi` | `mhs_midi_main.c` | Requires MHSDIR (auto-detected or set manually) |
+| `mhs-midi-standalone` | `mhs_midi_standalone_main.c` | All libraries embedded via VFS, no external files |
+
+Both provide identical functionality (REPL, compile, run), but the standalone version is fully self-contained.
 
 ## Status: Complete
 
@@ -22,28 +33,23 @@ The standalone binary is fully working:
 ### Building
 
 ```sh
+# Build both executables
+cmake --build build --target mhs-midi mhs-midi-standalone
+
+# Or build just the standalone
 cmake --build build --target mhs-midi-standalone
 ```
 
 ### Running
 
 ```sh
-# Run a Haskell file
+# Standalone (no external files needed)
 ./build/mhs-midi-standalone -r MyFile.hs
-
-# Start interactive REPL
 ./build/mhs-midi-standalone
 
-# Show help
-./build/mhs-midi-standalone --help
-```
-
-### Debug Mode
-
-To bypass VFS and use filesystem (for debugging):
-
-```sh
-MHS_USE_FILESYSTEM=1 ./build/mhs-midi-standalone
+# Non-standalone (requires MHSDIR)
+MHSDIR=./thirdparty/MicroHs ./build/mhs-midi -r MyFile.hs
+./build/mhs-midi  # auto-detects MHSDIR
 ```
 
 ## Background
@@ -96,7 +102,7 @@ from_t mhs_fopen(int s) {
 +---------------------------------------------------------+
 |                  mhs-midi-standalone                     |
 +---------------------------------------------------------+
-|  mhs_midi_main.c                                        |
+|  mhs_midi_standalone_main.c                             |
 |    - Initializes VFS                                    |
 |    - Sets MHSDIR=/mhs-embedded                          |
 |    - Calls mhs_main()                                   |
@@ -115,6 +121,18 @@ from_t mhs_fopen(int s) {
 |  eval_vfs.c (patched from eval.c)                       |
 |    - Original mhs_fopen renamed to mhs_fopen_orig       |
 |    - Forward declaration for override                   |
++---------------------------------------------------------+
+
++---------------------------------------------------------+
+|                      mhs-midi                            |
++---------------------------------------------------------+
+|  mhs_midi_main.c                                        |
+|    - Auto-detects MHSDIR from executable location       |
+|    - Finds MIDI lib directory                           |
+|    - Calls mhs_main()                                   |
++---------------------------------------------------------+
+|  eval.c (unpatched)                                     |
+|    - Uses standard fopen() for file access              |
 +---------------------------------------------------------+
 ```
 
@@ -169,6 +187,7 @@ from_t mhs_fopen(int s) {
 ### Build Integration
 
 ```cmake
+# Generate embedded library header
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/mhs_embedded_libs.h
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/embed_libs.py
@@ -178,12 +197,21 @@ add_custom_command(
     ...
 )
 
+# Standalone binary with VFS
 add_executable(mhs-midi-standalone
     ${CMAKE_CURRENT_BINARY_DIR}/mhs_standalone.c
     ${CMAKE_CURRENT_BINARY_DIR}/eval_vfs.c
-    mhs_midi_main.c
+    mhs_midi_standalone_main.c   # VFS initialization
     mhs_ffi_override.c
     vfs.c
+    ...
+)
+
+# Non-standalone binary (uses filesystem)
+add_executable(mhs-midi
+    ${CMAKE_CURRENT_BINARY_DIR}/mhs_repl.c
+    mhs_midi_main.c              # MHSDIR auto-detection
+    ${MHS_RUNTIME}/eval.c        # Unpatched eval.c
     ...
 )
 ```
@@ -196,7 +224,7 @@ add_executable(mhs-midi-standalone
 
 **Problem**: MicroHs loaded only 163 of 185 modules, then produced "ERR: getb_utf8" error. The REPL hung after loading Prelude.
 
-**Investigation**: Files were extracted correctly and byte-identical to originals. The same binary worked with `MHS_USE_FILESYSTEM=1`. Issue was specific to the embedding approach.
+**Investigation**: Files were extracted correctly and byte-identical to originals. Issue was specific to the embedding approach.
 
 ### Approach 2: Pure Memory VFS with fmemopen (Initial Failure, Then Success)
 
@@ -268,18 +296,19 @@ FILE* fmemopen_win(void* buf, size_t size, const char* mode) {
 
 ```
 projects/mhs-midi/
-    vfs.c                  # Virtual filesystem implementation
-    vfs.h                  # VFS header
-    mhs_ffi_override.c     # FFI intercept for mhs_fopen
-    mhs_midi_main.c        # Main entry point (VFS init)
+    mhs_midi_main.c             # Entry point for mhs-midi (non-standalone)
+    mhs_midi_standalone_main.c  # Entry point for mhs-midi-standalone
+    vfs.c                       # Virtual filesystem implementation
+    vfs.h                       # VFS header
+    mhs_ffi_override.c          # FFI intercept for mhs_fopen
 
 scripts/
-    embed_libs.py          # Convert .hs files to C header
-    patch_eval_vfs.py      # Patch eval.c for VFS override
+    embed_libs.py               # Convert .hs files to C header
+    patch_eval_vfs.py           # Patch eval.c for VFS override
 
 build/projects/mhs-midi/
-    mhs_embedded_libs.h    # Generated embedded content
-    eval_vfs.c             # Patched eval.c
+    mhs_embedded_libs.h         # Generated embedded content
+    eval_vfs.c                  # Patched eval.c
 ```
 
 ## Lessons Learned

@@ -34,4 +34,13 @@ void vfs_print_stats(void);
 /* List all embedded files (for debugging) */
 void vfs_list_files(void);
 
+/* Extract all embedded files to a temp directory.
+ * Returns the path to the temp directory, or NULL on failure.
+ * Use this when compiling to executable (cc needs real files).
+ */
+char* vfs_extract_to_temp(void);
+
+/* Clean up extracted temp directory */
+void vfs_cleanup_temp(char* temp_dir);
+
 #endif /* VFS_H */

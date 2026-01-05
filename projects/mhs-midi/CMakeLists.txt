@@ -215,9 +215,12 @@ add_custom_command(
         ${EMBEDDED_LIBS_HEADER}
         ${MHS_LIB}
         ${MIDI_LIB_DIR}
+        --runtime ${MHS_RUNTIME}
+        --header ${CMAKE_CURRENT_SOURCE_DIR}/midi_ffi.h
     DEPENDS
         ${CMAKE_SOURCE_DIR}/scripts/embed_libs.py
-    COMMENT "Generating embedded library header"
+        ${CMAKE_CURRENT_SOURCE_DIR}/midi_ffi.h
+    COMMENT "Generating embedded library header with runtime"
     VERBATIM
 )
 
@@ -245,10 +248,11 @@ add_custom_command(
 
 # Build the self-contained mhs-midi-standalone executable
 # Uses patched eval_vfs.c so mhs_ffi_override.c can intercept fopen
+# Uses mhs_midi_standalone_main.c (separate from mhs_midi_main.c)
 add_executable(mhs-midi-standalone
     ${CMAKE_CURRENT_BINARY_DIR}/mhs_standalone.c
     ${CMAKE_CURRENT_BINARY_DIR}/eval_vfs.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/mhs_midi_main.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/mhs_midi_standalone_main.c
     ${CMAKE_CURRENT_SOURCE_DIR}/midi_ffi_wrappers.c
     ${CMAKE_CURRENT_SOURCE_DIR}/mhs_ffi_override.c
     ${CMAKE_CURRENT_SOURCE_DIR}/midi_ffi.c
@@ -263,9 +267,6 @@ target_include_directories(mhs-midi-standalone PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR}
     ${CMAKE_SOURCE_DIR}/thirdparty/libremidi/include
 )
-
-# Define MHS_STANDALONE to enable embedded library mode
-target_compile_definitions(mhs-midi-standalone PRIVATE MHS_STANDALONE)
 
 target_link_libraries(mhs-midi-standalone PRIVATE
     music_theory
