@@ -4,7 +4,7 @@ This document describes how to create a self-contained MicroHs-based application
 
 ## Background
 
-[mhs-midi](https://github.com/smola/midi-langs) is a MIDI-oriented music programming environment built on MicroHs. It is one of several language implementations that compile into convenient, self-contained executables. In its initial form, `mhs-midi` required extensive manual configuration, including specifying multiple directories such as `MHSDIR`, which points to the original MicroHs installation. To simplify this setup, a Python wrapper script was introduced. This script handled environment configuration and served as a REPL and compiler frontend for running and compiling MIDI-focused Haskell programs, while also integrating with the C/C++ `libremidi` library via FFI.
+[mhs-midi](https://github.com/shakfu/midi-langs) is a MIDI-oriented music programming environment built on MicroHs. It is one of several language implementations that compile into convenient, self-contained executables. In its initial form, `mhs-midi` required extensive manual configuration, including specifying multiple directories such as `MHSDIR`, which points to the original MicroHs installation. To simplify this setup, a Python wrapper script was introduced. This script handled environment configuration and served as a REPL and compiler frontend for running and compiling MIDI-focused Haskell programs, while also integrating with the C/C++ `libremidi` library via FFI.
 
 Despite these improvements, `mhs-midi` remained an outlier: relocating it without friction was still difficult. Ideally, it should be distributable as a single executable that users can download and run immediately, without installing MicroHs or configuring `MHSDIR`. To explore this possibility, an experiment was designed with the following objectives:
 
@@ -357,4 +357,4 @@ The exploratory work to develop the standalone `mhs-midi` implementation was gre
 
 - [MicroHs](https://github.com/augustss/MicroHs) - A small Haskell compiler
 - [fmemopen(3)](https://man7.org/linux/man-pages/man3/fmemopen.3.html) - Memory stream interface
-- [midi-langs](https://github.com/smola/midi-langs) - MIDI programming languages including mhs-midi
+- [midi-langs](https://github.com/shakfu/midi-langs) - MIDI programming languages including mhs-midi
