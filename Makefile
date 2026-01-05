@@ -3,7 +3,6 @@
 BUILD_DIR := build
 CMAKE := cmake
 CTEST := ctest
-MHS := thirdparty/MicroHs/bin/mhs
 PRELUDE2C := ./scripts/prelude2c.py
 
 # Prelude source files and their generated headers
@@ -35,16 +34,14 @@ $(HEADER_PY): $(PRELUDE_PY) $(PRELUDE2C)
 preludes: $(PRELUDE_HEADERS)
 	@echo "Generated prelude headers"
 
-$(MHS):
-	@make -C thirdparty/MicroHs
-
-configure: $(MHS) $(PRELUDE_HEADERS)
+# CMake handles MicroHs build automatically during configuration
+configure: $(PRELUDE_HEADERS)
 	@$(CMAKE) -B $(BUILD_DIR)
 
 build: configure
 	@$(CMAKE) --build $(BUILD_DIR) -j4
 
-build-debug: $(MHS) $(PRELUDE_HEADERS)
+build-debug: $(PRELUDE_HEADERS)
 	@$(CMAKE) -DENABLE_SANITIZERS=ON -DCMAKE_BUILD_TYPE=Debug -B $(BUILD_DIR)
 	@$(CMAKE) --build $(BUILD_DIR)
 
@@ -71,6 +68,7 @@ help:
 	@echo "Targets:"
 	@echo "  all          Build everything (default)"
 	@echo "  build        Build all targets"
+	@echo "  build-debug  Build all w/ debug and santizer modes"
 	@echo "  configure    Run CMake configuration"
 	@echo "  preludes     Generate C headers from prelude source files"
 	@echo "  clean        Remove build directory"
@@ -78,7 +76,5 @@ help:
 	@echo "  test-quick   Run quick tests only"
 	@echo "  test-verbose Run tests with verbose output"
 	@echo "  rebuild      Clean and build"
+	@echo "  reset        Reset project to initial state"
 	@echo ""
-	@echo "Executables (after build):"
-	@echo "  $(BUILD_DIR)/forth"
-	@echo "  $(BUILD_DIR)/midi_forth"

@@ -9,9 +9,30 @@ set(MHS_LIB ${MHS_DIR}/lib)
 set(MIDI_LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib)
 set(EXAMPLES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/examples)
 
-# Check that MicroHs compiler exists
+# Build MicroHs compiler if it doesn't exist
 if(NOT EXISTS ${MHS_COMPILER})
-    message(FATAL_ERROR "MicroHs compiler not found at ${MHS_COMPILER}. Please build MicroHs first.")
+    message(STATUS "Building MicroHs compiler...")
+    if(WIN32)
+        execute_process(
+            COMMAND nmake -f Makefile.windows
+            WORKING_DIRECTORY ${MHS_DIR}
+            RESULT_VARIABLE MHS_BUILD_RESULT
+        )
+    else()
+        execute_process(
+            COMMAND make
+            WORKING_DIRECTORY ${MHS_DIR}
+            RESULT_VARIABLE MHS_BUILD_RESULT
+        )
+    endif()
+    if(NOT MHS_BUILD_RESULT EQUAL 0)
+        message(FATAL_ERROR "Failed to build MicroHs compiler")
+    endif()
+endif()
+
+# Verify MicroHs compiler exists after build attempt
+if(NOT EXISTS ${MHS_COMPILER})
+    message(FATAL_ERROR "MicroHs compiler not found at ${MHS_COMPILER}")
 endif()
 
 # Create a static library for the MIDI FFI

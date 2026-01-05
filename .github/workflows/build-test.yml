@@ -1,0 +1,116 @@
+name: build-test
+
+on: [workflow_dispatch]
+  # push:
+  #   branches: [main]
+  # pull_request:
+  #   branches: [main]
+
+jobs:
+  build-and-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            cmake_generator: "Unix Makefiles"
+            artifact_name: midi-langs-linux
+          - os: macos-latest
+            cmake_generator: "Unix Makefiles"
+            artifact_name: midi-langs-macos
+          - os: windows-latest
+            cmake_generator: "Visual Studio 17 2022"
+            artifact_name: midi-langs-windows
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libreadline-dev
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Generate prelude headers
+        run: |
+          python scripts/prelude2c.py projects/s7-midi/prelude.scm
+          python scripts/prelude2c.py projects/lua-midi/prelude.lua
+          python scripts/prelude2c.py projects/pktpy-midi/prelude.py
+
+      - name: Configure CMake
+        run: cmake -B build -G "${{ matrix.cmake_generator }}"
+
+      - name: Build
+        run: cmake --build build --config Release -j4
+
+      - name: Run tests (Linux - skip MIDI tests)
+        if: runner.os == 'Linux'
+        run: ctest --test-dir build --output-on-failure -C Release -LE midi
+
+      - name: Run tests (macOS/Windows)
+        if: runner.os != 'Linux'
+        run: ctest --test-dir build --output-on-failure -C Release
+
+      - name: Prepare artifacts (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          mkdir -p artifacts
+          cp build/forth_midi artifacts/
+          cp build/lua_midi artifacts/
+          cp build/pktpy_midi artifacts/
+          cp build/s7_midi artifacts/
+          cp build/alda_midi artifacts/
+          cp build/mhs-midi artifacts/
+
+      - name: Prepare artifacts (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          cp build/Release/forth_midi.exe artifacts/ || true
+          cp build/Release/lua_midi.exe artifacts/ || true
+          cp build/Release/pktpy_midi.exe artifacts/ || true
+          cp build/Release/s7_midi.exe artifacts/ || true
+          cp build/Release/alda_midi.exe artifacts/ || true
+          cp build/Release/mhs-midi.exe artifacts/ || true
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: artifacts/
+          if-no-files-found: error
+
+  collect-artifacts:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all-artifacts
+
+      - name: List collected artifacts
+        run: |
+          echo "Collected artifacts:"
+          find all-artifacts -type f | sort
+
+      - name: Upload combined artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: midi-langs-all
+          path: all-artifacts/
+          if-no-files-found: warn

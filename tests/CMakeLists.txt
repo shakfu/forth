@@ -320,6 +320,13 @@ add_test(
 )
 
 set_tests_properties(
+    demo_example_mhs
+    PROPERTIES
+        LABELS "integration"
+        TIMEOUT 120
+)
+
+set_tests_properties(
     demo_example_alda
     demo_example_forth
     demo_example_pktpy
@@ -330,11 +337,4 @@ set_tests_properties(
 set_tests_properties(
     demo_example_lua
     PROPERTIES LABELS "quick;midi"
-)
-
-set_tests_properties(
-    demo_example_mhs
-    PROPERTIES
-        LABELS "integration"
-        TIMEOUT 120
 )

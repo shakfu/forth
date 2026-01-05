@@ -4,6 +4,31 @@ All notable changes to midi-langs are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **CI/CD**: GitHub Actions workflow (`build-test.yml`) for cross-platform builds
+  - Builds on Ubuntu, macOS, and Windows
+  - Artifact uploads for each platform (`midi-langs-linux`, `midi-langs-macos`, `midi-langs-windows`)
+  - Combined artifact collection (`midi-langs-all`)
+  - MIDI-dependent tests automatically skipped on Linux CI (no virtual MIDI ports)
+
+### Changed
+
+- **Build System**: MicroHs now builds automatically during CMake configuration
+  - No longer requires manual `make -C thirdparty/MicroHs` step
+  - Uses `make` on Unix, `nmake -f Makefile.windows` on Windows
+  - Simplified Makefile - removed MicroHs build dependency
+
+- **Cross-platform**: Readline now optional on Windows for all MIDI languages
+  - forth-midi, lua-midi, pktpy-midi, s7-midi, alda-midi
+  - Simple fallback provides basic input (no line editing/history/completion)
+  - Linux/macOS still require readline (`libreadline-dev` on Linux)
+  - Windows argument parsing uses simple fallback instead of getopt
+
+### Fixed
+
+- **CI**: Linux builds now install `libreadline-dev` for readline support
+
 ## [0.1.6]
 
 ### Added
