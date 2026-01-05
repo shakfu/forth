@@ -1,5 +1,3 @@
-# Creating a Self-Contained MicroHs Binary with Embedded Libraries
-
 This document describes how to create a self-contained MicroHs-based application that embeds all MicroHaskell libraries and can compile programs to standalone executables without any external file dependencies.
 
 ## Background
@@ -272,7 +270,7 @@ if (linking_midi) {
 
 ## Generalizing for Other Projects
 
-This approach turned out to be quite useful, can be adapted for any MicroHs-based application:
+This approach turned out to be quite useful, and can be adapted for any MicroHs-based application:
 
 ### 1. Minimal Standalone (REPL/Run only)
 
@@ -303,7 +301,7 @@ If your application has C dependencies:
 
 ### Potential MicroHs Enhancement
 
-A potential enhancement to MicroHs itself could be a compile-time option to embed libraries vin the integration of `embed_lib.c`:
+A potential enhancement to MicroHs itself could be a compile-time option to embed libraries:
 
 ```
 mhs --embed-libs=./lib --embed-runtime -o my_repl MyRepl.hs
@@ -326,6 +324,7 @@ The C implementation of `embed_libs.c` (~500 lines, no dependencies) could be in
 |--------|------|--------------|
 | mhs-midi | 782KB | Requires MHSDIR (auto-detected) |
 | mhs-midi-standalone | 3.2MB | Fully self-contained |
+| mhs-midi-standalone (zstd) | 1.3MB | Fully self-contained, compressed |
 
 The standalone binary:
 - Embeds 273 files (~2.5MB of content)
@@ -333,28 +332,138 @@ The standalone binary:
 - Can compile HelloMidi.hs to 859KB standalone executable
 - Works on macOS and Linux (Windows has separate MicroHs build issues)
 
+## Optional: Zstd Compression
+
+The embedded files can be compressed using zstd with dictionary mode to significantly reduce binary size. This is an optional build-time feature controlled by the `MHS_USE_ZSTD` CMake option.
+
+### Compression Results
+
+| Metric | Uncompressed | Zstd Compressed |
+|--------|--------------|-----------------|
+| Binary size | 3.2 MB | 1.3 MB |
+| Embedded data | 2.5 MB | 367 KB |
+| Compression ratio | 1x | 5.2x |
+| Startup overhead | None | ~50ms |
+
+Dictionary-based compression is particularly effective for Haskell source files because they share common patterns (`module`, `import`, type signatures, etc.).
+
+### Build Options
+
+```bash
+# Default: uncompressed (faster startup)
+cmake -B build
+cmake --build build --target mhs-midi-standalone
+
+# With zstd compression (smaller binary)
+cmake -B build -DMHS_USE_ZSTD=ON
+cmake --build build --target mhs-midi-standalone
+```
+
+### How It Works
+
+The compression system consists of:
+
+1. **`embed_libs_zstd.c`** - A C tool that:
+   - Collects all files to embed
+   - Trains a zstd dictionary (~112KB) on text files (.hs, .c, .h)
+   - Compresses each file using the dictionary
+   - Generates `mhs_embedded_zstd.h` with compressed byte arrays
+
+2. **`vfs_unified.c`** - A unified VFS that:
+   - When `VFS_USE_ZSTD` is defined: decompresses files on demand using the embedded dictionary
+   - When undefined: serves uncompressed files directly
+   - Caches decompressed content for repeated access
+
+3. **`zstddeclib.c`** - The decompress-only zstd library (~900KB source) linked into the binary
+
+### Implementation Details
+
+```c
+// vfs_unified.c - compile-time switch
+#ifdef VFS_USE_ZSTD
+#include "zstd.h"
+#include "mhs_embedded_zstd.h"  // Compressed data + dictionary
+#else
+#include "mhs_embedded_libs.h"  // Uncompressed data
+#endif
+
+FILE* vfs_fopen(const char* path, const char* mode) {
+    // ... lookup file ...
+#ifdef VFS_USE_ZSTD
+    // Decompress on first access, cache result
+    CachedFile* cached = get_cache_entry(ef->path);
+    if (!cached) {
+        cached = decompress_and_cache(ef);
+    }
+    return fmemopen(cached->content, cached->length, "r");
+#else
+    return fmemopen((void*)ef->content, ef->length, "r");
+#endif
+}
+```
+
+The dictionary training analyzes patterns across all text files:
+
+```bash
+# Build the compression tool
+cc -O2 -o embed_libs_zstd scripts/embed_libs_zstd.c \
+   thirdparty/zstd-1.5.7/zstd.c -Ithirdparty/zstd-1.5.7 -lpthread
+
+# Generate compressed header
+./embed_libs_zstd mhs_embedded_zstd.h lib/ \
+   --runtime src/runtime/ \
+   --lib liblibremidi.a
+
+# Output:
+# Training dictionary from 268 samples (1361249 bytes)...
+# Dictionary trained: 114688 bytes
+# Compression: 1361249 -> 261100 bytes (5.21x)
+```
+
+### Trade-offs
+
+| Aspect | Uncompressed | Zstd Compressed |
+|--------|--------------|-----------------|
+| Binary size | Larger (+1.9 MB) | Smaller |
+| Startup time | Instant | ~50ms dictionary load |
+| Runtime memory | Lower | Cache grows on demand |
+| Build complexity | Simple | Requires zstd |
+| Code size | ~200 lines | ~400 lines + zstddeclib |
+
+Choose zstd compression when binary size matters (distribution, embedded systems). Choose uncompressed when startup latency is critical or build simplicity is preferred.
+
 ## Files
 
 ```
 scripts/
     embed_libs.py         # Convert files to C header (Python)
-    embed_libs.c          # Convert files to C header (C, for MicroHs integration)
+    embed_libs.c          # Convert files to C header (C)
+    embed_libs_zstd.c     # Convert files to C header with zstd compression
     patch_eval_vfs.py     # Patch eval.c for override
 
 projects/mhs-midi/
-    vfs.c, vfs.h          # Virtual filesystem
+    vfs.c, vfs.h          # Virtual filesystem (uncompressed)
+    vfs_unified.c         # Unified VFS (both compressed and uncompressed)
+    vfs_unified.h         # Header for unified VFS
+    vfs_zstd.c, vfs_zstd.h  # Zstd-only VFS (alternative)
     mhs_ffi_override.c    # FFI intercept
     mhs_midi_standalone_main.c  # Entry point
+
+thirdparty/zstd-1.5.7/
+    zstd.c, zstd.h        # Full zstd library (for compression tool)
+    zstddeclib.c          # Decompress-only library (for runtime)
+    zdict.h               # Dictionary training API
 ```
 
 ## Acknowledgments
 
 Thanks to Lennart Augustsson for creating `MicroHs`, which makes this kind of embedding possible through its use of combinators, clean FFI design and single-file C output.
 
-The exploratory work to develop the standalone `mhs-midi` implementation was great accelerated by the use of claude-code.
+The exploratory work to develop the standalone `mhs-midi` implementation was greatly accelerated by the use of claude-code.
 
 ## References
 
 - [MicroHs](https://github.com/augustss/MicroHs) - A small Haskell compiler
 - [fmemopen(3)](https://man7.org/linux/man-pages/man3/fmemopen.3.html) - Memory stream interface
 - [midi-langs](https://github.com/shakfu/midi-langs) - MIDI programming languages including mhs-midi
+- [Zstandard](https://github.com/facebook/zstd) - Fast lossless compression algorithm with dictionary support

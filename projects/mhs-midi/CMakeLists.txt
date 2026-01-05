@@ -204,33 +204,78 @@ add_strip_command(mhs-midi)
 # mhs-midi-standalone: Self-contained binary with embedded libraries
 # ============================================
 
+# Option to use zstd compression for embedded files
+option(MHS_USE_ZSTD "Use zstd compression for embedded files (smaller binary)" OFF)
+
+set(ZSTD_DIR ${CMAKE_SOURCE_DIR}/thirdparty/zstd-1.5.7)
+
 # Generate embedded library header
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
-set(EMBEDDED_LIBS_HEADER ${CMAKE_CURRENT_BINARY_DIR}/mhs_embedded_libs.h)
+# Build embed_libs_zstd tool if using zstd compression
+if(MHS_USE_ZSTD)
+    set(EMBED_LIBS_ZSTD ${CMAKE_BINARY_DIR}/embed_libs_zstd)
+    add_custom_command(
+        OUTPUT ${EMBED_LIBS_ZSTD}
+        COMMAND ${CMAKE_C_COMPILER} -O2
+            -o ${EMBED_LIBS_ZSTD}
+            ${CMAKE_SOURCE_DIR}/scripts/embed_libs_zstd.c
+            ${ZSTD_DIR}/zstd.c
+            -I${ZSTD_DIR}
+            -lpthread
+        DEPENDS ${CMAKE_SOURCE_DIR}/scripts/embed_libs_zstd.c
+        COMMENT "Building embed_libs_zstd tool"
+        VERBATIM
+    )
 
-add_custom_command(
-    OUTPUT ${EMBEDDED_LIBS_HEADER}
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/embed_libs.py
-        ${EMBEDDED_LIBS_HEADER}
-        ${MHS_LIB}
-        ${MIDI_LIB_DIR}
-        --runtime ${MHS_RUNTIME}
-        --header ${CMAKE_CURRENT_SOURCE_DIR}/midi_ffi.h
-        --lib ${CMAKE_BINARY_DIR}/thirdparty/libremidi/liblibremidi.a
-        --lib ${CMAKE_BINARY_DIR}/projects/mhs-midi/libmidi_ffi.a
-        --lib ${CMAKE_BINARY_DIR}/projects/common/libmusic_theory.a
-        --lib ${CMAKE_BINARY_DIR}/projects/common/libmidi_file.a
-    DEPENDS
-        ${CMAKE_SOURCE_DIR}/scripts/embed_libs.py
-        ${CMAKE_CURRENT_SOURCE_DIR}/midi_ffi.h
-        libremidi
-        midi_ffi
-        music_theory
-        midi_file
-    COMMENT "Generating embedded library header with runtime and MIDI libs"
-    VERBATIM
-)
+    set(EMBEDDED_LIBS_HEADER ${CMAKE_CURRENT_BINARY_DIR}/mhs_embedded_zstd.h)
+    add_custom_command(
+        OUTPUT ${EMBEDDED_LIBS_HEADER}
+        COMMAND ${EMBED_LIBS_ZSTD}
+            ${EMBEDDED_LIBS_HEADER}
+            ${MHS_LIB}
+            ${MIDI_LIB_DIR}
+            --runtime ${MHS_RUNTIME}
+            --header ${CMAKE_CURRENT_SOURCE_DIR}/midi_ffi.h
+            --lib ${CMAKE_BINARY_DIR}/thirdparty/libremidi/liblibremidi.a
+            --lib ${CMAKE_BINARY_DIR}/projects/mhs-midi/libmidi_ffi.a
+            --lib ${CMAKE_BINARY_DIR}/projects/common/libmusic_theory.a
+            --lib ${CMAKE_BINARY_DIR}/projects/common/libmidi_file.a
+        DEPENDS
+            ${EMBED_LIBS_ZSTD}
+            ${CMAKE_CURRENT_SOURCE_DIR}/midi_ffi.h
+            libremidi
+            midi_ffi
+            music_theory
+            midi_file
+        COMMENT "Generating zstd-compressed embedded library header"
+        VERBATIM
+    )
+else()
+    set(EMBEDDED_LIBS_HEADER ${CMAKE_CURRENT_BINARY_DIR}/mhs_embedded_libs.h)
+    add_custom_command(
+        OUTPUT ${EMBEDDED_LIBS_HEADER}
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/embed_libs.py
+            ${EMBEDDED_LIBS_HEADER}
+            ${MHS_LIB}
+            ${MIDI_LIB_DIR}
+            --runtime ${MHS_RUNTIME}
+            --header ${CMAKE_CURRENT_SOURCE_DIR}/midi_ffi.h
+            --lib ${CMAKE_BINARY_DIR}/thirdparty/libremidi/liblibremidi.a
+            --lib ${CMAKE_BINARY_DIR}/projects/mhs-midi/libmidi_ffi.a
+            --lib ${CMAKE_BINARY_DIR}/projects/common/libmusic_theory.a
+            --lib ${CMAKE_BINARY_DIR}/projects/common/libmidi_file.a
+        DEPENDS
+            ${CMAKE_SOURCE_DIR}/scripts/embed_libs.py
+            ${CMAKE_CURRENT_SOURCE_DIR}/midi_ffi.h
+            libremidi
+            midi_ffi
+            music_theory
+            midi_file
+        COMMENT "Generating embedded library header with runtime and MIDI libs"
+        VERBATIM
+    )
+endif()
 
 # Create modified mhs.c for standalone (same as mhs_repl.c)
 add_custom_command(
@@ -257,16 +302,33 @@ add_custom_command(
 # Build the self-contained mhs-midi-standalone executable
 # Uses patched eval_vfs.c so mhs_ffi_override.c can intercept fopen
 # Uses mhs_midi_standalone_main.c (separate from mhs_midi_main.c)
-add_executable(mhs-midi-standalone
+#
+# With MHS_USE_ZSTD=ON:
+#   - Uses vfs_unified.c with VFS_USE_ZSTD defined
+#   - Links zstddeclib.c (decompress-only, ~900KB smaller than full zstd)
+#   - Binary is ~2MB smaller due to compressed embedded files
+#
+# With MHS_USE_ZSTD=OFF (default):
+#   - Uses vfs_unified.c without compression
+#   - No zstd dependency
+#   - Faster startup (no decompression overhead)
+
+set(STANDALONE_SOURCES
     ${CMAKE_CURRENT_BINARY_DIR}/mhs_standalone.c
     ${CMAKE_CURRENT_BINARY_DIR}/eval_vfs.c
     ${CMAKE_CURRENT_SOURCE_DIR}/mhs_midi_standalone_main.c
     ${CMAKE_CURRENT_SOURCE_DIR}/midi_ffi_wrappers.c
     ${CMAKE_CURRENT_SOURCE_DIR}/mhs_ffi_override.c
     ${CMAKE_CURRENT_SOURCE_DIR}/midi_ffi.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/vfs.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/vfs_unified.c
     ${EMBEDDED_LIBS_HEADER}
 )
+
+if(MHS_USE_ZSTD)
+    list(APPEND STANDALONE_SOURCES ${ZSTD_DIR}/zstddeclib.c)
+endif()
+
+add_executable(mhs-midi-standalone ${STANDALONE_SOURCES})
 
 target_include_directories(mhs-midi-standalone PRIVATE
     ${MHS_RUNTIME}
@@ -275,6 +337,11 @@ target_include_directories(mhs-midi-standalone PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR}
     ${CMAKE_SOURCE_DIR}/thirdparty/libremidi/include
 )
+
+if(MHS_USE_ZSTD)
+    target_compile_definitions(mhs-midi-standalone PRIVATE VFS_USE_ZSTD)
+    target_include_directories(mhs-midi-standalone PRIVATE ${ZSTD_DIR})
+endif()
 
 target_link_libraries(mhs-midi-standalone PRIVATE
     music_theory

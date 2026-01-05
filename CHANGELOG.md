@@ -4,6 +4,21 @@ All notable changes to midi-langs are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **mhs-midi-standalone zstd compression**: Optional build-time compression for smaller binaries
+  - New CMake option: `-DMHS_USE_ZSTD=ON` enables zstd dictionary compression
+  - Binary size reduced from 3.2 MB to 1.3 MB (59% smaller)
+  - Embedded files compressed 5.2x (2.5 MB to 367 KB including 112 KB dictionary)
+  - Dictionary-trained compression exploits patterns in Haskell source files
+  - Decompression on demand with caching (~50ms startup overhead)
+  - New files:
+    - `scripts/embed_libs_zstd.c` - C tool for zstd compression with dictionary training
+    - `projects/mhs-midi/vfs_unified.c` - Unified VFS supporting both compressed and uncompressed modes
+    - `projects/mhs-midi/vfs_unified.h` - Header for unified VFS
+  - Uses `zstddeclib.c` (decompress-only, 900 KB) at runtime instead of full zstd library
+  - Documentation added to `docs/mhs-midi/mhs-standalones.md`
+
 ## [0.1.7]
 
 ### Added
