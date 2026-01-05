@@ -162,6 +162,12 @@ Commands:
 ./scripts/mhs-midi repl         # Same, explicit
 ```
 
+**Standalone binary** (no external files needed):
+```sh
+cmake --build build --target mhs-midi-standalone
+./build/mhs-midi-standalone -r MyFile.hs
+```
+
 **Write and compile a program:**
 ```haskell
 -- DemoMhs.hs

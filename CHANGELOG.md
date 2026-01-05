@@ -6,6 +6,13 @@ All notable changes to midi-langs are documented in this file.
 
 ### Added
 
+- **mhs-midi-standalone**: Self-contained binary with embedded Haskell libraries
+  - No external files required - all 240 MicroHs library files embedded (~1MB)
+  - Pure memory-based VFS using `fmemopen()` for zero-copy file access
+  - Build: `cmake --build build --target mhs-midi-standalone`
+  - Debug mode: `MHS_USE_FILESYSTEM=1` bypasses VFS for troubleshooting
+  - New files: `vfs.c/h`, `mhs_ffi_override.c`, `scripts/embed_libs.py`, `scripts/patch_eval_vfs.py`
+
 - **CI/CD**: GitHub Actions workflow (`build-test.yml`) for cross-platform builds
   - Builds on Ubuntu, macOS, and Windows
   - Artifact uploads for each platform (`midi-langs-linux`, `midi-langs-macos`, `midi-langs-windows`)
