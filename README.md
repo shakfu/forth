@@ -30,10 +30,34 @@ Requires GCC/Clang and CMake 3.16+.
 ### alda-midi
 
 ```sh
-./build/alda_midi           # Start REPL
-./build/alda_midi -s        # Start REPL in sequential mode
-./build/alda_midi song.alda # Play a file
+% ./build/alda_midi --help
+Usage: ./build/alda_midi [options] [file.alda]
+
+Alda music language interpreter with MIDI output.
+If no file is provided, starts an interactive REPL.
+
+Options:
+  -h, --help        Show this help message
+  -v, --verbose     Enable verbose output
+  -l, --list        List available MIDI ports
+  -p, --port N      Use MIDI port N (0-based index)
+  -o, --output NAME Use MIDI port matching NAME
+  --virtual NAME    Create virtual MIDI port with NAME
+  --no-sleep        Disable timing delays (for testing)
+  -s, --sequential  Use sequential playback mode (wait for each input)
+
+By default, connects to the first available MIDI port (or creates a virtual
+port if none exist) and uses concurrent mode for polyphonic playback.
+
+Examples:
+  ./build/alda_midi                            Start interactive REPL
+  ./build/alda_midi song.alda                  Play an Alda file
+  ./build/alda_midi -l                         List MIDI ports
+  ./build/alda_midi -p 0 song.alda             Play using port 0
+  ./build/alda_midi --virtual iMIDI song.alda  Create virtual port + play song
 ```
+
+You can enter alda syntax in a repl or create `.alda` files in a text-editor:
 
 ```alda
 piano:

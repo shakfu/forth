@@ -40,11 +40,11 @@ static void print_usage(const char* prog) {
     printf("port if none exist) and uses concurrent mode for polyphonic playback.\n");
     printf("\n");
     printf("Examples:\n");
-    printf("  %s                        Start interactive REPL\n", prog);
-    printf("  %s song.alda              Play an Alda file\n", prog);
-    printf("  %s -l                     List MIDI ports\n", prog);
-    printf("  %s -p 0 song.alda         Play using port 0\n", prog);
-    printf("  %s --virtual AldaMIDI song.alda  Create virtual port\n", prog);
+    printf("  %s                            Start interactive REPL\n", prog);
+    printf("  %s song.alda                  Play an Alda file\n", prog);
+    printf("  %s -l                         List MIDI ports\n", prog);
+    printf("  %s -p 0 song.alda             Play using port 0\n", prog);
+    printf("  %s --virtual iMIDI song.alda  Create virtual port + play song\n", prog);
     printf("\n");
 }
 
