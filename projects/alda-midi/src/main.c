@@ -384,9 +384,12 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    /* Get input file if provided */
-    if (optind < argc) {
-        input_file = argv[optind];
+    /* Get input file if provided (skip empty strings from -sf pre-processing) */
+    for (int i = optind; i < argc; i++) {
+        if (argv[i][0] != '\0') {
+            input_file = argv[i];
+            break;
+        }
     }
 #endif
 

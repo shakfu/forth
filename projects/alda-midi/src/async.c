@@ -9,6 +9,8 @@
 
 #include "alda/async.h"
 #include "alda/scheduler.h"
+#include "alda/midi_backend.h"
+#include "alda/tsf_backend.h"
 #include <uv.h>
 #include <stdlib.h>
 #include <string.h>
@@ -63,6 +65,9 @@ typedef struct {
     /* MIDI output handle (borrowed from context) */
     libremidi_midi_out_handle* midi_out;
 
+    /* Context reference (for TSF routing) */
+    AldaContext* ctx;
+
     /* Concurrent mode flag */
     int concurrent_mode;
 
@@ -83,10 +88,38 @@ static AsyncSlot* find_free_slot(void);
  * ============================================================================ */
 
 static void send_event(AldaScheduledEvent* evt) {
+    int channel = evt->channel;  /* 0-based in events */
+    int channel_1based = channel + 1;  /* TSF/midi_backend expect 1-based */
+
+    /* Route to TSF if enabled (takes priority) */
+    if (async_sys.ctx && async_sys.ctx->tsf_enabled && alda_tsf_is_enabled()) {
+        switch (evt->type) {
+            case ALDA_EVT_NOTE_ON:
+                alda_tsf_send_note_on(channel_1based, evt->data1, evt->data2);
+                break;
+            case ALDA_EVT_NOTE_OFF:
+                alda_tsf_send_note_off(channel_1based, evt->data1);
+                break;
+            case ALDA_EVT_PROGRAM:
+                alda_tsf_send_program(channel_1based, evt->data1);
+                break;
+            case ALDA_EVT_CC:
+                alda_tsf_send_cc(channel_1based, evt->data1, evt->data2);
+                break;
+            case ALDA_EVT_PAN:
+                alda_tsf_send_cc(channel_1based, 10, evt->data1);  /* CC 10 = Pan */
+                break;
+            case ALDA_EVT_TEMPO:
+                /* Handled elsewhere */
+                break;
+        }
+        return;
+    }
+
+    /* Fall back to MIDI output */
     if (!async_sys.midi_out) return;
 
     unsigned char msg[3];
-    int channel = evt->channel;  /* Already 0-based */
 
     switch (evt->type) {
         case ALDA_EVT_NOTE_ON:
@@ -344,8 +377,9 @@ int alda_events_play_async(AldaContext* ctx) {
         return 0;  /* Nothing to play */
     }
 
-    if (!ctx->midi_out) {
-        fprintf(stderr, "No MIDI output open\n");
+    /* Check if any output is available (MIDI or built-in synth) */
+    if (!ctx->midi_out && !(ctx->tsf_enabled && alda_tsf_is_enabled())) {
+        fprintf(stderr, "No audio output available\n");
         return -1;
     }
 
@@ -397,6 +431,7 @@ int alda_events_play_async(AldaContext* ctx) {
     slot->active = 1;
     async_sys.active_count++;
     async_sys.midi_out = ctx->midi_out;
+    async_sys.ctx = ctx;
 
     uv_mutex_unlock(&async_sys.mutex);
 

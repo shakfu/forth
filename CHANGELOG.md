@@ -6,6 +6,20 @@ All notable changes to midi-langs are documented in this file.
 
 ### Added
 
+- **alda-midi built-in synthesizer**: TinySoundFont + miniaudio integration for direct audio output
+  - No external synth required - just provide a SoundFont (.sf2) file
+  - CLI: `-sf, --soundfont PATH` to use built-in synth
+  - REPL commands:
+    - `sf-load PATH` - Load soundfont and switch to built-in synth
+    - `sf-list` - List soundfont presets
+    - `midi` - Switch to MIDI output
+    - `builtin` - Switch back to built-in synth
+  - Fallback model: TSF takes priority when enabled, otherwise MIDI output
+  - Thread-safe audio rendering with mutex-protected TSF calls
+  - 44.1kHz stereo float output via miniaudio
+  - New files: `tsf_backend.h`, `tsf_backend.c`
+  - Dependencies: `thirdparty/TinySoundFont/`, `thirdparty/miniaudio/`
+
 - **mhs-midi-standalone zstd compression**: Optional build-time compression for smaller binaries
   - New CMake option: `-DMHS_USE_ZSTD=ON` enables zstd dictionary compression
   - Binary size reduced from 3.2 MB to 1.3 MB (59% smaller)

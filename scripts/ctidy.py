@@ -103,7 +103,7 @@ def main() -> int:
     base_includes = [inc for inc in [local_inc] if inc]
 
     projects = [
-        ("alda-midi", ["alda-midi/include"], []),
+        ("alda-midi", ["alda-midi/include"], ["TinySoundFont", "miniaudio"]),
         ("forth-midi", ["forth-midi/include"], []),
         ("lua-midi", ["lua-midi/include"], ["lua-5.5.0/src"]),
         ("s7-midi", ["s7-midi/include"], ["s7"]),

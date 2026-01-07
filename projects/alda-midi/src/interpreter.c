@@ -639,9 +639,11 @@ int alda_interpret_file(AldaContext* ctx, const char* filename) {
     }
 
     /* Read file */
-    size_t read = fread(source, 1, (size_t)size, f);
-    if (read > (size_t)size) read = (size_t)size;
-    source[read] = '\0';
+    size_t bytes_requested = (size_t)size;
+    size_t bytes_read = fread(source, 1, bytes_requested, f);
+    /* Defensive bounds check: fread returns at most bytes_requested */
+    size_t null_pos = (bytes_read < bytes_requested) ? bytes_read : bytes_requested;
+    source[null_pos] = '\0';
     fclose(f);
 
     /* Interpret */

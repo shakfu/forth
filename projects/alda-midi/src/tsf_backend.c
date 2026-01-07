@@ -52,7 +52,7 @@ static void tsf_audio_callback(ma_device* device, void* output, const void* inpu
     if (g_tsf.synth && g_tsf.enabled) {
         tsf_render_float(g_tsf.synth, out, (int)frame_count, 0);
     } else {
-        memset(out, 0, frame_count * TSF_CHANNELS * sizeof(float));
+        memset(out, 0, (size_t)frame_count * TSF_CHANNELS * sizeof(float));
     }
     pthread_mutex_unlock(&g_tsf.mutex);
 }
@@ -130,7 +130,7 @@ int alda_tsf_load_soundfont(const char* path) {
         return -1;
     }
 
-    /* Configure output */
+    /* Configure output: 0.0 dB = full volume */
     tsf_set_output(g_tsf.synth, TSF_STEREO_INTERLEAVED, TSF_SAMPLE_RATE, 0.0f);
     tsf_set_max_voices(g_tsf.synth, TSF_MAX_VOICES);
 
@@ -239,7 +239,7 @@ void alda_tsf_send_note_on(int channel, int pitch, int velocity) {
     }
 
     /* Convert velocity 0-127 to float 0.0-1.0 */
-    float vel = velocity / 127.0f;
+    float vel = (float)velocity / 127.0f;
 
     /* Channel is 1-16, TSF uses 0-15 */
     int ch = (channel - 1) & 0x0F;

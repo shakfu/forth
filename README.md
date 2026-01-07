@@ -384,3 +384,26 @@ Download a GM SoundFont like [FluidR3_GM.sf2](https://musical-artifacts.com/arti
 | s7-midi | [README](docs/s7-midi/README.md), [API](docs/s7-midi/api-reference.md), [Examples](docs/s7-midi/examples.md) |
 
 See [CHANGELOG.md](CHANGELOG.md) for recent changes.
+
+## Prior Art
+
+This is not a comprehensive list:
+
+- [abcmidi](https://abcmidi.sourceforge.io) - Abc2midi is a program that converts an abc music notation file to a MIDI file.
+
+- [alda](https://alda.io) - a text-based programming language for music composition. Designed for musicians who don’t know how to program, as well as programmers who don’t know how to music. 
+
+- [extempore](https://extemporelang.github.io) - an audiovisual live programming environment.
+
+- [lilypond](https://lilypond.org) - a compiled system: it is run on a text file describing the music. The resulting output is viewed on-screen or printed. In some ways, LilyPond is more similar to a programming language than graphical score editing software.
+
+- [melrose](https://github.com/emicklei/melrose) - a tool to create and play music by programming melodies. It uses a custom language to compose notes and create loops and tracks to play.
+
+- [miti](https://github.com/schollz/miti) - a musical instrument textual interface. Basically, its MIDI, but with human-readable text.
+
+- [mma](https://www.mellowood.ca/mma/) - an accompaniment generator. It creates MIDI tracks for a soloist to perform over from a user supplied file containing chords and MMA directives.
+
+- [opusmodus](https://www.opusmodus.com) - a commercial music composition development environment. -- "currently the most advanced software for computer-assisted composition available".
+
+
+
