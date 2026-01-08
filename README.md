@@ -411,5 +411,5 @@ This is not a comprehensive list:
 
 - [textbeat](https://github.com/flipcoder/textbeat) - Compose music in a plaintext format or type music directly in the shell. The format is vertical and column-based, similar to early music trackers, but with syntax inspired by jazz/music theory.
 
-
+- [mezzo](https://github.com/DimaSamoz/mezzo) - A Haskell library for typesafe music composition
 

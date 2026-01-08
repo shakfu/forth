@@ -109,8 +109,8 @@ int main(int argc, char **argv) {
     /* macOS: 4 libraries + 3 frameworks + C++ runtime = 8 -optl pairs = 16 args */
     #define LINK_EXTRA_ARGS 16
 #else
-    /* Linux: 4 libraries + ALSA + C++ runtime = 6 -optl pairs = 12 args */
-    #define LINK_EXTRA_ARGS 12
+    /* Linux: 4 libraries + ALSA + C++ runtime + math = 7 -optl pairs = 14 args */
+    #define LINK_EXTRA_ARGS 14
 #endif
 
 #ifdef VFS_USE_PKG
