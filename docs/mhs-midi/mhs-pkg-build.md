@@ -4,7 +4,7 @@ This document provides some details about the development of `MHS_USE_PKG` mode 
 
 The goal was to improve on the earlier demonstration of embedding the base haskell source files, app source files, MicroHS runtime, and statically compiled FFI dependencies.
 
-## Executive Summary
+## Summary of Findings
 
 The `mhs-midi-standalone` binary embeds Haskell source files using a Virtual Filesystem (VFS), but this requires parsing and compiling ~274 modules on first run, resulting in a ~20 second cold-start delay. This document provides details about the development of `MHS_USE_PKG` mode, which embeds precompiled `.pkg` files instead of source files.
 
@@ -22,12 +22,12 @@ The `mhs-midi-standalone` binary embeds Haskell source files using a Virtual Fil
 
 **When to Use:**
 
-| Build Mode | Cold Start | Warm Cache (.mhscache) |
-| ---------- | ---------- | ---------------------- |
-| Default (.hs embedding) | ~20s | ~0.5s |
-| MHS_USE_PKG | ~1s | ~0.95s |
-| MHS_USE_ZSTD | ~20s | ~0.5s |
-| MHS_USE_PKG + MHS_USE_ZSTD | ~1s | ~0.95s |
+| Build Mode | Cold Start | Warm Cache | Binary Size |
+| ---------- | ---------- | ---------- | ----------- |
+| Default (.hs embedding) | ~20s | ~0.5s | ~3.2 MB |
+| MHS_USE_PKG | ~1s | ~0.95s | ~5.5 MB |
+| MHS_USE_ZSTD | ~20s | ~0.5s | ~1.3 MB |
+| MHS_USE_PKG + MHS_USE_ZSTD | ~1s | ~0.95s | ~2.5 MB |
 
 - **`MHS_USE_PKG`**: Recommended for distribution to end users (fast first run, ~5.5 MB binary)
 - **`MHS_USE_PKG + MHS_USE_ZSTD`**: Best balance of fast startup and small size (~1s startup, ~2.5 MB binary)
@@ -291,12 +291,12 @@ During compilation, the VFS extracts these to a temporary directory for `cc` to 
 
 ### Startup Time
 
-| Build Mode | Cold Start | Warm Cache (.mhscache) |
-| ---------- | ---------- | ---------------------- |
-| Default (.hs embedding) | ~20s | ~0.5s |
-| MHS_USE_PKG | ~1s | ~0.95s |
-| MHS_USE_ZSTD | ~20s | ~0.5s |
-| MHS_USE_PKG + MHS_USE_ZSTD | ~1s | ~0.95s |
+| Build Mode | Cold Start | Warm Cache | Binary Size |
+| ---------- | ---------- | ---------- | ----------- |
+| Default (.hs embedding) | ~20s | ~0.5s | ~3.2 MB |
+| MHS_USE_PKG | ~1s | ~0.95s | ~5.5 MB |
+| MHS_USE_ZSTD | ~20s | ~0.5s | ~1.3 MB |
+| MHS_USE_PKG + MHS_USE_ZSTD | ~1s | ~0.95s | ~2.5 MB |
 
 Key insight: `.mhscache` is more efficient than `.pkg` for warm starts because it's a single pre-processed blob. The PKG mode's value is eliminating the 20-second cold-start penalty. Note that `MHS_USE_ZSTD` compresses source files but still requires parsing and compilation, so cold-start time remains ~20s.
 
