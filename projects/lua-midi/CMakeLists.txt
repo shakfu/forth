@@ -53,7 +53,10 @@ target_include_directories(lua_midi PRIVATE
     ${CMAKE_SOURCE_DIR}/thirdparty/libuv/include
 )
 
-target_compile_options(lua_midi PRIVATE -Wall -Wextra -Wno-unused-parameter)
+# Compiler warnings (GCC/Clang only)
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(lua_midi PRIVATE -Wall -Wextra -Wno-unused-parameter)
+endif()
 
 # Check for readline (optional on Windows)
 find_library(READLINE_LIB readline)
@@ -66,8 +69,8 @@ else()
     endif()
 endif()
 
-# Lua requires math library, libuv for async scheduler
-target_link_libraries(lua_midi PRIVATE music_theory midi_file uv_a m)
+# Lua requires libuv for async scheduler
+target_link_libraries(lua_midi PRIVATE music_theory midi_file uv_a)
 
 # Platform-specific dependencies
 if(APPLE)
@@ -77,7 +80,8 @@ if(APPLE)
         "-framework CoreAudio"
     )
 elseif(UNIX)
-    target_link_libraries(lua_midi PRIVATE dl)
+    # Math library and dl needed on Unix
+    target_link_libraries(lua_midi PRIVATE dl m)
     find_package(ALSA)
     if(ALSA_FOUND)
         target_link_libraries(lua_midi PRIVATE ${ALSA_LIBRARIES})

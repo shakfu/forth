@@ -10,7 +10,10 @@ target_include_directories(pktpy_midi PRIVATE
     ${CMAKE_SOURCE_DIR}/thirdparty/pocketpy
 )
 
-target_compile_options(pktpy_midi PRIVATE -Wall -Wextra -Wno-unused-parameter)
+# Compiler warnings (GCC/Clang only)
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(pktpy_midi PRIVATE -Wall -Wextra -Wno-unused-parameter)
+endif()
 
 # Check for readline (optional on Windows)
 find_library(READLINE_LIB readline)

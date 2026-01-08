@@ -19,7 +19,6 @@ set(FORTH_MIDI_CORE_SOURCES
 
 # Create a static library for unit testing
 add_library(forth_midi_lib STATIC ${FORTH_MIDI_CORE_SOURCES})
-target_compile_options(forth_midi_lib PRIVATE -Wall -Wextra)
 target_link_libraries(forth_midi_lib PUBLIC music_theory midi_file uv_a)
 target_include_directories(forth_midi_lib PUBLIC ${CMAKE_SOURCE_DIR}/thirdparty/libuv/include)
 
@@ -27,7 +26,11 @@ target_include_directories(forth_midi_lib PUBLIC ${CMAKE_SOURCE_DIR}/thirdparty/
 add_executable(forth_midi main.c)
 target_link_libraries(forth_midi PRIVATE forth_midi_lib)
 
-target_compile_options(forth_midi PRIVATE -Wall -Wextra)
+# Compiler warnings (GCC/Clang only)
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(forth_midi_lib PRIVATE -Wall -Wextra)
+    target_compile_options(forth_midi PRIVATE -Wall -Wextra)
+endif()
 
 # Link with readline (optional on Windows)
 find_library(READLINE_LIB readline)

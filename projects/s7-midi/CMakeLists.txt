@@ -12,9 +12,13 @@ target_include_directories(s7_midi PRIVATE
     ${CMAKE_SOURCE_DIR}/thirdparty/libuv/include
 )
 
-# Use -Os for size optimization (s7.c is very large)
+# Compiler warnings and size optimization (GCC/Clang only)
+# s7.c is very large, so -Os helps reduce binary size
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(s7_midi PRIVATE -Wall -Wextra -Wno-unused-parameter -Os)
+endif()
+
 # Disable some s7 features to reduce size
-target_compile_options(s7_midi PRIVATE -Wall -Wextra -Wno-unused-parameter -Os)
 target_compile_definitions(s7_midi PRIVATE
     WITH_SYSTEM_EXTRAS=0
     WITH_C_LOADER=0
@@ -32,8 +36,8 @@ else()
     endif()
 endif()
 
-# s7 requires math library, libuv for async scheduler
-target_link_libraries(s7_midi PRIVATE music_theory midi_file uv_a m)
+# s7 requires libuv for async scheduler
+target_link_libraries(s7_midi PRIVATE music_theory midi_file uv_a)
 
 # Platform-specific dependencies
 if(APPLE)
@@ -43,7 +47,8 @@ if(APPLE)
         "-framework CoreAudio"
     )
 elseif(UNIX)
-    target_link_libraries(s7_midi PRIVATE dl)
+    # Math library and dl needed on Unix
+    target_link_libraries(s7_midi PRIVATE dl m)
     find_package(ALSA)
     if(ALSA_FOUND)
         target_link_libraries(s7_midi PRIVATE ${ALSA_LIBRARIES})
