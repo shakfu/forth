@@ -5,6 +5,10 @@
  * 2. Requires no external files (MHSDIR not needed)
  * 3. Supports repl, compile, and run modes
  *
+ * Compile options:
+ *   -DVFS_USE_PKG    Use precompiled .pkg files for fast startup (~0.5s vs ~19s)
+ *   (default)        Use embedded .hs source files (slower startup)
+ *
  * For compilation to executable (-o without .c), files are extracted
  * to a temp directory since cc needs real filesystem access. Linker
  * flags are automatically added to link against embedded MIDI libraries.
@@ -100,6 +104,7 @@ int main(int argc, char **argv) {
 
     /* Build new argv with -C flag for caching, plus linker flags if needed */
     /* Extra args: -C, and if linking: -optl flags for each library + frameworks */
+    /* With VFS_USE_PKG: also add -a and -p flags for package loading */
 #ifdef __APPLE__
     /* macOS: 4 libraries + 3 frameworks + C++ runtime = 8 -optl pairs = 16 args */
     #define LINK_EXTRA_ARGS 16
@@ -108,7 +113,15 @@ int main(int argc, char **argv) {
     #define LINK_EXTRA_ARGS 12
 #endif
 
+#ifdef VFS_USE_PKG
+    /* Package mode: -C + -a/mhs-embedded + -pbase + -pmusic = 4 extra args */
+    #define PKG_EXTRA_ARGS 3
+#else
+    #define PKG_EXTRA_ARGS 0
+#endif
+
     int extra_args = 1;  /* -C */
+    extra_args += PKG_EXTRA_ARGS;
     if (linking_midi) {
         extra_args += LINK_EXTRA_ARGS;
     }
@@ -131,6 +144,13 @@ int main(int argc, char **argv) {
     int j = 0;
     new_argv[j++] = argv[0];
     new_argv[j++] = "-C";  /* Enable caching for faster startup */
+
+#ifdef VFS_USE_PKG
+    /* Package mode: add package search path and preload packages */
+    new_argv[j++] = "-a/mhs-embedded";  /* Package search path */
+    new_argv[j++] = "-pbase";           /* Preload base package */
+    new_argv[j++] = "-pmusic";          /* Preload music package */
+#endif
 
     /* Add linker flags for MIDI libraries if compiling to executable */
     if (linking_midi) {

@@ -30,6 +30,8 @@ A Haskell MIDI library for MicroHs, providing both pure functional composition a
 make
 ```
 
+This builds the default `mhs-midi-standalone` with embedded `.hs` source files.
+
 ### 2. Start the REPL
 
 ```bash
@@ -236,6 +238,75 @@ main = do
 - [API Reference](api-reference.md) - Complete function documentation
 - [Examples](examples.md) - More code examples
 - [Architecture](architecture.md) - How the FFI works
+- [Package Build](mhs-pkg-build.md) - Technical details on `.pkg` embedding
+
+## Standalone Build Options
+
+The `mhs-midi-standalone` binary can be built with different embedding strategies. Choose based on your priorities:
+
+### Build Option Selection Guide
+
+| Priority | Recommended Build | Command |
+|----------|-------------------|---------|
+| Fast first run | `MHS_USE_PKG` | `cmake -B build -DMHS_USE_PKG=ON` |
+| Smallest binary | `MHS_USE_ZSTD` | `cmake -B build -DMHS_USE_ZSTD=ON` |
+| Fast + small | Both | `cmake -B build -DMHS_USE_PKG=ON -DMHS_USE_ZSTD=ON` |
+| Simplest build | Default | `cmake -B build` |
+
+### Performance Comparison
+
+| Build Mode | Cold Start | Warm Cache | Binary Size |
+|------------|------------|------------|-------------|
+| Default | ~20s | ~0.5s | ~3.2 MB |
+| `MHS_USE_PKG` | ~1s | ~0.95s | ~5.5 MB |
+| `MHS_USE_ZSTD` | ~20s | ~0.5s | ~1.3 MB |
+| Both | ~1s | ~0.95s | ~2.5 MB |
+
+**Key insight**: After the first run, `.mhscache` is created and all modes have similar warm-start times (~0.5-1s). The main difference is:
+- **PKG mode**: Eliminates the 20-second cold-start penalty (first run or fresh machine)
+- **ZSTD mode**: Reduces binary size by 60% (useful for distribution)
+
+### Build Commands
+
+The build options are:
+
+| Mode         | What's embedded           | Compression |
+|--------------|---------------------------|-------------|
+| Default      | .hs source files          | None        |
+| MHS_USE_ZSTD | .hs source files          | zstd        |
+| MHS_USE_PKG  | .pkg precompiled packages | None        |
+| Both         | .pkg precompiled packages | zstd        |
+
+They can be used as follows:
+
+```bash
+# Default: embed .hs source files
+cmake -B build
+cmake --build build --target mhs-midi-standalone
+
+# Package mode: fast cold start (~1s vs ~20s)
+# Requires: make install in thirdparty/MicroHs first
+cmake -B build -DMHS_USE_PKG=ON
+cmake --build build --target mhs-midi-standalone
+
+# Compressed mode: smallest binary (~1.3 MB)
+cmake -B build -DMHS_USE_ZSTD=ON
+cmake --build build --target mhs-midi-standalone
+
+# Combined: fast start + small binary
+cmake -B build -DMHS_USE_PKG=ON -DMHS_USE_ZSTD=ON
+cmake --build build --target mhs-midi-standalone
+```
+
+### Prerequisites for MHS_USE_PKG
+
+Package mode requires MicroHs to be installed with packages:
+
+```bash
+cd thirdparty/MicroHs
+make
+make install   # Creates ~/.mcabal/mhs-0.15.2.0/ with base.pkg
+```
 
 ## Requirements
 

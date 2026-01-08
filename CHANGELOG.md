@@ -20,6 +20,20 @@ All notable changes to midi-langs are documented in this file.
   - New files: `tsf_backend.h`, `tsf_backend.c`
   - Dependencies: `thirdparty/TinySoundFont/`, `thirdparty/miniaudio/`
 
+- **mhs-midi-standalone precompiled packages**: Optional `.pkg` embedding for fast cold start
+  - New CMake option: `-DMHS_USE_PKG=ON` embeds precompiled MicroHs packages
+  - Cold start reduced from ~20s to ~1s (20x faster first run)
+  - Hybrid approach: embeds packages AND runtime files for full compilation support
+  - Embedded content:
+    - 2 `.pkg` files (base + music packages, ~2.7 MB)
+    - 190 `.txt` module mapping files for package lookup
+    - 33 runtime source files for standalone executable compilation
+    - Static libraries (libremidi, midi_ffi, music_theory, midi_file)
+  - VFS intercepts `opendir`/`readdir` for virtual package directory listing
+  - New script: `scripts/embed_pkgs.py` for package embedding
+  - Requires `make install` in `thirdparty/MicroHs` first
+  - Documentation: `docs/mhs-midi/mhs-pkg-build.md`
+
 - **mhs-midi-standalone zstd compression**: Optional build-time compression for smaller binaries
   - New CMake option: `-DMHS_USE_ZSTD=ON` enables zstd dictionary compression
   - Binary size reduced from 3.2 MB to 1.3 MB (59% smaller)

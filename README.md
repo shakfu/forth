@@ -393,7 +393,7 @@ This is not a comprehensive list:
 
 - [alda](https://alda.io) - a text-based programming language for music composition. Designed for musicians who don’t know how to program, as well as programmers who don’t know how to music. 
 
-- [chuck](https://chuck.cs.princeton.edu) - a programming language for real-time sound synthesis and music creation.
+- [chuck](https://chuck.cs.princeton.edu) - a strongly-timed programming language for real-time sound synthesis and music creation.
 
 - [extempore](https://extemporelang.github.io) - an audiovisual live programming environment.
 

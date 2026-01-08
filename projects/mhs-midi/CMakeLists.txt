@@ -207,13 +207,74 @@ add_strip_command(mhs-midi)
 # Option to use zstd compression for embedded files
 option(MHS_USE_ZSTD "Use zstd compression for embedded files (smaller binary)" OFF)
 
+# Option to use precompiled .pkg files for faster startup
+option(MHS_USE_PKG "Use precompiled .pkg files for faster startup (~40x improvement)" OFF)
+
 set(ZSTD_DIR ${CMAKE_SOURCE_DIR}/thirdparty/zstd-1.5.7)
 
 # Generate embedded library header
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
-# Build embed_libs_zstd tool if using zstd compression
-if(MHS_USE_ZSTD)
+# Build embedded files header based on options
+if(MHS_USE_PKG)
+    # Package mode: embed precompiled .pkg files for fast startup
+    # Requires base.pkg from MicroHs installation
+    set(BASE_DIR "$ENV{HOME}/.mcabal/mhs-0.15.2.0")
+    set(BASE_PKG "${BASE_DIR}/packages/base-0.15.2.0.pkg")
+    if(NOT EXISTS ${BASE_PKG})
+        message(FATAL_ERROR
+            "base-0.15.2.0.pkg not found at ${BASE_PKG}\n"
+            "Please run 'make install' in thirdparty/MicroHs to install MicroHs packages.")
+    endif()
+
+    # Generate music.pkg from MIDI library sources
+    set(MUSIC_PKG ${CMAKE_CURRENT_BINARY_DIR}/music-0.1.0.pkg)
+    add_custom_command(
+        OUTPUT ${MUSIC_PKG}
+        COMMAND ${CMAKE_COMMAND} -E env "MHSDIR=${MHS_DIR}"
+            ${MHS_COMPILER} -Pmusic-0.1.0 -i${MIDI_LIB_DIR}
+            Async Midi MidiPerform Music MusicPerform
+            -o ${MUSIC_PKG}
+        DEPENDS
+            ${MIDI_LIB_DIR}/Async.hs
+            ${MIDI_LIB_DIR}/Midi.hs
+            ${MIDI_LIB_DIR}/MidiPerform.hs
+            ${MIDI_LIB_DIR}/Music.hs
+            ${MIDI_LIB_DIR}/MusicPerform.hs
+        WORKING_DIRECTORY ${MHS_DIR}
+        COMMENT "Building music-0.1.0.pkg"
+        VERBATIM
+    )
+
+    # Generate embedded packages header (includes .txt module mappings, runtime files, and libraries)
+    set(EMBEDDED_LIBS_HEADER ${CMAKE_CURRENT_BINARY_DIR}/mhs_embedded_pkgs.h)
+    add_custom_command(
+        OUTPUT ${EMBEDDED_LIBS_HEADER}
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/embed_pkgs.py
+            ${EMBEDDED_LIBS_HEADER}
+            --base-pkg ${BASE_PKG}
+            --music-pkg ${MUSIC_PKG}
+            --base-dir ${BASE_DIR}
+            --lib lib/liblibremidi.a=${CMAKE_BINARY_DIR}/thirdparty/libremidi/liblibremidi.a
+            --lib lib/libmidi_ffi.a=${CMAKE_BINARY_DIR}/projects/mhs-midi/libmidi_ffi.a
+            --lib lib/libmusic_theory.a=${CMAKE_BINARY_DIR}/projects/common/libmusic_theory.a
+            --lib lib/libmidi_file.a=${CMAKE_BINARY_DIR}/projects/common/libmidi_file.a
+            --header include/midi_ffi.h=${CMAKE_CURRENT_SOURCE_DIR}/midi_ffi.h
+        DEPENDS
+            ${CMAKE_SOURCE_DIR}/scripts/embed_pkgs.py
+            ${BASE_PKG}
+            ${MUSIC_PKG}
+            ${CMAKE_CURRENT_SOURCE_DIR}/midi_ffi.h
+            libremidi
+            midi_ffi
+            music_theory
+            midi_file
+        COMMENT "Generating embedded packages header (with module mappings, runtime, and libs)"
+        VERBATIM
+    )
+
+elseif(MHS_USE_ZSTD)
+    # Zstd mode: embed compressed .hs files
     set(EMBED_LIBS_ZSTD ${CMAKE_BINARY_DIR}/embed_libs_zstd)
     add_custom_command(
         OUTPUT ${EMBED_LIBS_ZSTD}
@@ -251,7 +312,9 @@ if(MHS_USE_ZSTD)
         COMMENT "Generating zstd-compressed embedded library header"
         VERBATIM
     )
+
 else()
+    # Default mode: embed uncompressed .hs files
     set(EMBEDDED_LIBS_HEADER ${CMAKE_CURRENT_BINARY_DIR}/mhs_embedded_libs.h)
     add_custom_command(
         OUTPUT ${EMBEDDED_LIBS_HEADER}
@@ -338,7 +401,9 @@ target_include_directories(mhs-midi-standalone PRIVATE
     ${CMAKE_SOURCE_DIR}/thirdparty/libremidi/include
 )
 
-if(MHS_USE_ZSTD)
+if(MHS_USE_PKG)
+    target_compile_definitions(mhs-midi-standalone PRIVATE VFS_USE_PKG)
+elseif(MHS_USE_ZSTD)
     target_compile_definitions(mhs-midi-standalone PRIVATE VFS_USE_ZSTD)
     target_include_directories(mhs-midi-standalone PRIVATE ${ZSTD_DIR})
 endif()

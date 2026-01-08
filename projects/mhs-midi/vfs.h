@@ -5,6 +5,7 @@
 
 #include <stdio.h>
 #include <stddef.h>
+#include <dirent.h>
 
 /* Initialize VFS.
  * Returns 0 on success, -1 on failure.
@@ -42,5 +43,18 @@ char* vfs_extract_to_temp(void);
 
 /* Clean up extracted temp directory */
 void vfs_cleanup_temp(char* temp_dir);
+
+/* Directory operations for VFS
+ * These intercept opendir/readdir/closedir for virtual paths
+ */
+
+/* Open a directory - checks VFS first, then falls back to filesystem */
+DIR* vfs_opendir(const char* path);
+
+/* Read next entry from directory */
+struct dirent* vfs_readdir(DIR* dirp);
+
+/* Close directory */
+int vfs_closedir(DIR* dirp);
 
 #endif /* VFS_H */
