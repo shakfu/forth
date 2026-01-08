@@ -9,7 +9,14 @@
 #include "alda/tsf_backend.h"
 #include <stdio.h>
 #include <string.h>
+
+/* Cross-platform sleep */
+#ifdef _WIN32
+#include <windows.h>
+#define usleep(us) Sleep((us) / 1000)
+#else
 #include <unistd.h>
+#endif
 
 /* ============================================================================
  * Port Enumeration Callback
