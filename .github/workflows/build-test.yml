@@ -125,7 +125,11 @@ jobs:
           ls -lh build/${{ matrix.target }}
 
       - name: Run standalone compile test
-        run: ctest --test-dir build -R mhs_standalone_compile --output-on-failure
+        run: |
+          TMPEXE=$(mktemp)
+          ./build/${{ matrix.target }} -o$TMPEXE tests/mhs/TestCompile.hs
+          $TMPEXE
+          rm -f $TMPEXE
 
   collect-artifacts:
     needs: build-and-test
