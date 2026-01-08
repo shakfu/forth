@@ -9,12 +9,30 @@ Example:
         --base-pkg ~/.mcabal/mhs-0.15.2.0/packages/base-0.15.2.0.pkg \
         --music-pkg build/music-0.1.0.pkg \
         --base-dir ~/.mcabal/mhs-0.15.2.0
+
+    # With zstd compression:
+    embed_pkgs.py build/mhs_embedded_pkgs_zstd.h \
+        --base-pkg ~/.mcabal/mhs-0.15.2.0/packages/base-0.15.2.0.pkg \
+        --music-pkg build/music-0.1.0.pkg \
+        --base-dir ~/.mcabal/mhs-0.15.2.0 \
+        --zstd
 """
 
 import argparse
 import os
 import sys
 from pathlib import Path
+
+# Optional zstd support
+try:
+    import zstandard as zstd
+    HAS_ZSTD = True
+except ImportError:
+    HAS_ZSTD = False
+
+# Compression settings
+COMPRESSION_LEVEL = 19  # Max compression (1-22, higher = better ratio, slower)
+DICT_SIZE = 112 * 1024  # 112KB dictionary
 
 
 def format_byte_array(data: bytes, bytes_per_line: int = 16) -> str:
@@ -259,6 +277,204 @@ def generate_music_txt_files(music_pkg_name: str, modules: list[str]) -> list[tu
     return [(f"{module}.txt", music_pkg_name.encode()) for module in modules]
 
 
+def train_dictionary(samples: list[bytes], dict_size: int = DICT_SIZE) -> bytes:
+    """
+    Train a zstd dictionary from sample data.
+    """
+    if not samples:
+        return b""
+
+    total_size = sum(len(s) for s in samples)
+    print(f"Training dictionary from {len(samples)} samples ({total_size:,} bytes)...")
+
+    dict_data = zstd.train_dictionary(dict_size, samples)
+    print(f"Dictionary trained: {len(dict_data.as_bytes()):,} bytes")
+    return dict_data.as_bytes()
+
+
+def compress_with_dict(data: bytes, dict_data: bytes) -> bytes:
+    """Compress data using a pre-trained dictionary."""
+    if dict_data:
+        cdict = zstd.ZstdCompressionDict(dict_data)
+        compressor = zstd.ZstdCompressor(level=COMPRESSION_LEVEL, dict_data=cdict)
+    else:
+        compressor = zstd.ZstdCompressor(level=COMPRESSION_LEVEL)
+    return compressor.compress(data)
+
+
+def generate_header_zstd(output_path: str, packages: list[tuple[str, str]],
+                         txt_files: list[tuple[str, Path]],
+                         runtime_files: list[tuple[str, Path]] = None) -> None:
+    """
+    Generate C header with zstd-compressed embedded package data, module mappings, and runtime files.
+
+    packages: list of (vfs_path, file_path) tuples for .pkg files
+    txt_files: list of (vfs_path, file_path or content_bytes) tuples for .txt module mappings
+    runtime_files: list of (vfs_path, file_path) tuples for runtime source files
+    """
+    if not HAS_ZSTD:
+        print("Error: zstandard package required for --zstd. Install with: pip install zstandard",
+              file=sys.stderr)
+        sys.exit(1)
+
+    if runtime_files is None:
+        runtime_files = []
+
+    # Process packages
+    pkg_entries = []
+    total_pkg_size = 0
+    for vfs_path, file_path in packages:
+        path = Path(file_path).expanduser().resolve()
+        if not path.exists():
+            print(f"Error: Package file not found: {file_path}", file=sys.stderr)
+            sys.exit(1)
+        content = path.read_bytes()
+        total_pkg_size += len(content)
+        pkg_entries.append({
+            'vfs_path': vfs_path,
+            'content': content,
+            'type': 'pkg'
+        })
+        print(f"  {path.name}: {len(content):,} bytes")
+
+    print(f"Packages: {len(packages)} files, {total_pkg_size:,} bytes")
+
+    # Process .txt files
+    txt_entries = []
+    total_txt_size = 0
+    for vfs_path, source in txt_files:
+        if isinstance(source, Path):
+            content = source.read_bytes()
+        else:
+            content = source
+        total_txt_size += len(content)
+        txt_entries.append({
+            'vfs_path': vfs_path,
+            'content': content,
+            'type': 'txt'
+        })
+
+    print(f"Module mappings: {len(txt_files)} .txt files, {total_txt_size:,} bytes")
+
+    # Process runtime files
+    rt_entries = []
+    total_rt_size = 0
+    for vfs_path, file_path in runtime_files:
+        content = file_path.read_bytes()
+        total_rt_size += len(content)
+        rt_entries.append({
+            'vfs_path': vfs_path,
+            'content': content,
+            'type': 'runtime'
+        })
+
+    print(f"Runtime files: {len(runtime_files)} files, {total_rt_size:,} bytes")
+
+    total_uncompressed = total_pkg_size + total_txt_size + total_rt_size
+
+    # Train dictionary on all content for best compression
+    all_content = [e['content'] for e in pkg_entries + txt_entries + rt_entries]
+    dict_data = train_dictionary(all_content) if all_content else b""
+
+    # Compress all entries
+    compressed_entries = []
+    total_compressed = 0
+
+    print("\nCompressing files...")
+    for entry in pkg_entries + txt_entries + rt_entries:
+        compressed = compress_with_dict(entry['content'], dict_data)
+        total_compressed += len(compressed)
+        compressed_entries.append({
+            'vfs_path': entry['vfs_path'],
+            'original': entry['content'],
+            'compressed': compressed,
+            'type': entry['type']
+        })
+
+    # Calculate stats
+    dict_size = len(dict_data)
+    total_embedded = total_compressed + dict_size
+    overall_ratio = total_uncompressed / total_embedded if total_embedded else 0
+
+    print(f"\nCompression results:")
+    print(f"  Original:     {total_uncompressed:,} bytes")
+    print(f"  Compressed:   {total_compressed:,} bytes")
+    print(f"  Dictionary:   {dict_size:,} bytes")
+    print(f"  Total embed:  {total_embedded:,} bytes")
+    print(f"  Ratio:        {overall_ratio:.2f}x")
+    print(f"  Savings:      {total_uncompressed - total_embedded:,} bytes ({100 * (1 - total_embedded/total_uncompressed):.1f}%)")
+
+    # Generate C header
+    with open(output_path, 'w', encoding='utf-8') as f:
+        f.write("/* Auto-generated by embed_pkgs.py --zstd - DO NOT EDIT */\n")
+        f.write(f"/* {len(pkg_entries)} packages, {len(txt_entries)} txt files, {len(rt_entries)} runtime files */\n")
+        f.write(f"/* Original: {total_uncompressed:,} bytes -> Embedded: {total_embedded:,} bytes ({overall_ratio:.2f}x) */\n\n")
+
+        f.write("#ifndef MHS_EMBEDDED_PKGS_ZSTD_H\n")
+        f.write("#define MHS_EMBEDDED_PKGS_ZSTD_H\n\n")
+        f.write("#include <stddef.h>\n")
+        f.write("#include <stdint.h>\n\n")
+
+        # Embed dictionary
+        if dict_data:
+            f.write("/* Zstd dictionary for decompression */\n")
+            f.write("static const unsigned char embedded_pkg_zstd_dict[] = {\n")
+            f.write(format_byte_array(dict_data))
+            f.write('\n};\n')
+            f.write(f"#define EMBEDDED_PKG_DICT_SIZE {len(dict_data)}\n\n")
+        else:
+            f.write("static const unsigned char embedded_pkg_zstd_dict[] = {};\n")
+            f.write("#define EMBEDDED_PKG_DICT_SIZE 0\n\n")
+
+        # Write compressed data arrays
+        f.write("/* Compressed file data */\n")
+        for i, entry in enumerate(compressed_entries):
+            var_name = f"pkgzstd_data_{i}"
+            f.write(f"/* {entry['vfs_path']} ({len(entry['original'])} -> {len(entry['compressed'])}) */\n")
+            f.write(f"static const unsigned char {var_name}[] = {{\n")
+            f.write(format_byte_array(entry['compressed']))
+            f.write('\n};\n\n')
+
+        # File entry structure (unified for all types)
+        f.write("typedef struct {\n")
+        f.write("    const char* path;              /* VFS path */\n")
+        f.write("    const unsigned char* data;     /* Compressed data */\n")
+        f.write("    uint32_t compressed_size;      /* Compressed size */\n")
+        f.write("    uint32_t original_size;        /* Original size */\n")
+        f.write("    uint8_t file_type;             /* 0=pkg, 1=txt, 2=runtime */\n")
+        f.write("} EmbeddedFilePkgZstd;\n\n")
+
+        f.write("#define PKG_FILE_TYPE_PKG     0\n")
+        f.write("#define PKG_FILE_TYPE_TXT     1\n")
+        f.write("#define PKG_FILE_TYPE_RUNTIME 2\n\n")
+
+        # Generate file table
+        f.write("static const EmbeddedFilePkgZstd embedded_files_pkg_zstd[] = {\n")
+        type_map = {'pkg': 0, 'txt': 1, 'runtime': 2}
+        for i, entry in enumerate(compressed_entries):
+            var_name = f"pkgzstd_data_{i}"
+            file_type = type_map[entry['type']]
+            f.write(f'    {{ "{entry["vfs_path"]}", {var_name}, {len(entry["compressed"])}, {len(entry["original"])}, {file_type} }},\n')
+        f.write("    { NULL, NULL, 0, 0, 0 }  /* Sentinel */\n")
+        f.write("};\n\n")
+
+        # Count macros
+        pkg_count = sum(1 for e in compressed_entries if e['type'] == 'pkg')
+        txt_count = sum(1 for e in compressed_entries if e['type'] == 'txt')
+        rt_count = sum(1 for e in compressed_entries if e['type'] == 'runtime')
+
+        f.write(f"#define EMBEDDED_PKG_ZSTD_PACKAGE_COUNT {pkg_count}\n")
+        f.write(f"#define EMBEDDED_PKG_ZSTD_TXT_COUNT {txt_count}\n")
+        f.write(f"#define EMBEDDED_PKG_ZSTD_RUNTIME_COUNT {rt_count}\n")
+        f.write(f"#define EMBEDDED_PKG_ZSTD_TOTAL_COUNT {len(compressed_entries)}\n")
+        f.write(f"#define EMBEDDED_PKG_ZSTD_TOTAL_COMPRESSED {total_compressed}\n")
+        f.write(f"#define EMBEDDED_PKG_ZSTD_TOTAL_ORIGINAL {total_uncompressed}\n\n")
+
+        f.write("#endif /* MHS_EMBEDDED_PKGS_ZSTD_H */\n")
+
+    print(f"Generated: {output_path}")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Convert MicroHs .pkg files and module mappings to C header"
@@ -300,6 +516,11 @@ def main():
         action="append",
         default=[],
         help="Header file to embed (can be repeated). Format: vfs_path=file_path"
+    )
+    parser.add_argument(
+        "--zstd",
+        action="store_true",
+        help="Enable zstd compression (requires zstandard package)"
     )
 
     args = parser.parse_args()
@@ -367,7 +588,14 @@ def main():
         txt_files.append((vfs_path, content))
 
     print("Embedding packages, module mappings, and runtime files:")
-    generate_header(args.output, packages, txt_files, runtime_files)
+    if args.zstd:
+        if not HAS_ZSTD:
+            print("Error: zstandard package required for --zstd. Install with: pip install zstandard",
+                  file=sys.stderr)
+            sys.exit(1)
+        generate_header_zstd(args.output, packages, txt_files, runtime_files)
+    else:
+        generate_header(args.output, packages, txt_files, runtime_files)
 
 
 if __name__ == "__main__":

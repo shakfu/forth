@@ -166,10 +166,12 @@ Commands:
 ./scripts/mhs-midi repl         # Same, explicit
 ```
 
-**Standalone binary** (no external files needed):
+**Standalone binaries** (no external files needed):
 ```sh
-cmake --build build --target mhs-midi-standalone
-./build/mhs-midi-standalone -r MyFile.hs
+cmake --build build --target mhs-midi-pkg-zstd  # Recommended (3MB, fast startup)
+./build/mhs-midi-pkg-zstd -r MyFile.hs
+
+# Other variants: mhs-midi-src (3.3MB), mhs-midi-src-zstd (1.3MB), mhs-midi-pkg (4.8MB)
 ```
 
 **Write and compile a program:**

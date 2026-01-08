@@ -1,17 +1,20 @@
-# Self-Contained mhs-midi Binary
+# Self-Contained mhs-midi Binaries
 
-A self-contained `mhs-midi-standalone` binary with all MicroHs libraries embedded, eliminating external file dependencies.
+Self-contained mhs-midi binaries with all MicroHs libraries embedded, eliminating external file dependencies.
 
-## Two Executables
+## Build Variants
 
-The mhs-midi project builds two separate executables with distinct entry points:
+The mhs-midi project builds multiple executable variants with different trade-offs:
 
-| Executable | Entry Point | Description |
-|------------|-------------|-------------|
-| `mhs-midi` | `mhs_midi_main.c` | Requires MHSDIR (auto-detected or set manually) |
-| `mhs-midi-standalone` | `mhs_midi_standalone_main.c` | All libraries embedded via VFS, no external files |
+| Executable | Size | Cold Start | Description |
+|------------|------|------------|-------------|
+| `mhs-midi` | 782KB | ~20s | Requires MHSDIR (auto-detected or set manually) |
+| `mhs-midi-src` | 3.3MB | ~20s | Source embedding (default standalone) |
+| `mhs-midi-src-zstd` | 1.3MB | ~20s | Compressed source (smallest binary) |
+| `mhs-midi-pkg` | 4.8MB | ~1s | Package embedding (fastest startup) |
+| `mhs-midi-pkg-zstd` | 3.0MB | ~1s | Compressed packages (best balance) |
 
-Both provide identical functionality (REPL, compile, run), but the standalone version is fully self-contained.
+All standalone variants provide identical functionality (REPL, compile, run) and are fully self-contained.
 
 ## Status: Complete
 
@@ -34,19 +37,22 @@ The standalone binary is fully working:
 ### Building
 
 ```sh
-# Build both executables
-cmake --build build --target mhs-midi mhs-midi-standalone
+# Build all variants
+cmake --build build --target mhs-midi-all
 
-# Or build just the standalone
-cmake --build build --target mhs-midi-standalone
+# Or build individual variants:
+cmake --build build --target mhs-midi-src        # Source embedding (default)
+cmake --build build --target mhs-midi-src-zstd   # Compressed source
+cmake --build build --target mhs-midi-pkg        # Package embedding (fastest)
+cmake --build build --target mhs-midi-pkg-zstd   # Compressed packages
 ```
 
 ### Running
 
 ```sh
-# Standalone (no external files needed)
-./build/mhs-midi-standalone -r MyFile.hs
-./build/mhs-midi-standalone
+# Standalone variants (no external files needed)
+./build/mhs-midi-src -r MyFile.hs
+./build/mhs-midi-pkg-zstd              # Recommended for end users
 
 # Non-standalone (requires MHSDIR)
 MHSDIR=./thirdparty/MicroHs ./build/mhs-midi -r MyFile.hs
@@ -106,7 +112,7 @@ The static libraries enable compiling MIDI programs to standalone executables wi
 
 ```
 +---------------------------------------------------------+
-|                  mhs-midi-standalone (3.2MB)             |
+|        Standalone Variants (mhs-midi-src/pkg[-zstd])     |
 +---------------------------------------------------------+
 |  mhs_midi_standalone_main.c                             |
 |    - Initializes VFS                                    |
@@ -119,14 +125,17 @@ The static libraries enable compiling MIDI programs to standalone executables wi
 |    - mhs_fopen() checks VFS first, falls back to fopen()|
 +---------------------------------------------------------+
 |  vfs.c                                                  |
-|    - vfs_fopen() looks up path in embedded_files[]      |
+|    - Serves files via VFS_USE_PKG and/or VFS_USE_ZSTD   |
+|    - vfs_fopen() looks up path in embedded data         |
 |    - Returns fmemopen(content, length, "r") for matches |
+|    - Decompresses zstd content on demand (if enabled)   |
 |    - vfs_extract_to_temp() for compilation mode         |
 +---------------------------------------------------------+
-|  mhs_embedded_libs.h (generated, ~2.5MB)                |
-|    - 240 Haskell source files                           |
-|    - 28 runtime C/H files                               |
-|    - 4 static libraries (.a)                            |
+|  Embedded Header (variant-specific, generated)          |
+|    mhs_embedded_libs.h      - Source files (~2.5MB)     |
+|    mhs_embedded_zstd.h      - Compressed source (~367KB)|
+|    mhs_embedded_pkgs.h      - Package files (~2.6MB)    |
+|    mhs_embedded_pkgs_zstd.h - Compressed pkgs (~1.3MB)  |
 +---------------------------------------------------------+
 |  eval_vfs.c (patched from eval.c)                       |
 |    - Original mhs_fopen renamed to mhs_fopen_orig       |
@@ -223,31 +232,34 @@ from_t mhs_fopen(int s) {
 
 ### Build Integration
 
-```cmake
-# Generate embedded library header with all dependencies
-add_custom_command(
-    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/mhs_embedded_libs.h
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/embed_libs.py
-        ${CMAKE_CURRENT_BINARY_DIR}/mhs_embedded_libs.h
-        ${MHS_LIB}
-        ${MIDI_LIB_DIR}
-        --runtime ${MHS_RUNTIME}
-        --header ${CMAKE_CURRENT_SOURCE_DIR}/midi_ffi.h
-        --lib ${CMAKE_BINARY_DIR}/thirdparty/libremidi/liblibremidi.a
-        --lib ${CMAKE_BINARY_DIR}/projects/mhs-midi/libmidi_ffi.a
-        --lib ${CMAKE_BINARY_DIR}/projects/common/libmusic_theory.a
-        --lib ${CMAKE_BINARY_DIR}/projects/common/libmidi_file.a
-    DEPENDS libremidi midi_ffi music_theory midi_file
-)
+The CMake build uses a function to define each variant:
 
-# Standalone binary with VFS
-add_executable(mhs-midi-standalone
-    ${CMAKE_CURRENT_BINARY_DIR}/mhs_standalone.c
-    ${CMAKE_CURRENT_BINARY_DIR}/eval_vfs.c
-    mhs_midi_standalone_main.c   # VFS initialization
-    mhs_ffi_override.c
-    vfs.c
-    ...
+```cmake
+# Function to create standalone variant with specific VFS mode
+function(add_mhs_standalone_variant TARGET_NAME HEADER_FILE)
+    cmake_parse_arguments(ARG "USE_PKG;USE_ZSTD" "" "" ${ARGN})
+
+    add_executable(${TARGET_NAME} ...)
+    target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+
+    if(ARG_USE_PKG)
+        target_compile_definitions(${TARGET_NAME} PRIVATE VFS_USE_PKG)
+    endif()
+    if(ARG_USE_ZSTD)
+        target_compile_definitions(${TARGET_NAME} PRIVATE VFS_USE_ZSTD)
+        target_link_libraries(${TARGET_NAME} PRIVATE zstddeclib)
+    endif()
+endfunction()
+
+# Define all variants
+add_mhs_standalone_variant(mhs-midi-src ${EMBEDDED_LIBS_HEADER})
+add_mhs_standalone_variant(mhs-midi-src-zstd ${EMBEDDED_ZSTD_HEADER} USE_ZSTD)
+add_mhs_standalone_variant(mhs-midi-pkg ${EMBEDDED_PKG_HEADER} USE_PKG)
+add_mhs_standalone_variant(mhs-midi-pkg-zstd ${EMBEDDED_PKG_ZSTD_HEADER} USE_PKG USE_ZSTD)
+
+# Convenience target for all variants
+add_custom_target(mhs-midi-all DEPENDS
+    mhs-midi-src mhs-midi-src-zstd mhs-midi-pkg mhs-midi-pkg-zstd
 )
 
 # Non-standalone binary (uses filesystem)
@@ -368,9 +380,9 @@ build/projects/mhs-midi/
 
 ## Future Enhancements
 
-1. **Compression** - Use LZ4/zstd to reduce embedded size (~2.5MB currently)
-2. **Selective embedding** - Analyze imports to embed only required modules
-3. **Precompiled cache** - Embed `.mhscache` for faster startup
+1. ~~**Compression** - Use LZ4/zstd to reduce embedded size~~ **Done** - mhs-midi-src-zstd reduces binary from 3.3MB to 1.3MB
+2. ~~**Precompiled packages** - Embed `.pkg` files for faster startup~~ **Done** - mhs-midi-pkg variants start in ~1s vs ~20s
+3. **Selective embedding** - Analyze imports to embed only required modules
 4. **Windows support** - Implement fmemopen fallback when MicroHs Windows builds work
 5. **Incremental extraction** - Only extract files needed for specific compilation
 

@@ -202,182 +202,23 @@ endif()
 add_strip_command(mhs-midi)
 
 # ============================================
-# mhs-midi-standalone: Self-contained binary with embedded libraries
+# mhs-midi standalone variants
+# ============================================
+#
+# Builds 3 standalone variants:
+#   - mhs-midi-src:       source embedding (default)
+#   - mhs-midi-src-zstd:  source embedding + zstd compression
+#   - mhs-midi-pkg:       precompiled .pkg embedding (fast startup)
+
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+set(ZSTD_DIR ${CMAKE_SOURCE_DIR}/thirdparty/zstd-1.5.7)
+set(MHS_VERSION "0.15.2.0")
+
+# ============================================
+# Shared generated files for all standalone variants
 # ============================================
 
-# Option to use zstd compression for embedded files
-option(MHS_USE_ZSTD "Use zstd compression for embedded files (smaller binary)" OFF)
-
-# Option to use precompiled .pkg files for faster startup
-option(MHS_USE_PKG "Use precompiled .pkg files for faster startup (~40x improvement)" OFF)
-
-set(ZSTD_DIR ${CMAKE_SOURCE_DIR}/thirdparty/zstd-1.5.7)
-
-# Generate embedded library header
-find_package(Python3 REQUIRED COMPONENTS Interpreter)
-
-# Build embedded files header based on options
-if(MHS_USE_PKG)
-    # Package mode: embed precompiled .pkg files for fast startup
-    # Build base.pkg in build/ directory (keeps source tree clean)
-    set(MHS_VERSION "0.15.2.0")
-    set(LOCAL_MCABAL "${CMAKE_BINARY_DIR}/mcabal")
-    set(BASE_DIR "${LOCAL_MCABAL}/mhs-${MHS_VERSION}")
-    set(BASE_PKG "${BASE_DIR}/packages/base-${MHS_VERSION}.pkg")
-    set(LOCAL_MCABAL_STAMP "${LOCAL_MCABAL}/.installed")
-    set(MHS_BASE_BUILD "${CMAKE_BINARY_DIR}/mhs-base-src")
-    set(DIST_BASE_PKG "${MHS_BASE_BUILD}/dist-mcabal/base-${MHS_VERSION}.pkg")
-
-    # Copy lib to build/ and build base.pkg there (avoids polluting source tree)
-    add_custom_command(
-        OUTPUT ${DIST_BASE_PKG}
-        COMMAND ${CMAKE_COMMAND} -E make_directory ${MHS_BASE_BUILD}
-        COMMAND ${CMAKE_COMMAND} -E copy_directory ${MHS_LIB} ${MHS_BASE_BUILD}
-        COMMAND ${CMAKE_COMMAND} -E chdir ${MHS_BASE_BUILD}
-            ${CMAKE_COMMAND} -E env
-            "PATH=${MHS_DIR}/bin:$ENV{PATH}"
-            "MHSDIR=${MHS_DIR}"
-            ${MHS_DIR}/bin/mcabal build
-        DEPENDS ${MHS_COMPILER}
-        COMMENT "Building base-${MHS_VERSION}.pkg in build/mhs-base-src"
-        VERBATIM
-    )
-
-    # Install base.pkg locally using mhs -Q, and copy runtime files
-    set(MHS_DATA_DIR "${BASE_DIR}/packages/mhs-${MHS_VERSION}/data")
-    add_custom_command(
-        OUTPUT ${LOCAL_MCABAL_STAMP}
-        COMMAND ${CMAKE_COMMAND} -E make_directory ${LOCAL_MCABAL}/bin
-        COMMAND ${CMAKE_COMMAND} -E make_directory ${BASE_DIR}/packages
-        COMMAND ${CMAKE_COMMAND} -E make_directory ${MHS_DATA_DIR}/src/runtime
-        COMMAND ${CMAKE_COMMAND} -E copy ${MHS_DIR}/bin/mhs ${LOCAL_MCABAL}/bin/
-        COMMAND ${CMAKE_COMMAND} -E copy ${MHS_DIR}/bin/cpphs ${LOCAL_MCABAL}/bin/
-        COMMAND ${CMAKE_COMMAND} -E copy ${MHS_DIR}/bin/mcabal ${LOCAL_MCABAL}/bin/
-        COMMAND ${CMAKE_COMMAND} -E env "MHSDIR=${MHS_DIR}"
-            ${MHS_COMPILER} -Q ${DIST_BASE_PKG} ${BASE_DIR}
-        COMMAND ${CMAKE_COMMAND} -E copy_directory ${MHS_RUNTIME} ${MHS_DATA_DIR}/src/runtime
-        COMMAND ${CMAKE_COMMAND} -E copy ${MHS_DIR}/targets.conf ${MHS_DATA_DIR}/
-        COMMAND ${CMAKE_COMMAND} -E touch ${LOCAL_MCABAL_STAMP}
-        DEPENDS ${MHS_COMPILER} ${DIST_BASE_PKG}
-        COMMENT "Installing MicroHs packages to build/mcabal"
-        VERBATIM
-    )
-    add_custom_target(mhs-local-install DEPENDS ${LOCAL_MCABAL_STAMP})
-
-    # Generate music.pkg from MIDI library sources
-    set(MUSIC_PKG ${CMAKE_CURRENT_BINARY_DIR}/music-0.1.0.pkg)
-    add_custom_command(
-        OUTPUT ${MUSIC_PKG}
-        COMMAND ${CMAKE_COMMAND} -E env "MHSDIR=${MHS_DIR}"
-            ${MHS_COMPILER} -Pmusic-0.1.0 -i${MIDI_LIB_DIR}
-            Async Midi MidiPerform Music MusicPerform
-            -o ${MUSIC_PKG}
-        DEPENDS
-            ${MIDI_LIB_DIR}/Async.hs
-            ${MIDI_LIB_DIR}/Midi.hs
-            ${MIDI_LIB_DIR}/MidiPerform.hs
-            ${MIDI_LIB_DIR}/Music.hs
-            ${MIDI_LIB_DIR}/MusicPerform.hs
-        WORKING_DIRECTORY ${MHS_DIR}
-        COMMENT "Building music-0.1.0.pkg"
-        VERBATIM
-    )
-
-    # Generate embedded packages header (includes .txt module mappings, runtime files, and libraries)
-    set(EMBEDDED_LIBS_HEADER ${CMAKE_CURRENT_BINARY_DIR}/mhs_embedded_pkgs.h)
-    add_custom_command(
-        OUTPUT ${EMBEDDED_LIBS_HEADER}
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/embed_pkgs.py
-            ${EMBEDDED_LIBS_HEADER}
-            --base-pkg ${BASE_PKG}
-            --music-pkg ${MUSIC_PKG}
-            --base-dir ${BASE_DIR}
-            --lib lib/liblibremidi.a=${CMAKE_BINARY_DIR}/thirdparty/libremidi/liblibremidi.a
-            --lib lib/libmidi_ffi.a=${CMAKE_BINARY_DIR}/projects/mhs-midi/libmidi_ffi.a
-            --lib lib/libmusic_theory.a=${CMAKE_BINARY_DIR}/projects/common/libmusic_theory.a
-            --lib lib/libmidi_file.a=${CMAKE_BINARY_DIR}/projects/common/libmidi_file.a
-            --header include/midi_ffi.h=${CMAKE_CURRENT_SOURCE_DIR}/midi_ffi.h
-        DEPENDS
-            ${CMAKE_SOURCE_DIR}/scripts/embed_pkgs.py
-            ${LOCAL_MCABAL_STAMP}
-            ${MUSIC_PKG}
-            ${CMAKE_CURRENT_SOURCE_DIR}/midi_ffi.h
-            libremidi
-            midi_ffi
-            music_theory
-            midi_file
-        COMMENT "Generating embedded packages header (with module mappings, runtime, and libs)"
-        VERBATIM
-    )
-
-elseif(MHS_USE_ZSTD)
-    # Zstd mode: embed compressed .hs files
-    set(EMBED_LIBS_ZSTD ${CMAKE_BINARY_DIR}/embed_libs_zstd)
-    add_custom_command(
-        OUTPUT ${EMBED_LIBS_ZSTD}
-        COMMAND ${CMAKE_C_COMPILER} -O2
-            -o ${EMBED_LIBS_ZSTD}
-            ${CMAKE_SOURCE_DIR}/scripts/embed_libs_zstd.c
-            ${ZSTD_DIR}/zstd.c
-            -I${ZSTD_DIR}
-            -lpthread
-        DEPENDS ${CMAKE_SOURCE_DIR}/scripts/embed_libs_zstd.c
-        COMMENT "Building embed_libs_zstd tool"
-        VERBATIM
-    )
-
-    set(EMBEDDED_LIBS_HEADER ${CMAKE_CURRENT_BINARY_DIR}/mhs_embedded_zstd.h)
-    add_custom_command(
-        OUTPUT ${EMBEDDED_LIBS_HEADER}
-        COMMAND ${EMBED_LIBS_ZSTD}
-            ${EMBEDDED_LIBS_HEADER}
-            ${MHS_LIB}
-            ${MIDI_LIB_DIR}
-            --runtime ${MHS_RUNTIME}
-            --header ${CMAKE_CURRENT_SOURCE_DIR}/midi_ffi.h
-            --lib ${CMAKE_BINARY_DIR}/thirdparty/libremidi/liblibremidi.a
-            --lib ${CMAKE_BINARY_DIR}/projects/mhs-midi/libmidi_ffi.a
-            --lib ${CMAKE_BINARY_DIR}/projects/common/libmusic_theory.a
-            --lib ${CMAKE_BINARY_DIR}/projects/common/libmidi_file.a
-        DEPENDS
-            ${EMBED_LIBS_ZSTD}
-            ${CMAKE_CURRENT_SOURCE_DIR}/midi_ffi.h
-            libremidi
-            midi_ffi
-            music_theory
-            midi_file
-        COMMENT "Generating zstd-compressed embedded library header"
-        VERBATIM
-    )
-
-else()
-    # Default mode: embed uncompressed .hs files
-    set(EMBEDDED_LIBS_HEADER ${CMAKE_CURRENT_BINARY_DIR}/mhs_embedded_libs.h)
-    add_custom_command(
-        OUTPUT ${EMBEDDED_LIBS_HEADER}
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/embed_libs.py
-            ${EMBEDDED_LIBS_HEADER}
-            ${MHS_LIB}
-            ${MIDI_LIB_DIR}
-            --runtime ${MHS_RUNTIME}
-            --header ${CMAKE_CURRENT_SOURCE_DIR}/midi_ffi.h
-            --lib ${CMAKE_BINARY_DIR}/thirdparty/libremidi/liblibremidi.a
-            --lib ${CMAKE_BINARY_DIR}/projects/mhs-midi/libmidi_ffi.a
-            --lib ${CMAKE_BINARY_DIR}/projects/common/libmusic_theory.a
-            --lib ${CMAKE_BINARY_DIR}/projects/common/libmidi_file.a
-        DEPENDS
-            ${CMAKE_SOURCE_DIR}/scripts/embed_libs.py
-            ${CMAKE_CURRENT_SOURCE_DIR}/midi_ffi.h
-            libremidi
-            midi_ffi
-            music_theory
-            midi_file
-        COMMENT "Generating embedded library header with runtime and MIDI libs"
-        VERBATIM
-    )
-endif()
-
-# Create modified mhs.c for standalone (same as mhs_repl.c)
+# Create modified mhs.c for standalone (removes xffi_table definition)
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/mhs_standalone.c
     COMMAND sed -e "s/const struct ffi_entry .xffi_table = imp_table;/\\/\\/ xffi_table defined in midi_ffi_wrappers.c/"
@@ -387,8 +228,7 @@ add_custom_command(
     VERBATIM
 )
 
-# Create patched eval.c that renames mhs_fopen to mhs_fopen_orig
-# This allows our mhs_ffi_override.c to intercept fopen calls for VFS
+# Create patched eval.c that renames mhs_fopen to mhs_fopen_orig for VFS override
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/eval_vfs.c
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/patch_eval_vfs.py
@@ -399,74 +239,295 @@ add_custom_command(
     VERBATIM
 )
 
-# Build the self-contained mhs-midi-standalone executable
-# Uses patched eval_vfs.c so mhs_ffi_override.c can intercept fopen
-# Uses mhs_midi_standalone_main.c (separate from mhs_midi_main.c)
-#
-# Build modes (vfs.c handles all via #ifdef):
-#   - Default: embeds .hs source files (uncompressed)
-#   - MHS_USE_ZSTD=ON: embeds compressed .hs files (~2MB smaller binary)
-#   - MHS_USE_PKG=ON: embeds precompiled .pkg files (~20x faster startup)
-
-set(STANDALONE_SOURCES
-    ${CMAKE_CURRENT_BINARY_DIR}/mhs_standalone.c
-    ${CMAKE_CURRENT_BINARY_DIR}/eval_vfs.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/mhs_midi_standalone_main.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/midi_ffi_wrappers.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/mhs_ffi_override.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/midi_ffi.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/vfs.c
-    ${EMBEDDED_LIBS_HEADER}
+# Build zstd embedding tool (shared by src-zstd and pkg-zstd)
+set(EMBED_LIBS_ZSTD ${CMAKE_BINARY_DIR}/embed_libs_zstd)
+add_custom_command(
+    OUTPUT ${EMBED_LIBS_ZSTD}
+    COMMAND ${CMAKE_C_COMPILER} -O2
+        -o ${EMBED_LIBS_ZSTD}
+        ${CMAKE_SOURCE_DIR}/scripts/embed_libs_zstd.c
+        ${ZSTD_DIR}/zstd.c
+        -I${ZSTD_DIR}
+        -lpthread
+    DEPENDS ${CMAKE_SOURCE_DIR}/scripts/embed_libs_zstd.c
+    COMMENT "Building embed_libs_zstd tool"
+    VERBATIM
 )
 
-if(MHS_USE_ZSTD)
-    list(APPEND STANDALONE_SOURCES ${ZSTD_DIR}/zstddeclib.c)
-endif()
+# ============================================
+# Generate embedded headers for source-based variants
+# ============================================
 
-add_executable(mhs-midi-standalone ${STANDALONE_SOURCES})
-
-target_include_directories(mhs-midi-standalone PRIVATE
-    ${MHS_RUNTIME}
-    ${MHS_RUNTIME}/unix
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_BINARY_DIR}
-    ${CMAKE_SOURCE_DIR}/thirdparty/libremidi/include
+# mhs-midi-src: uncompressed source embedding
+# Uses mhs_embedded_libs.h (expected by vfs.c default mode)
+set(EMBEDDED_SRC_HEADER ${CMAKE_CURRENT_BINARY_DIR}/mhs_embedded_libs.h)
+add_custom_command(
+    OUTPUT ${EMBEDDED_SRC_HEADER}
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/embed_libs.py
+        ${EMBEDDED_SRC_HEADER}
+        ${MHS_LIB}
+        ${MIDI_LIB_DIR}
+        --runtime ${MHS_RUNTIME}
+        --header ${CMAKE_CURRENT_SOURCE_DIR}/midi_ffi.h
+        --lib ${CMAKE_BINARY_DIR}/thirdparty/libremidi/liblibremidi.a
+        --lib ${CMAKE_BINARY_DIR}/projects/mhs-midi/libmidi_ffi.a
+        --lib ${CMAKE_BINARY_DIR}/projects/common/libmusic_theory.a
+        --lib ${CMAKE_BINARY_DIR}/projects/common/libmidi_file.a
+    DEPENDS
+        ${CMAKE_SOURCE_DIR}/scripts/embed_libs.py
+        ${CMAKE_CURRENT_SOURCE_DIR}/midi_ffi.h
+        libremidi
+        midi_ffi
+        music_theory
+        midi_file
+    COMMENT "Generating mhs_embedded_src.h (uncompressed source)"
+    VERBATIM
 )
 
-if(MHS_USE_PKG)
-    target_compile_definitions(mhs-midi-standalone PRIVATE VFS_USE_PKG)
-elseif(MHS_USE_ZSTD)
-    target_compile_definitions(mhs-midi-standalone PRIVATE VFS_USE_ZSTD)
-    target_include_directories(mhs-midi-standalone PRIVATE ${ZSTD_DIR})
-endif()
-
-target_link_libraries(mhs-midi-standalone PRIVATE
-    music_theory
-    midi_file
-    m
+# mhs-midi-src-zstd: compressed source embedding
+# Uses mhs_embedded_zstd.h (expected by vfs.c VFS_USE_ZSTD mode)
+set(EMBEDDED_SRC_ZSTD_HEADER ${CMAKE_CURRENT_BINARY_DIR}/mhs_embedded_zstd.h)
+add_custom_command(
+    OUTPUT ${EMBEDDED_SRC_ZSTD_HEADER}
+    COMMAND ${EMBED_LIBS_ZSTD}
+        ${EMBEDDED_SRC_ZSTD_HEADER}
+        ${MHS_LIB}
+        ${MIDI_LIB_DIR}
+        --runtime ${MHS_RUNTIME}
+        --header ${CMAKE_CURRENT_SOURCE_DIR}/midi_ffi.h
+        --lib ${CMAKE_BINARY_DIR}/thirdparty/libremidi/liblibremidi.a
+        --lib ${CMAKE_BINARY_DIR}/projects/mhs-midi/libmidi_ffi.a
+        --lib ${CMAKE_BINARY_DIR}/projects/common/libmusic_theory.a
+        --lib ${CMAKE_BINARY_DIR}/projects/common/libmidi_file.a
+    DEPENDS
+        ${EMBED_LIBS_ZSTD}
+        ${CMAKE_CURRENT_SOURCE_DIR}/midi_ffi.h
+        libremidi
+        midi_ffi
+        music_theory
+        midi_file
+    COMMENT "Generating mhs_embedded_src_zstd.h (compressed source)"
+    VERBATIM
 )
 
-# Platform-specific dependencies
-if(APPLE)
-    target_link_libraries(mhs-midi-standalone PRIVATE
-        "-framework CoreMIDI"
-        "-framework CoreFoundation"
-        "-framework CoreAudio"
+# ============================================
+# Generate embedded headers for package-based variants
+# ============================================
+
+# Build base.pkg locally (keeps source tree clean)
+set(LOCAL_MCABAL "${CMAKE_BINARY_DIR}/mcabal")
+set(BASE_DIR "${LOCAL_MCABAL}/mhs-${MHS_VERSION}")
+set(BASE_PKG "${BASE_DIR}/packages/base-${MHS_VERSION}.pkg")
+set(LOCAL_MCABAL_STAMP "${LOCAL_MCABAL}/.installed")
+set(MHS_BASE_BUILD "${CMAKE_BINARY_DIR}/mhs-base-src")
+set(DIST_BASE_PKG "${MHS_BASE_BUILD}/dist-mcabal/base-${MHS_VERSION}.pkg")
+
+add_custom_command(
+    OUTPUT ${DIST_BASE_PKG}
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${MHS_BASE_BUILD}
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${MHS_LIB} ${MHS_BASE_BUILD}
+    COMMAND ${CMAKE_COMMAND} -E chdir ${MHS_BASE_BUILD}
+        ${CMAKE_COMMAND} -E env
+        "PATH=${MHS_DIR}/bin:$ENV{PATH}"
+        "MHSDIR=${MHS_DIR}"
+        ${MHS_DIR}/bin/mcabal build
+    DEPENDS ${MHS_COMPILER}
+    COMMENT "Building base-${MHS_VERSION}.pkg in build/mhs-base-src"
+    VERBATIM
+)
+
+# Install base.pkg locally and copy runtime files
+set(MHS_DATA_DIR "${BASE_DIR}/packages/mhs-${MHS_VERSION}/data")
+add_custom_command(
+    OUTPUT ${LOCAL_MCABAL_STAMP}
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${LOCAL_MCABAL}/bin
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${BASE_DIR}/packages
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${MHS_DATA_DIR}/src/runtime
+    COMMAND ${CMAKE_COMMAND} -E copy ${MHS_DIR}/bin/mhs ${LOCAL_MCABAL}/bin/
+    COMMAND ${CMAKE_COMMAND} -E copy ${MHS_DIR}/bin/cpphs ${LOCAL_MCABAL}/bin/
+    COMMAND ${CMAKE_COMMAND} -E copy ${MHS_DIR}/bin/mcabal ${LOCAL_MCABAL}/bin/
+    COMMAND ${CMAKE_COMMAND} -E env "MHSDIR=${MHS_DIR}"
+        ${MHS_COMPILER} -Q ${DIST_BASE_PKG} ${BASE_DIR}
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${MHS_RUNTIME} ${MHS_DATA_DIR}/src/runtime
+    COMMAND ${CMAKE_COMMAND} -E copy ${MHS_DIR}/targets.conf ${MHS_DATA_DIR}/
+    COMMAND ${CMAKE_COMMAND} -E touch ${LOCAL_MCABAL_STAMP}
+    DEPENDS ${MHS_COMPILER} ${DIST_BASE_PKG}
+    COMMENT "Installing MicroHs packages to build/mcabal"
+    VERBATIM
+)
+add_custom_target(mhs-local-install DEPENDS ${LOCAL_MCABAL_STAMP})
+
+# Generate music.pkg
+set(MUSIC_PKG ${CMAKE_CURRENT_BINARY_DIR}/music-0.1.0.pkg)
+add_custom_command(
+    OUTPUT ${MUSIC_PKG}
+    COMMAND ${CMAKE_COMMAND} -E env "MHSDIR=${MHS_DIR}"
+        ${MHS_COMPILER} -Pmusic-0.1.0 -i${MIDI_LIB_DIR}
+        Async Midi MidiPerform Music MusicPerform
+        -o ${MUSIC_PKG}
+    DEPENDS
+        ${MIDI_LIB_DIR}/Async.hs
+        ${MIDI_LIB_DIR}/Midi.hs
+        ${MIDI_LIB_DIR}/MidiPerform.hs
+        ${MIDI_LIB_DIR}/Music.hs
+        ${MIDI_LIB_DIR}/MusicPerform.hs
+    WORKING_DIRECTORY ${MHS_DIR}
+    COMMENT "Building music-0.1.0.pkg"
+    VERBATIM
+)
+
+# mhs-midi-pkg: uncompressed package embedding
+# Uses mhs_embedded_pkgs.h (expected by vfs.c VFS_USE_PKG mode)
+set(EMBEDDED_PKG_HEADER ${CMAKE_CURRENT_BINARY_DIR}/mhs_embedded_pkgs.h)
+add_custom_command(
+    OUTPUT ${EMBEDDED_PKG_HEADER}
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/embed_pkgs.py
+        ${EMBEDDED_PKG_HEADER}
+        --base-pkg ${BASE_PKG}
+        --music-pkg ${MUSIC_PKG}
+        --base-dir ${BASE_DIR}
+        --lib lib/liblibremidi.a=${CMAKE_BINARY_DIR}/thirdparty/libremidi/liblibremidi.a
+        --lib lib/libmidi_ffi.a=${CMAKE_BINARY_DIR}/projects/mhs-midi/libmidi_ffi.a
+        --lib lib/libmusic_theory.a=${CMAKE_BINARY_DIR}/projects/common/libmusic_theory.a
+        --lib lib/libmidi_file.a=${CMAKE_BINARY_DIR}/projects/common/libmidi_file.a
+        --header include/midi_ffi.h=${CMAKE_CURRENT_SOURCE_DIR}/midi_ffi.h
+    DEPENDS
+        ${CMAKE_SOURCE_DIR}/scripts/embed_pkgs.py
+        ${LOCAL_MCABAL_STAMP}
+        ${MUSIC_PKG}
+        ${CMAKE_CURRENT_SOURCE_DIR}/midi_ffi.h
+        libremidi
+        midi_ffi
+        music_theory
+        midi_file
+    COMMENT "Generating mhs_embedded_pkg.h (uncompressed packages)"
+    VERBATIM
+)
+
+# mhs-midi-pkg-zstd: compressed package embedding (smallest + fast startup)
+# Uses mhs_embedded_pkgs_zstd.h (expected by vfs.c VFS_USE_PKG + VFS_USE_ZSTD mode)
+set(EMBEDDED_PKG_ZSTD_HEADER ${CMAKE_CURRENT_BINARY_DIR}/mhs_embedded_pkgs_zstd.h)
+add_custom_command(
+    OUTPUT ${EMBEDDED_PKG_ZSTD_HEADER}
+    COMMAND ${EMBED_LIBS_ZSTD}
+        ${EMBEDDED_PKG_ZSTD_HEADER}
+        --pkg-mode
+        --pkg packages/base-${MHS_VERSION}.pkg=${BASE_PKG}
+        --pkg packages/music-0.1.0.pkg=${MUSIC_PKG}
+        --txt-dir ${BASE_DIR}
+        --music-modules music-0.1.0.pkg:Async,Midi,MidiPerform,Music,MusicPerform
+        --lib ${CMAKE_BINARY_DIR}/thirdparty/libremidi/liblibremidi.a
+        --lib ${CMAKE_BINARY_DIR}/projects/mhs-midi/libmidi_ffi.a
+        --lib ${CMAKE_BINARY_DIR}/projects/common/libmusic_theory.a
+        --lib ${CMAKE_BINARY_DIR}/projects/common/libmidi_file.a
+        --header ${CMAKE_CURRENT_SOURCE_DIR}/midi_ffi.h
+    DEPENDS
+        ${EMBED_LIBS_ZSTD}
+        ${LOCAL_MCABAL_STAMP}
+        ${MUSIC_PKG}
+        ${CMAKE_CURRENT_SOURCE_DIR}/midi_ffi.h
+        libremidi
+        midi_ffi
+        music_theory
+        midi_file
+    COMMENT "Generating mhs_embedded_pkgs_zstd.h (compressed packages)"
+    VERBATIM
+)
+
+# ============================================
+# Function to create a standalone variant target
+# ============================================
+
+function(add_mhs_standalone_variant TARGET_NAME EMBEDDED_HEADER)
+    set(options USE_ZSTD USE_PKG)
+    cmake_parse_arguments(VARIANT "${options}" "" "" ${ARGN})
+
+    set(VARIANT_SOURCES
+        ${CMAKE_CURRENT_BINARY_DIR}/mhs_standalone.c
+        ${CMAKE_CURRENT_BINARY_DIR}/eval_vfs.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/mhs_midi_standalone_main.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/midi_ffi_wrappers.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/mhs_ffi_override.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/midi_ffi.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/vfs.c
+        ${EMBEDDED_HEADER}
     )
-elseif(UNIX)
-    if(ALSA_FOUND)
-        target_link_libraries(mhs-midi-standalone PRIVATE ${ALSA_LIBRARIES})
-    endif()
-endif()
 
-add_strip_command(mhs-midi-standalone)
+    if(VARIANT_USE_ZSTD)
+        list(APPEND VARIANT_SOURCES ${ZSTD_DIR}/zstddeclib.c)
+    endif()
+
+    add_executable(${TARGET_NAME} ${VARIANT_SOURCES})
+
+    target_include_directories(${TARGET_NAME} PRIVATE
+        ${MHS_RUNTIME}
+        ${MHS_RUNTIME}/unix
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_CURRENT_BINARY_DIR}
+        ${CMAKE_SOURCE_DIR}/thirdparty/libremidi/include
+    )
+
+    if(VARIANT_USE_PKG)
+        target_compile_definitions(${TARGET_NAME} PRIVATE VFS_USE_PKG)
+    endif()
+
+    if(VARIANT_USE_ZSTD)
+        target_compile_definitions(${TARGET_NAME} PRIVATE VFS_USE_ZSTD)
+        target_include_directories(${TARGET_NAME} PRIVATE ${ZSTD_DIR})
+    endif()
+
+    target_link_libraries(${TARGET_NAME} PRIVATE
+        music_theory
+        midi_file
+        m
+    )
+
+    # Platform-specific dependencies
+    if(APPLE)
+        target_link_libraries(${TARGET_NAME} PRIVATE
+            "-framework CoreMIDI"
+            "-framework CoreFoundation"
+            "-framework CoreAudio"
+        )
+    elseif(UNIX)
+        if(ALSA_FOUND)
+            target_link_libraries(${TARGET_NAME} PRIVATE ${ALSA_LIBRARIES})
+        endif()
+    endif()
+
+    add_strip_command(${TARGET_NAME})
+endfunction()
+
+# ============================================
+# Create all standalone variant targets
+# ============================================
+
+# mhs-midi-src: source embedding (default standalone behavior)
+add_mhs_standalone_variant(mhs-midi-src ${EMBEDDED_SRC_HEADER})
+
+# mhs-midi-src-zstd: source embedding + zstd compression
+add_mhs_standalone_variant(mhs-midi-src-zstd ${EMBEDDED_SRC_ZSTD_HEADER} USE_ZSTD)
+
+# mhs-midi-pkg: package embedding (fast startup)
+add_mhs_standalone_variant(mhs-midi-pkg ${EMBEDDED_PKG_HEADER} USE_PKG)
+
+# mhs-midi-pkg-zstd: compressed package embedding (smallest + fast startup)
+add_mhs_standalone_variant(mhs-midi-pkg-zstd ${EMBEDDED_PKG_ZSTD_HEADER} USE_PKG USE_ZSTD)
+
+# Backward compatibility: mhs-midi-standalone as alias to mhs-midi-src
+add_custom_target(mhs-midi-standalone DEPENDS mhs-midi-src)
+
+# Convenience target to build all variants
+add_custom_target(mhs-midi-all
+    DEPENDS mhs-midi mhs-midi-src mhs-midi-src-zstd mhs-midi-pkg mhs-midi-pkg-zstd
+)
 
 # ============================================
 # Installation rules
 # ============================================
 
 # Install binaries
-install(TARGETS mhs-midi mhs-midi-standalone
+install(TARGETS mhs-midi mhs-midi-src mhs-midi-src-zstd mhs-midi-pkg mhs-midi-pkg-zstd
     RUNTIME DESTINATION bin
     COMPONENT mhs-midi
 )

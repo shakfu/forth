@@ -240,73 +240,67 @@ main = do
 - [Architecture](architecture.md) - How the FFI works
 - [Package Build](mhs-pkg-build.md) - Technical details on `.pkg` embedding
 
-## Standalone Build Options
+## Build Variants
 
-The `mhs-midi-standalone` binary can be built with different embedding strategies. Choose based on your priorities:
+Multiple build variants are available with different trade-offs:
 
-### Build Option Selection Guide
+| Target | Binary Size | Cold Start | Description |
+|--------|-------------|------------|-------------|
+| `mhs-midi-src` | 3.3 MB | ~20s | Source embedding (default) |
+| `mhs-midi-src-zstd` | 1.3 MB | ~20s | Compressed source (smallest) |
+| `mhs-midi-pkg` | 4.8 MB | ~1s | Package embedding (fastest startup) |
+| `mhs-midi-pkg-zstd` | 3.0 MB | ~1s | Compressed packages (best balance) |
 
-| Priority | Recommended Build | Command |
-|----------|-------------------|---------|
-| Fast first run | `MHS_USE_PKG` | `cmake -B build -DMHS_USE_PKG=ON` |
-| Smallest binary | `MHS_USE_ZSTD` | `cmake -B build -DMHS_USE_ZSTD=ON` |
-| Fast + small | Both | `cmake -B build -DMHS_USE_PKG=ON -DMHS_USE_ZSTD=ON` |
-| Simplest build | Default | `cmake -B build` |
+**Key insight**: After the first run, `.mhscache` is created and all variants have similar warm-start times (~0.5-1s). The main differences are:
+- **pkg variants**: Eliminate the 20-second cold-start penalty (first run or fresh machine)
+- **zstd variants**: Reduce binary size significantly (useful for distribution)
 
-### Performance Comparison
+### Selection Guide
 
-| Build Mode | Cold Start | Warm Cache | Binary Size |
-|------------|------------|------------|-------------|
-| Default | ~20s | ~0.5s | ~3.2 MB |
-| `MHS_USE_PKG` | ~1s | ~0.95s | ~5.5 MB |
-| `MHS_USE_ZSTD` | ~20s | ~0.5s | ~1.3 MB |
-| Both | ~1s | ~0.95s | ~2.5 MB |
-
-**Key insight**: After the first run, `.mhscache` is created and all modes have similar warm-start times (~0.5-1s). The main difference is:
-- **PKG mode**: Eliminates the 20-second cold-start penalty (first run or fresh machine)
-- **ZSTD mode**: Reduces binary size by 60% (useful for distribution)
+| Priority | Recommended Variant | Command |
+|----------|---------------------|---------|
+| Fastest startup | `mhs-midi-pkg` | `cmake --build build --target mhs-midi-pkg` |
+| Smallest binary | `mhs-midi-src-zstd` | `cmake --build build --target mhs-midi-src-zstd` |
+| Best balance | `mhs-midi-pkg-zstd` | `cmake --build build --target mhs-midi-pkg-zstd` |
+| Simplest build | `mhs-midi-src` | `cmake --build build --target mhs-midi-src` |
 
 ### Build Commands
 
-The build options are:
-
-| Mode         | What's embedded           | Compression |
-|--------------|---------------------------|-------------|
-| Default      | .hs source files          | None        |
-| MHS_USE_ZSTD | .hs source files          | zstd        |
-| MHS_USE_PKG  | .pkg precompiled packages | None        |
-| Both         | .pkg precompiled packages | zstd        |
-
-They can be used as follows:
-
 ```bash
-# Default: embed .hs source files
-cmake -B build
-cmake --build build --target mhs-midi-standalone
+# Build all variants
+cmake -B build && cmake --build build --target mhs-midi-all
 
-# Package mode: fast cold start (~1s vs ~20s)
-# Requires: make install in thirdparty/MicroHs first
-cmake -B build -DMHS_USE_PKG=ON
-cmake --build build --target mhs-midi-standalone
-
-# Compressed mode: smallest binary (~1.3 MB)
-cmake -B build -DMHS_USE_ZSTD=ON
-cmake --build build --target mhs-midi-standalone
-
-# Combined: fast start + small binary
-cmake -B build -DMHS_USE_PKG=ON -DMHS_USE_ZSTD=ON
-cmake --build build --target mhs-midi-standalone
+# Or build individual variants:
+cmake --build build --target mhs-midi-src        # Source embedding
+cmake --build build --target mhs-midi-src-zstd   # Compressed source
+cmake --build build --target mhs-midi-pkg        # Package embedding
+cmake --build build --target mhs-midi-pkg-zstd   # Compressed packages
 ```
 
-### Prerequisites for MHS_USE_PKG
+### Variant Details
 
-Package mode requires MicroHs to be installed with packages:
+| Variant | What's Embedded | Compression | Use Case |
+|---------|-----------------|-------------|----------|
+| `mhs-midi-src` | .hs source files | None | Development, debugging |
+| `mhs-midi-src-zstd` | .hs source files | zstd | Size-constrained distribution |
+| `mhs-midi-pkg` | .pkg precompiled packages | None | Fast cold start, CI/CD |
+| `mhs-midi-pkg-zstd` | .pkg precompiled packages | zstd | Best for end-user distribution |
+
+### Prerequisites for Package Variants
+
+Package variants (`mhs-midi-pkg`, `mhs-midi-pkg-zstd`) require MicroHs packages to be built first. The build system handles this automatically, but you can also build manually:
 
 ```bash
 cd thirdparty/MicroHs
 make
 make install   # Creates ~/.mcabal/mhs-0.15.2.0/ with base.pkg
 ```
+
+### Aliases
+
+For convenience, the following aliases are available:
+- `mhs-midi` - Same as `mhs-midi-src` (default, requires MHSDIR auto-detection)
+- `mhs-midi-standalone` - Alias for `mhs-midi-src` (backward compatibility)
 
 ## Requirements
 

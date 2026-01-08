@@ -1,9 +1,10 @@
 /* vfs.c - Virtual Filesystem with optional zstd compression or .pkg support
  *
  * Compile options:
- *   -DVFS_USE_ZSTD    Enable zstd decompression (requires zstd library)
- *   -DVFS_USE_PKG     Use precompiled .pkg files instead of .hs source files
- *   (default)         Use uncompressed embedded .hs files
+ *   -DVFS_USE_ZSTD                Enable zstd decompression (requires zstd library)
+ *   -DVFS_USE_PKG                 Use precompiled .pkg files instead of .hs source files
+ *   -DVFS_USE_PKG -DVFS_USE_ZSTD  Use compressed .pkg files (smallest+fastest)
+ *   (default)                     Use uncompressed embedded .hs files
  *
  * Usage:
  *   # Uncompressed .hs files (simpler, slower startup)
@@ -14,6 +15,9 @@
  *
  *   # Precompiled .pkg files (fast startup, larger binary)
  *   cc -DVFS_USE_PKG -c vfs.c -o vfs.o
+ *
+ *   # Compressed .pkg files (smallest binary, fast startup)
+ *   cc -DVFS_USE_PKG -DVFS_USE_ZSTD -c vfs.c -o vfs.o
  */
 
 #include <stdio.h>
@@ -24,13 +28,21 @@
 #include <libgen.h>
 #include <unistd.h>
 
-#ifdef VFS_USE_ZSTD
+#if defined(VFS_USE_PKG) && defined(VFS_USE_ZSTD)
+/* Compressed packages mode - smallest binary + fast startup */
+#define ZSTD_STATIC_LINKING_ONLY
+#include "zstd.h"
+#include "mhs_embedded_pkgs_zstd.h"
+#elif defined(VFS_USE_ZSTD)
+/* Compressed source mode */
 #define ZSTD_STATIC_LINKING_ONLY
 #include "zstd.h"
 #include "mhs_embedded_zstd.h"
 #elif defined(VFS_USE_PKG)
+/* Uncompressed packages mode */
 #include "mhs_embedded_pkgs.h"
 #else
+/* Uncompressed source mode */
 #include "mhs_embedded_libs.h"
 #endif
 
@@ -56,8 +68,8 @@
 
 static int g_initialized = 0;
 
-#ifdef VFS_USE_ZSTD
-/* Zstd decompression state */
+#if defined(VFS_USE_ZSTD)
+/* Zstd decompression state (used by both source-zstd and pkg-zstd modes) */
 static ZSTD_DCtx* g_dctx = NULL;
 static ZSTD_DDict* g_ddict = NULL;
 
@@ -78,7 +90,78 @@ static int g_cache_misses = 0;
  * File lookup
  *-----------------------------------------------------------*/
 
-#ifdef VFS_USE_ZSTD
+#if defined(VFS_USE_PKG) && defined(VFS_USE_ZSTD)
+
+/* Pkg+Zstd mode: compressed packages */
+static const EmbeddedFilePkgZstd* find_pkg_zstd_file(const char* rel_path) {
+    for (const EmbeddedFilePkgZstd* ef = embedded_files_pkg_zstd; ef->path; ef++) {
+        if (strcmp(ef->path, rel_path) == 0) {
+            return ef;
+        }
+    }
+    return NULL;
+}
+
+static CachedFile* get_cache_entry(const char* path) {
+    for (int i = 0; i < g_cache_size; i++) {
+        if (g_cache[i].path && strcmp(g_cache[i].path, path) == 0) {
+            return &g_cache[i];
+        }
+    }
+    return NULL;
+}
+
+static CachedFile* decompress_and_cache_pkg(const EmbeddedFilePkgZstd* ef) {
+    char* buffer = malloc(ef->original_size);
+    if (!buffer) {
+        VFS_LOG("Failed to allocate %u bytes for %s\n", ef->original_size, ef->path);
+        return NULL;
+    }
+
+    size_t result;
+    if (g_ddict) {
+        result = ZSTD_decompress_usingDDict(
+            g_dctx, buffer, ef->original_size,
+            ef->data, ef->compressed_size, g_ddict
+        );
+    } else {
+        result = ZSTD_decompressDCtx(
+            g_dctx, buffer, ef->original_size,
+            ef->data, ef->compressed_size
+        );
+    }
+
+    if (ZSTD_isError(result)) {
+        VFS_LOG("Decompression failed for %s: %s\n", ef->path, ZSTD_getErrorName(result));
+        free(buffer);
+        return NULL;
+    }
+
+    if (result != ef->original_size) {
+        VFS_LOG("Size mismatch for %s: expected %u, got %zu\n",
+                ef->path, ef->original_size, result);
+        free(buffer);
+        return NULL;
+    }
+
+    VFS_LOG("Decompressed %s: %u -> %u bytes\n",
+            ef->path, ef->compressed_size, ef->original_size);
+
+    g_cache = realloc(g_cache, (g_cache_size + 1) * sizeof(CachedFile));
+    if (!g_cache) {
+        free(buffer);
+        return NULL;
+    }
+
+    CachedFile* entry = &g_cache[g_cache_size++];
+    entry->path = ef->path;
+    entry->content = buffer;
+    entry->length = ef->original_size;
+
+    return entry;
+}
+
+#elif defined(VFS_USE_ZSTD)
 
 static const EmbeddedFileZstd* find_file(const char* rel_path) {
     for (const EmbeddedFileZstd* ef = embedded_files_zstd; ef->path; ef++) {
@@ -228,7 +311,31 @@ int vfs_init(void) {
         return 0;
     }
 
-#ifdef VFS_USE_ZSTD
+#if defined(VFS_USE_PKG) && defined(VFS_USE_ZSTD)
+    /* Compressed packages mode */
+    g_dctx = ZSTD_createDCtx();
+    if (!g_dctx) {
+        fprintf(stderr, "VFS: Failed to create zstd decompression context\n");
+        return -1;
+    }
+
+    if (EMBEDDED_PKG_DICT_SIZE > 0) {
+        g_ddict = ZSTD_createDDict(embedded_pkg_zstd_dict, EMBEDDED_PKG_DICT_SIZE);
+        if (!g_ddict) {
+            fprintf(stderr, "VFS: Failed to create zstd dictionary\n");
+            ZSTD_freeDCtx(g_dctx);
+            g_dctx = NULL;
+            return -1;
+        }
+        VFS_LOG("Loaded dictionary: %d bytes\n", EMBEDDED_PKG_DICT_SIZE);
+    }
+
+    VFS_LOG("Initialized (pkg-zstd): %d files, %zu -> %zu bytes\n",
+            EMBEDDED_PKG_ZSTD_TOTAL_COUNT,
+            (size_t)EMBEDDED_PKG_ZSTD_TOTAL_COMPRESSED,
+            (size_t)EMBEDDED_PKG_ZSTD_TOTAL_ORIGINAL);
+#elif defined(VFS_USE_ZSTD)
+    /* Compressed source mode */
     g_dctx = ZSTD_createDCtx();
     if (!g_dctx) {
         fprintf(stderr, "VFS: Failed to create zstd decompression context\n");
@@ -307,7 +414,29 @@ FILE* vfs_fopen(const char* path, const char* mode) {
 
         VFS_LOG("Looking up: %s\n", rel_path);
 
-#ifdef VFS_USE_ZSTD
+#if defined(VFS_USE_PKG) && defined(VFS_USE_ZSTD)
+        /* Compressed packages mode */
+        const EmbeddedFilePkgZstd* ef = find_pkg_zstd_file(rel_path);
+        if (!ef) {
+            VFS_LOG("Not found: %s\n", rel_path);
+            return NULL;
+        }
+
+        CachedFile* cached = get_cache_entry(ef->path);
+        if (cached) {
+            g_cache_hits++;
+            VFS_LOG("Cache hit: %s\n", ef->path);
+            return fmemopen(cached->content, cached->length, mode);
+        }
+
+        g_cache_misses++;
+        cached = decompress_and_cache_pkg(ef);
+        if (!cached) {
+            return NULL;
+        }
+
+        return fmemopen(cached->content, cached->length, mode);
+#elif defined(VFS_USE_ZSTD)
         const EmbeddedFileZstd* ef = find_file(rel_path);
         if (!ef) {
             VFS_LOG("Not found: %s\n", rel_path);
@@ -364,7 +493,9 @@ FILE* vfs_fopen(const char* path, const char* mode) {
 }
 
 int vfs_file_count(void) {
-#ifdef VFS_USE_PKG
+#if defined(VFS_USE_PKG) && defined(VFS_USE_ZSTD)
+    return EMBEDDED_PKG_ZSTD_TOTAL_COUNT;
+#elif defined(VFS_USE_PKG)
     return EMBEDDED_PACKAGE_COUNT;
 #else
     return EMBEDDED_FILE_COUNT;
@@ -372,7 +503,9 @@ int vfs_file_count(void) {
 }
 
 size_t vfs_total_size(void) {
-#ifdef VFS_USE_ZSTD
+#if defined(VFS_USE_PKG) && defined(VFS_USE_ZSTD)
+    return EMBEDDED_PKG_ZSTD_TOTAL_ORIGINAL;
+#elif defined(VFS_USE_ZSTD)
     return EMBEDDED_TOTAL_ORIGINAL;
 #elif defined(VFS_USE_PKG)
     size_t total = 0;
@@ -390,7 +523,9 @@ size_t vfs_total_size(void) {
 }
 
 size_t vfs_embedded_size(void) {
-#ifdef VFS_USE_ZSTD
+#if defined(VFS_USE_PKG) && defined(VFS_USE_ZSTD)
+    return EMBEDDED_PKG_ZSTD_TOTAL_COMPRESSED + EMBEDDED_PKG_DICT_SIZE;
+#elif defined(VFS_USE_ZSTD)
     return EMBEDDED_TOTAL_COMPRESSED + EMBEDDED_DICT_SIZE;
 #else
     return vfs_total_size();
@@ -398,7 +533,20 @@ size_t vfs_embedded_size(void) {
 }
 
 void vfs_print_stats(void) {
-#ifdef VFS_USE_ZSTD
+#if defined(VFS_USE_PKG) && defined(VFS_USE_ZSTD)
+    double ratio = (double)EMBEDDED_PKG_ZSTD_TOTAL_ORIGINAL /
+                   (EMBEDDED_PKG_ZSTD_TOTAL_COMPRESSED + EMBEDDED_PKG_DICT_SIZE);
+    printf("VFS Statistics (pkg-zstd compressed):\n");
+    printf("  Packages:     %d\n", EMBEDDED_PKG_ZSTD_PACKAGE_COUNT);
+    printf("  Txt files:    %d\n", EMBEDDED_PKG_ZSTD_TXT_COUNT);
+    printf("  Runtime:      %d\n", EMBEDDED_PKG_ZSTD_RUNTIME_COUNT);
+    printf("  Original:     %zu bytes\n", (size_t)EMBEDDED_PKG_ZSTD_TOTAL_ORIGINAL);
+    printf("  Compressed:   %zu bytes\n", (size_t)EMBEDDED_PKG_ZSTD_TOTAL_COMPRESSED);
+    printf("  Dictionary:   %d bytes\n", EMBEDDED_PKG_DICT_SIZE);
+    printf("  Ratio:        %.2fx\n", ratio);
+    printf("  Cache:        %d entries (%d hits, %d misses)\n",
+           g_cache_size, g_cache_hits, g_cache_misses);
+#elif defined(VFS_USE_ZSTD)
     double ratio = (double)EMBEDDED_TOTAL_ORIGINAL /
                    (EMBEDDED_TOTAL_COMPRESSED + EMBEDDED_DICT_SIZE);
     printf("VFS Statistics (zstd compressed):\n");
@@ -422,7 +570,15 @@ void vfs_print_stats(void) {
 }
 
 void vfs_list_files(void) {
-#ifdef VFS_USE_ZSTD
+#if defined(VFS_USE_PKG) && defined(VFS_USE_ZSTD)
+    printf("Embedded files (pkg-zstd):\n");
+    for (const EmbeddedFilePkgZstd* ef = embedded_files_pkg_zstd; ef->path; ef++) {
+        const char* type_str = ef->file_type == 0 ? "pkg" :
+                               ef->file_type == 1 ? "txt" : "runtime";
+        printf("  %s (%u -> %u bytes, %s)\n",
+               ef->path, ef->original_size, ef->compressed_size, type_str);
+    }
+#elif defined(VFS_USE_ZSTD)
     printf("Embedded files:\n");
     for (const EmbeddedFileZstd* ef = embedded_files_zstd; ef->path; ef++) {
         printf("  %s (%u bytes, compressed: %u)\n",
@@ -456,7 +612,53 @@ char* vfs_extract_to_temp(void) {
 
     VFS_LOG("Extracting to: %s\n", result);
 
-#ifdef VFS_USE_ZSTD
+#if defined(VFS_USE_PKG) && defined(VFS_USE_ZSTD)
+    /* Extract compressed packages/txt/runtime files */
+    for (const EmbeddedFilePkgZstd* ef = embedded_files_pkg_zstd; ef->path; ef++) {
+        char full_path[4096];
+        snprintf(full_path, sizeof(full_path), "%s/%s", result, ef->path);
+
+        char* dir_path = strdup(full_path);
+        if (dir_path) {
+            char* dir = dirname(dir_path);
+            if (mkdirs(dir) != 0) {
+                fprintf(stderr, "Error: Could not create directory: %s\n", dir);
+                free(dir_path);
+                free(result);
+                return NULL;
+            }
+            free(dir_path);
+        }
+
+        CachedFile* cached = get_cache_entry(ef->path);
+        if (!cached) {
+            cached = decompress_and_cache_pkg(ef);
+            if (!cached) {
+                fprintf(stderr, "Error: Could not decompress: %s\n", ef->path);
+                free(result);
+                return NULL;
+            }
+        }
+
+        FILE* f = fopen(full_path, "wb");
+        if (!f) {
+            fprintf(stderr, "Error: Could not create file: %s\n", full_path);
+            free(result);
+            return NULL;
+        }
+
+        size_t written = fwrite(cached->content, 1, cached->length, f);
+        fclose(f);
+
+        if (written != cached->length) {
+            fprintf(stderr, "Error: Could not write file: %s\n", full_path);
+            free(result);
+            return NULL;
+        }
+
+        VFS_LOG("Extracted: %s (%zu bytes)\n", ef->path, cached->length);
+    }
+#elif defined(VFS_USE_ZSTD)
     for (const EmbeddedFileZstd* ef = embedded_files_zstd; ef->path; ef++) {
         char full_path[4096];
         snprintf(full_path, sizeof(full_path), "%s/%s", result, ef->path);
@@ -729,7 +931,23 @@ DIR* vfs_opendir(const char* path) {
 
         VFS_LOG("VFS opendir: prefix='%s'\n", prefix);
 
-#ifdef VFS_USE_PKG
+#if defined(VFS_USE_PKG) && defined(VFS_USE_ZSTD)
+        /* For pkg-zstd mode, check if any embedded files match this prefix */
+        int has_files = 0;
+        for (const EmbeddedFilePkgZstd* ef = embedded_files_pkg_zstd; ef->path; ef++) {
+            if (strncmp(ef->path, prefix, strlen(prefix)) == 0) {
+                has_files = 1;
+                break;
+            }
+        }
+        if (has_files || strlen(prefix) == 0) {
+            VfsDirState* state = vfs_dir_create(prefix);
+            if (state) {
+                VFS_LOG("Created VFS dir state for %s\n", prefix);
+                return (DIR*)state;
+            }
+        }
+#elif defined(VFS_USE_PKG)
         /* For package mode, check if this is the packages directory */
         if (strcmp(prefix, "packages/") == 0) {
             VfsDirState* state = vfs_dir_create(prefix);
@@ -786,7 +1004,24 @@ struct dirent* vfs_readdir(DIR* dirp) {
     if (vfs_dir_is_vfs(dirp)) {
         VfsDirState* state = (VfsDirState*)dirp;
 
-#ifdef VFS_USE_PKG
+#if defined(VFS_USE_PKG) && defined(VFS_USE_ZSTD)
+        /* Iterate over pkg-zstd embedded files */
+        while (embedded_files_pkg_zstd[state->index].path) {
+            const EmbeddedFilePkgZstd* ef = &embedded_files_pkg_zstd[state->index];
+            state->index++;
+
+            if (strncmp(ef->path, state->dir_prefix, state->prefix_len) == 0) {
+                const char* filename = ef->path + state->prefix_len;
+                if (strchr(filename, '/') == NULL) {
+                    strncpy(state->entry.d_name, filename, sizeof(state->entry.d_name) - 1);
+                    state->entry.d_name[sizeof(state->entry.d_name) - 1] = '\0';
+                    state->entry.d_type = DT_REG;
+                    VFS_LOG("VFS readdir: %s\n", state->entry.d_name);
+                    return &state->entry;
+                }
+            }
+        }
+#elif defined(VFS_USE_PKG)
         /* Iterate over embedded packages */
         while (embedded_packages[state->index].path) {
             const EmbeddedPackage* ep = &embedded_packages[state->index];

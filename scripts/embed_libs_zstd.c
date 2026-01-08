@@ -3,7 +3,7 @@
  *
  * Uses dictionary-based compression for optimal ratio on similar files.
  * Text files (.hs, .c, .h) are compressed with a trained dictionary.
- * Binary files (.a) are compressed without dictionary.
+ * Binary files (.a, .pkg) are compressed without dictionary.
  *
  * Usage: embed_libs_zstd <output.h> <libdir1> [libdir2 ...] [options]
  *
@@ -14,6 +14,12 @@
  *   --dict-size <bytes> Dictionary size (default: 112KB)
  *   --level <1-22>      Compression level (default: 19)
  *
+ * Package mode options (--pkg-mode):
+ *   --pkg-mode              Output in pkg-zstd format with file types
+ *   --pkg <vfs>=<file>      Embed a .pkg file (e.g., packages/base.pkg=/path/to/base.pkg)
+ *   --txt-dir <dir>         Collect .txt module mapping files from <dir>
+ *   --music-modules <p:m1,m2> Generate synthetic .txt for music modules
+ *
  * Compile:
  *   cc -O2 -o embed_libs_zstd embed_libs_zstd.c \
  *      ../thirdparty/zstd-1.5.7/zstd.c -I../thirdparty/zstd-1.5.7 -lpthread
@@ -21,6 +27,10 @@
  * The generated header contains compressed data with a shared dictionary:
  *   - embedded_zstd_dict[]     - trained dictionary
  *   - embedded_files_zstd[]    - compressed file entries
+ *
+ * In --pkg-mode, outputs:
+ *   - embedded_pkg_zstd_dict[] - trained dictionary
+ *   - embedded_files_pkg_zstd[] - compressed entries with file_type field
  */
 
 #include <stdio.h>
@@ -40,6 +50,12 @@
 #define DEFAULT_DICT_SIZE (112 * 1024)  /* 112KB dictionary */
 #define DEFAULT_COMP_LEVEL 19
 
+/* File types for pkg-mode */
+#define FILE_TYPE_SOURCE  0   /* .hs, .c, .h files (default) */
+#define FILE_TYPE_PKG     1   /* .pkg package files */
+#define FILE_TYPE_TXT     2   /* .txt module mapping files */
+#define FILE_TYPE_RUNTIME 3   /* runtime files (lib/, include/) */
+
 typedef struct {
     char* vfs_path;           /* Path in VFS */
     char* full_path;          /* Full filesystem path */
@@ -48,6 +64,7 @@ typedef struct {
     unsigned char* compressed;/* Compressed content */
     size_t compressed_len;    /* Compressed length */
     int use_dict;             /* 1 if compressed with dictionary */
+    int file_type;            /* FILE_TYPE_* for pkg-mode */
 } FileEntry;
 
 static FileEntry g_files[MAX_FILES];
@@ -55,6 +72,7 @@ static int g_file_count = 0;
 
 static size_t g_dict_size = DEFAULT_DICT_SIZE;
 static int g_comp_level = DEFAULT_COMP_LEVEL;
+static int g_pkg_mode = 0;  /* Output in pkg-zstd format */
 
 /* Forward declarations */
 static int collect_files_recursive(const char* dir_path, const char* base_name,
@@ -119,7 +137,7 @@ static unsigned char* read_file(const char* path, size_t* out_length) {
     return content;
 }
 
-static int add_file(const char* vfs_path, const char* full_path) {
+static int add_file_with_type(const char* vfs_path, const char* full_path, int file_type) {
     if (g_file_count >= MAX_FILES) {
         fprintf(stderr, "Error: Too many files (max %d)\n", MAX_FILES);
         return -1;
@@ -148,6 +166,36 @@ static int add_file(const char* vfs_path, const char* full_path) {
     entry->compressed = NULL;
     entry->compressed_len = 0;
     entry->use_dict = is_text_file(vfs_path);
+    entry->file_type = file_type;
+
+    return 0;
+}
+
+static int add_file(const char* vfs_path, const char* full_path) {
+    return add_file_with_type(vfs_path, full_path, FILE_TYPE_SOURCE);
+}
+
+/* Add synthetic content (for generated .txt files) */
+static int add_synthetic_file(const char* vfs_path, const char* content_str, int file_type) {
+    if (g_file_count >= MAX_FILES) {
+        fprintf(stderr, "Error: Too many files (max %d)\n", MAX_FILES);
+        return -1;
+    }
+
+    size_t length = strlen(content_str);
+    unsigned char* content = malloc(length + 1);
+    if (!content) return -1;
+    memcpy(content, content_str, length + 1);
+
+    FileEntry* entry = &g_files[g_file_count++];
+    entry->vfs_path = strdup(vfs_path);
+    entry->full_path = strdup("(synthetic)");
+    entry->content = content;
+    entry->length = length;
+    entry->compressed = NULL;
+    entry->compressed_len = 0;
+    entry->use_dict = 1;  /* txt files benefit from dictionary */
+    entry->file_type = file_type;
 
     return 0;
 }
@@ -244,7 +292,119 @@ static int embed_single_file(const char* file_path, const char* vfs_prefix) {
         printf("  %s (%ld bytes)\n", basename, (long)st.st_size);
     }
 
-    return add_file(vfs_path, file_path);
+    return add_file_with_type(vfs_path, file_path, FILE_TYPE_RUNTIME);
+}
+
+/*
+ * Collect .txt module mapping files from a directory (for pkg-mode)
+ * These are small files mapping module names to package names.
+ */
+static int collect_txt_files(const char* base_dir) {
+    DIR* dir = opendir(base_dir);
+    if (!dir) {
+        fprintf(stderr, "Warning: Could not open txt directory %s: %s\n",
+                base_dir, strerror(errno));
+        return 0;
+    }
+
+    struct dirent* entry;
+    while ((entry = readdir(dir)) != NULL) {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+            continue;
+
+        char full_path[MAX_PATH];
+        snprintf(full_path, sizeof(full_path), "%s/%s", base_dir, entry->d_name);
+
+        if (is_directory(full_path)) {
+            /* Skip 'packages' subdirectory */
+            if (strcmp(entry->d_name, "packages") == 0)
+                continue;
+            /* Recurse into subdirectory */
+            collect_txt_files(full_path);
+        } else if (matches_pattern(entry->d_name, "*.txt")) {
+            /* Get relative path from base_dir for vfs_path */
+            /* For now, just use the filename directly */
+            const char* rel_start = full_path + strlen(base_dir);
+            if (*rel_start == '/') rel_start++;
+
+            add_file_with_type(rel_start, full_path, FILE_TYPE_TXT);
+        }
+    }
+
+    closedir(dir);
+    return 0;
+}
+
+/*
+ * Add a .pkg file with explicit vfs_path (for pkg-mode)
+ * Format: vfs_path=file_path (e.g., packages/base-0.15.2.0.pkg=/path/to/base.pkg)
+ */
+static int add_pkg_file(const char* spec) {
+    char* eq = strchr(spec, '=');
+    if (!eq) {
+        fprintf(stderr, "Error: --pkg requires format vfs_path=file_path\n");
+        return -1;
+    }
+
+    char vfs_path[MAX_PATH];
+    size_t vfs_len = eq - spec;
+    if (vfs_len >= MAX_PATH) vfs_len = MAX_PATH - 1;
+    strncpy(vfs_path, spec, vfs_len);
+    vfs_path[vfs_len] = '\0';
+
+    const char* file_path = eq + 1;
+
+    struct stat st;
+    if (stat(file_path, &st) == 0) {
+        printf("  %s (%ld bytes)\n", vfs_path, (long)st.st_size);
+    }
+
+    return add_file_with_type(vfs_path, file_path, FILE_TYPE_PKG);
+}
+
+/*
+ * Parse music-modules spec and add synthetic .txt files
+ * Format: pkg_name:module1,module2,module3
+ * Example: music-0.1.0.pkg:Async,Midi,MidiPerform,Music,MusicPerform
+ */
+static int add_music_modules(const char* spec) {
+    char* colon = strchr(spec, ':');
+    if (!colon) {
+        fprintf(stderr, "Error: --music-modules requires format pkg_name:mod1,mod2,...\n");
+        return -1;
+    }
+
+    /* Extract package name */
+    char pkg_name[256];
+    size_t pkg_len = colon - spec;
+    if (pkg_len >= sizeof(pkg_name)) pkg_len = sizeof(pkg_name) - 1;
+    strncpy(pkg_name, spec, pkg_len);
+    pkg_name[pkg_len] = '\0';
+
+    /* Parse comma-separated modules */
+    const char* modules = colon + 1;
+    char mod_list[1024];
+    strncpy(mod_list, modules, sizeof(mod_list) - 1);
+    mod_list[sizeof(mod_list) - 1] = '\0';
+
+    char* mod = strtok(mod_list, ",");
+    while (mod) {
+        /* Trim whitespace */
+        while (*mod == ' ') mod++;
+        char* end = mod + strlen(mod) - 1;
+        while (end > mod && *end == ' ') *end-- = '\0';
+
+        if (*mod) {
+            char vfs_path[MAX_PATH];
+            snprintf(vfs_path, sizeof(vfs_path), "%s.txt", mod);
+            add_synthetic_file(vfs_path, pkg_name, FILE_TYPE_TXT);
+            printf("  %s -> %s\n", vfs_path, pkg_name);
+        }
+
+        mod = strtok(NULL, ",");
+    }
+
+    return 0;
 }
 
 /*-----------------------------------------------------------
@@ -538,6 +698,141 @@ static int write_header(const char* output_path,
     return 0;
 }
 
+/*
+ * Write pkg-mode header with file types
+ */
+static int write_header_pkg(const char* output_path,
+                            const unsigned char* dict, size_t dict_len) {
+    FILE* out = fopen(output_path, "w");
+    if (!out) {
+        fprintf(stderr, "Error: Could not create %s: %s\n", output_path, strerror(errno));
+        return -1;
+    }
+
+    /* Sort files */
+    qsort(g_files, g_file_count, sizeof(FileEntry), compare_files);
+
+    /* Calculate totals by type */
+    size_t total_original = 0;
+    size_t total_compressed = 0;
+    int valid_count = 0;
+    int pkg_count = 0, txt_count = 0, runtime_count = 0;
+
+    for (int i = 0; i < g_file_count; i++) {
+        if (g_files[i].compressed) {
+            total_original += g_files[i].length;
+            total_compressed += g_files[i].compressed_len;
+            valid_count++;
+            switch (g_files[i].file_type) {
+                case FILE_TYPE_PKG: pkg_count++; break;
+                case FILE_TYPE_TXT: txt_count++; break;
+                case FILE_TYPE_RUNTIME: runtime_count++; break;
+            }
+        }
+    }
+
+    size_t total_embedded = total_compressed + dict_len;
+    double ratio = total_embedded > 0 ?
+        (double)total_original / total_embedded : 0;
+
+    /* Write header */
+    fprintf(out, "/* Auto-generated by embed_libs_zstd --pkg-mode - DO NOT EDIT */\n");
+    fprintf(out, "/* %d packages, %d txt files, %d runtime files */\n",
+            pkg_count, txt_count, runtime_count);
+    fprintf(out, "/* Original: %zu bytes -> Embedded: %zu bytes (%.2fx) */\n\n",
+            total_original, total_embedded, ratio);
+
+    fprintf(out, "#ifndef MHS_EMBEDDED_PKGS_ZSTD_H\n");
+    fprintf(out, "#define MHS_EMBEDDED_PKGS_ZSTD_H\n\n");
+    fprintf(out, "#include <stddef.h>\n");
+    fprintf(out, "#include <stdint.h>\n\n");
+
+    /* Write dictionary */
+    if (dict && dict_len > 0) {
+        fprintf(out, "/* Zstd dictionary for decompression */\n");
+        write_byte_array(out, "embedded_pkg_zstd_dict", dict, dict_len);
+        fprintf(out, "#define EMBEDDED_PKG_DICT_SIZE %zu\n\n", dict_len);
+    } else {
+        fprintf(out, "static const unsigned char embedded_pkg_zstd_dict[] = {0};\n");
+        fprintf(out, "#define EMBEDDED_PKG_DICT_SIZE 0\n\n");
+    }
+
+    /* File entry structure with file_type */
+    fprintf(out, "typedef struct {\n");
+    fprintf(out, "    const char* path;              /* VFS path */\n");
+    fprintf(out, "    const unsigned char* data;     /* Compressed data */\n");
+    fprintf(out, "    uint32_t compressed_size;      /* Compressed size */\n");
+    fprintf(out, "    uint32_t original_size;        /* Original size */\n");
+    fprintf(out, "    uint8_t file_type;             /* 0=pkg, 1=txt, 2=runtime */\n");
+    fprintf(out, "} EmbeddedFilePkgZstd;\n\n");
+
+    fprintf(out, "#define PKG_FILE_TYPE_PKG     0\n");
+    fprintf(out, "#define PKG_FILE_TYPE_TXT     1\n");
+    fprintf(out, "#define PKG_FILE_TYPE_RUNTIME 2\n\n");
+
+    /* Write compressed data arrays */
+    fprintf(out, "/* Compressed file data */\n");
+    int array_idx = 0;
+    for (int i = 0; i < g_file_count; i++) {
+        if (!g_files[i].compressed) continue;
+
+        char var_name[64];
+        snprintf(var_name, sizeof(var_name), "pkgzstd_data_%d", array_idx);
+
+        fprintf(out, "/* %s (%zu -> %zu) */\n",
+                g_files[i].vfs_path, g_files[i].length, g_files[i].compressed_len);
+        write_byte_array(out, var_name, g_files[i].compressed, g_files[i].compressed_len);
+
+        array_idx++;
+    }
+
+    /* Write file table - map internal file_type to output format */
+    fprintf(out, "static const EmbeddedFilePkgZstd embedded_files_pkg_zstd[] = {\n");
+    array_idx = 0;
+    for (int i = 0; i < g_file_count; i++) {
+        if (!g_files[i].compressed) continue;
+
+        /* Map file_type: PKG->0, TXT->1, RUNTIME->2 */
+        int out_type;
+        switch (g_files[i].file_type) {
+            case FILE_TYPE_PKG: out_type = 0; break;
+            case FILE_TYPE_TXT: out_type = 1; break;
+            default: out_type = 2; break;  /* RUNTIME and SOURCE -> runtime */
+        }
+
+        fprintf(out, "    { \"%s\", pkgzstd_data_%d, %zu, %zu, %d },\n",
+                g_files[i].vfs_path, array_idx,
+                g_files[i].compressed_len, g_files[i].length,
+                out_type);
+        array_idx++;
+    }
+    fprintf(out, "    { NULL, NULL, 0, 0, 0 }  /* Sentinel */\n");
+    fprintf(out, "};\n\n");
+
+    fprintf(out, "#define EMBEDDED_PKG_ZSTD_PACKAGE_COUNT %d\n", pkg_count);
+    fprintf(out, "#define EMBEDDED_PKG_ZSTD_TXT_COUNT %d\n", txt_count);
+    fprintf(out, "#define EMBEDDED_PKG_ZSTD_RUNTIME_COUNT %d\n", runtime_count);
+    fprintf(out, "#define EMBEDDED_PKG_ZSTD_TOTAL_COUNT %d\n", valid_count);
+    fprintf(out, "#define EMBEDDED_PKG_ZSTD_TOTAL_COMPRESSED %zuU\n", total_compressed);
+    fprintf(out, "#define EMBEDDED_PKG_ZSTD_TOTAL_ORIGINAL %zuU\n\n", total_original);
+
+    fprintf(out, "#endif /* MHS_EMBEDDED_PKGS_ZSTD_H */\n");
+
+    fclose(out);
+
+    printf("\nGenerated: %s (pkg-mode)\n", output_path);
+    printf("  Packages: %d\n", pkg_count);
+    printf("  Txt files: %d\n", txt_count);
+    printf("  Runtime: %d\n", runtime_count);
+    printf("  Original: %zu bytes\n", total_original);
+    printf("  Compressed: %zu bytes\n", total_compressed);
+    printf("  Dictionary: %zu bytes\n", dict_len);
+    printf("  Total embedded: %zu bytes (%.1f%% of original)\n",
+           total_embedded, 100.0 * total_embedded / total_original);
+
+    return 0;
+}
+
 static void free_files(void) {
     for (int i = 0; i < g_file_count; i++) {
         free(g_files[i].vfs_path);
@@ -549,21 +844,32 @@ static void free_files(void) {
 }
 
 static void print_usage(const char* prog) {
-    printf("Usage: %s <output.h> <libdir1> [libdir2 ...] [options]\n\n", prog);
+    printf("Usage: %s <output.h> [libdir ...] [options]\n\n", prog);
     printf("Options:\n");
-    printf("  --runtime <dir>     Embed runtime C/H files from <dir>\n");
-    printf("  --lib <file>        Embed a library file (.a) in lib/ (repeatable)\n");
-    printf("  --header <file>     Embed a header file in src/runtime/ (repeatable)\n");
-    printf("  --dict-size <bytes> Dictionary size (default: %d)\n", DEFAULT_DICT_SIZE);
-    printf("  --level <1-22>      Compression level (default: %d)\n", DEFAULT_COMP_LEVEL);
-    printf("  --help              Show this help\n");
+    printf("  --runtime <dir>       Embed runtime C/H files from <dir>\n");
+    printf("  --lib <file>          Embed a library file (.a) in lib/ (repeatable)\n");
+    printf("  --header <file>       Embed a header file in src/runtime/ (repeatable)\n");
+    printf("  --dict-size <bytes>   Dictionary size (default: %d)\n", DEFAULT_DICT_SIZE);
+    printf("  --level <1-22>        Compression level (default: %d)\n", DEFAULT_COMP_LEVEL);
+    printf("  --help                Show this help\n");
+    printf("\nPackage mode (--pkg-mode):\n");
+    printf("  --pkg-mode            Output in pkg-zstd format with file types\n");
+    printf("  --pkg <vfs>=<file>    Embed a .pkg file (repeatable)\n");
+    printf("  --txt-dir <dir>       Collect .txt module mapping files\n");
+    printf("  --music-modules <spec> Add synthetic .txt (pkg:mod1,mod2,...)\n");
     printf("\nExamples:\n");
     printf("  %s mhs_embedded_zstd.h lib/ --runtime src/runtime/\n", prog);
     printf("  %s out.h lib/ --lib libfoo.a --level 22\n", prog);
+    printf("\n  # Package mode:\n");
+    printf("  %s out.h --pkg-mode \\\n", prog);
+    printf("    --pkg packages/base.pkg=/path/base.pkg \\\n");
+    printf("    --pkg packages/music.pkg=/path/music.pkg \\\n");
+    printf("    --txt-dir /path/to/mcabal/mhs-0.15.2.0 \\\n");
+    printf("    --music-modules music-0.1.0.pkg:Async,Midi,Music\n");
 }
 
 int main(int argc, char** argv) {
-    if (argc < 3) {
+    if (argc < 2) {
         print_usage(argv[0]);
         return 1;
     }
@@ -575,10 +881,13 @@ int main(int argc, char** argv) {
 
     const char* output_path = argv[1];
     const char* runtime_dir = NULL;
+    const char* txt_dir = NULL;
 
     const char* lib_files[64];
     const char* header_files[64];
-    int lib_count = 0, header_count = 0;
+    const char* pkg_files[64];
+    const char* music_modules[64];
+    int lib_count = 0, header_count = 0, pkg_count = 0, music_count = 0;
 
     /* Parse arguments */
     for (int i = 2; i < argc; i++) {
@@ -624,6 +933,34 @@ int main(int argc, char** argv) {
                 fprintf(stderr, "Error: --level must be 1-22\n");
                 return 1;
             }
+        } else if (strcmp(argv[i], "--pkg-mode") == 0) {
+            g_pkg_mode = 1;
+        } else if (strcmp(argv[i], "--pkg") == 0) {
+            if (i + 1 >= argc) {
+                fprintf(stderr, "Error: --pkg requires an argument\n");
+                return 1;
+            }
+            if (pkg_count >= 64) {
+                fprintf(stderr, "Error: Too many --pkg arguments\n");
+                return 1;
+            }
+            pkg_files[pkg_count++] = argv[++i];
+        } else if (strcmp(argv[i], "--txt-dir") == 0) {
+            if (i + 1 >= argc) {
+                fprintf(stderr, "Error: --txt-dir requires an argument\n");
+                return 1;
+            }
+            txt_dir = argv[++i];
+        } else if (strcmp(argv[i], "--music-modules") == 0) {
+            if (i + 1 >= argc) {
+                fprintf(stderr, "Error: --music-modules requires an argument\n");
+                return 1;
+            }
+            if (music_count >= 64) {
+                fprintf(stderr, "Error: Too many --music-modules arguments\n");
+                return 1;
+            }
+            music_modules[music_count++] = argv[++i];
         } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
             print_usage(argv[0]);
             return 0;
@@ -655,6 +992,26 @@ int main(int argc, char** argv) {
         }
     }
 
+    /* Package mode: process pkg files, txt directory, and music modules */
+    if (pkg_count > 0) {
+        printf("Embedding packages:\n");
+        for (int i = 0; i < pkg_count; i++) {
+            add_pkg_file(pkg_files[i]);
+        }
+    }
+
+    if (txt_dir) {
+        printf("Collecting .txt module mappings from %s...\n", txt_dir);
+        collect_txt_files(txt_dir);
+    }
+
+    if (music_count > 0) {
+        printf("Adding synthetic .txt for music modules:\n");
+        for (int i = 0; i < music_count; i++) {
+            add_music_modules(music_modules[i]);
+        }
+    }
+
     if (g_file_count == 0) {
         fprintf(stderr, "Error: No files found\n");
         return 1;
@@ -674,7 +1031,12 @@ int main(int argc, char** argv) {
     }
 
     /* Write output */
-    int result = write_header(output_path, dict, dict_len);
+    int result;
+    if (g_pkg_mode) {
+        result = write_header_pkg(output_path, dict, dict_len);
+    } else {
+        result = write_header(output_path, dict, dict_len);
+    }
 
     free(dict);
     free_files();

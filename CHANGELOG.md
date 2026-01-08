@@ -4,6 +4,23 @@ All notable changes to midi-langs are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **mhs-midi-pkg-zstd**: Combined package embedding with zstd compression
+  - New build variant: fastest startup (precompiled packages) + smallest binary (compression)
+  - Binary size: 3.0 MB (vs 4.8 MB uncompressed packages, 3.3 MB source)
+  - Extends `scripts/embed_libs_zstd.c` with pkg-mode support:
+    - `--pkg-mode` flag for pkg-zstd output format
+    - `--pkg <vfs>=<file>` to embed .pkg files
+    - `--txt-dir <dir>` to collect .txt module mapping files
+    - `--music-modules <pkg:mod1,mod2>` for synthetic txt entries
+  - Updated `vfs.c` with combined `VFS_USE_PKG + VFS_USE_ZSTD` mode
+  - All mhs-midi variants now available:
+    - `mhs-midi-src` (3.3M) - source embedding, slowest startup
+    - `mhs-midi-src-zstd` (1.3M) - compressed source, smallest binary
+    - `mhs-midi-pkg` (4.8M) - package embedding, fastest startup
+    - `mhs-midi-pkg-zstd` (3.0M) - compressed packages, best balance
+
 ## [0.1.8]
 
 ### Added

@@ -320,11 +320,13 @@ The C implementation of `embed_libs.c` (~500 lines, no dependencies) could be in
 
 ## Results
 
-| Binary | Size | Capabilities |
-|--------|------|--------------|
-| mhs-midi | 782KB | Requires MHSDIR (auto-detected) |
-| mhs-midi-standalone | 3.2MB | Fully self-contained |
-| mhs-midi-standalone (zstd) | 1.3MB | Fully self-contained, compressed |
+| Binary | Size | Cold Start | Capabilities |
+|--------|------|------------|--------------|
+| mhs-midi | 782KB | ~20s | Requires MHSDIR (auto-detected) |
+| mhs-midi-src | 3.3MB | ~20s | Source embedding (default standalone) |
+| mhs-midi-src-zstd | 1.3MB | ~20s | Compressed source (smallest) |
+| mhs-midi-pkg | 4.8MB | ~1s | Package embedding (fastest startup) |
+| mhs-midi-pkg-zstd | 3.0MB | ~1s | Compressed packages (best balance) |
 
 The standalone binary:
 - Embeds 273 files (~2.5MB of content)
@@ -350,13 +352,14 @@ Dictionary-based compression is particularly effective for Haskell source files 
 ### Build Options
 
 ```bash
-# Default: uncompressed (faster startup)
-cmake -B build
-cmake --build build --target mhs-midi-standalone
+# Build all variants
+cmake -B build && cmake --build build --target mhs-midi-all
 
-# With zstd compression (smaller binary)
-cmake -B build -DMHS_USE_ZSTD=ON
-cmake --build build --target mhs-midi-standalone
+# Or build individual variants:
+cmake --build build --target mhs-midi-src        # Source embedding (default)
+cmake --build build --target mhs-midi-src-zstd   # Compressed source (smallest)
+cmake --build build --target mhs-midi-pkg        # Package embedding (fastest startup)
+cmake --build build --target mhs-midi-pkg-zstd   # Compressed packages (best balance)
 ```
 
 ### How It Works
@@ -425,15 +428,16 @@ cc -O2 -o embed_libs_zstd scripts/embed_libs_zstd.c \
 
 ### Trade-offs
 
-| Aspect | Uncompressed | Zstd Compressed |
-|--------|--------------|-----------------|
-| Binary size | Larger (+1.9 MB) | Smaller |
-| Startup time | Instant | ~50ms dictionary load |
-| Runtime memory | Lower | Cache grows on demand |
-| Build complexity | Simple | Requires zstd |
-| Code size | ~200 lines | ~400 lines + zstddeclib |
+| Variant | Binary Size | Cold Start | Use Case |
+|---------|-------------|------------|----------|
+| mhs-midi-src | 3.3 MB | ~20s | Development, debugging |
+| mhs-midi-src-zstd | 1.3 MB | ~20s | Size-constrained distribution |
+| mhs-midi-pkg | 4.8 MB | ~1s | Fast cold start, CI/CD |
+| mhs-midi-pkg-zstd | 3.0 MB | ~1s | Best for end-user distribution |
 
-Choose zstd compression when binary size matters (distribution, embedded systems). Choose uncompressed when startup latency is critical or build simplicity is preferred.
+**Key insight**: After the first run, `.mhscache` is created and all variants have similar warm-start times (~0.5-1s). The main differences are:
+- **pkg variants**: Eliminate the 20-second cold-start penalty (first run or fresh machine)
+- **zstd variants**: Reduce binary size significantly (useful for distribution)
 
 ## Files
 

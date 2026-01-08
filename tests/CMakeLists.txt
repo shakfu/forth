@@ -344,11 +344,11 @@ set_tests_properties(
 )
 
 If(NOT WIN32)
-# mhs-midi-standalone compilation test
+# mhs-midi-src compilation test (tests the default standalone variant)
 # Compiles a simple Haskell file to executable and runs it
 add_test(
     NAME mhs_standalone_compile
-    COMMAND sh -c "TMPEXE=$(mktemp) && $<TARGET_FILE:mhs-midi-standalone> -o\$TMPEXE ${CMAKE_CURRENT_SOURCE_DIR}/mhs/TestCompile.hs && \$TMPEXE; STATUS=\$?; rm -f \$TMPEXE; exit \$STATUS"
+    COMMAND sh -c "TMPEXE=$(mktemp) && $<TARGET_FILE:mhs-midi-src> -o\$TMPEXE ${CMAKE_CURRENT_SOURCE_DIR}/mhs/TestCompile.hs && \$TMPEXE; STATUS=\$?; rm -f \$TMPEXE; exit \$STATUS"
 )
 
 set_tests_properties(mhs_standalone_compile PROPERTIES

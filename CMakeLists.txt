@@ -66,6 +66,25 @@ add_subdirectory(projects/s7-midi)
 add_subdirectory(projects/lua-midi)
 add_subdirectory(projects/alda-midi)
 
+# ============================================
+# Alias targets for consistent naming
+# ============================================
+# Provides hyphenated target names (e.g., forth-midi instead of forth_midi)
+
+add_custom_target(forth-midi DEPENDS forth_midi)
+add_custom_target(lua-midi DEPENDS lua_midi)
+add_custom_target(pktpy-midi DEPENDS pktpy_midi)
+add_custom_target(s7-midi DEPENDS s7_midi)
+add_custom_target(alda-midi DEPENDS alda_midi)
+
+# Convenience target to build all midi-langs
+add_custom_target(all-midi-langs
+    DEPENDS forth_midi lua_midi pktpy_midi s7_midi alda_midi
+)
+if(NOT WIN32)
+    add_dependencies(all-midi-langs mhs-midi mhs-midi-src mhs-midi-src-zstd mhs-midi-pkg mhs-midi-pkg-zstd)
+endif()
+
 # Enable testing
 enable_testing()
 add_subdirectory(tests)
