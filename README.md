@@ -422,6 +422,8 @@ This is not a comprehensive list:
 
 - [melrose](https://github.com/emicklei/melrose) - a tool to create and play music by programming melodies. It uses a custom language to compose notes and create loops and tracks to play.
 
+- [mezzo](https://github.com/DimaSamoz/mezzo) - A Haskell library for typesafe music composition
+
 - [miti](https://github.com/schollz/miti) - a musical instrument textual interface. Basically, its MIDI, but with human-readable text.
 
 - [mma](https://www.mellowood.ca/mma/) - an accompaniment generator. It creates MIDI tracks for a soloist to perform over from a user supplied file containing chords and MMA directives.
@@ -431,6 +433,4 @@ This is not a comprehensive list:
 - [scamp](https://github.com/MarcTheSpark/scamp) - Suite for Computer-Assisted Music in Python - a computer-assisted composition framework in Python designed to act as a hub, flexibly connecting the composer-programmer to a wide variety of resources for playback and notation.
 
 - [textbeat](https://github.com/flipcoder/textbeat) - Compose music in a plaintext format or type music directly in the shell. The format is vertical and column-based, similar to early music trackers, but with syntax inspired by jazz/music theory.
-
-- [mezzo](https://github.com/DimaSamoz/mezzo) - A Haskell library for typesafe music composition
 

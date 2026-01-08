@@ -4,6 +4,8 @@ All notable changes to midi-langs are documented in this file.
 
 ## [Unreleased]
 
+## [0.1.8]
+
 ### Added
 
 - **mhs-midi-pkg-zstd**: Combined package embedding with zstd compression
@@ -20,10 +22,6 @@ All notable changes to midi-langs are documented in this file.
     - `mhs-midi-src-zstd` (1.3M) - compressed source, smallest binary
     - `mhs-midi-pkg` (4.8M) - package embedding, fastest startup
     - `mhs-midi-pkg-zstd` (3.0M) - compressed packages, best balance
-
-## [0.1.8]
-
-### Added
 
 - **alda-midi built-in synthesizer**: TinySoundFont + miniaudio integration for direct audio output
   - No external synth required - just provide a SoundFont (.sf2) file
