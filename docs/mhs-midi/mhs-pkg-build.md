@@ -266,10 +266,11 @@ def collect_runtime_files(base_dir: Path) -> list[tuple[str, Path]]:
 Static libraries are also embedded for linking:
 
 ```sh
+# CMake handles this automatically, but the equivalent command is:
 python embed_pkgs.py output.h \
-    --base-pkg ~/.mcabal/mhs-0.15.2.0/packages/base-0.15.2.0.pkg \
+    --base-pkg build/mcabal/mhs-0.15.2.0/packages/base-0.15.2.0.pkg \
     --music-pkg build/music-0.1.0.pkg \
-    --base-dir ~/.mcabal/mhs-0.15.2.0 \
+    --base-dir build/mcabal/mhs-0.15.2.0 \
     --lib lib/libmidi_ffi.a=build/libmidi_ffi.a \
     --lib lib/liblibremidi.a=build/liblibremidi.a \
     --header include/midi_ffi.h=src/midi_ffi.h
@@ -362,15 +363,19 @@ cmake --build build --target mhs-midi-standalone
 
 ## Prerequisites for MHS_USE_PKG
 
-The package mode requires MicroHs to be installed:
+The package mode requires MicroHs to be built (but not installed):
 
 ```sh
 cd thirdparty/MicroHs
 make
-make install  # Creates ~/.mcabal/mhs-0.15.2.0/
 ```
 
-This installs `base-0.15.2.0.pkg` and the module mapping `.txt` files that `embed_pkgs.py` reads during the build.
+The CMake build handles everything else automatically:
+- Builds `base-0.15.2.0.pkg` locally in `build/mhs-base-src/dist-mcabal/`
+- Installs packages to `build/mcabal/` (not `~/.mcabal`)
+- Generates module mapping `.txt` files that `embed_pkgs.py` reads
+
+This keeps the source tree clean and avoids modifying user's home directory.
 
 ## Conclusion
 

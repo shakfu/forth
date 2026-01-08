@@ -405,7 +405,9 @@ This is not a comprehensive list:
 
 - [mma](https://www.mellowood.ca/mma/) - an accompaniment generator. It creates MIDI tracks for a soloist to perform over from a user supplied file containing chords and MMA directives.
 
-- [opusmodus](https://www.opusmodus.com) - a commercial music composition development environment. -- "currently the most advanced software for computer-assisted composition available".
+- [opusmodus](https://www.opusmodus.com) - a commercial music composition development environment. -- Uses common lisp. "currently the most advanced software for computer-assisted composition available".
+
+- [scamp](https://github.com/MarcTheSpark/scamp) - Suite for Computer-Assisted Music in Python - a computer-assisted composition framework in Python designed to act as a hub, flexibly connecting the composer-programmer to a wide variety of resources for playback and notation.
 
 - [textbeat](https://github.com/flipcoder/textbeat) - Compose music in a plaintext format or type music directly in the shell. The format is vertical and column-based, similar to early music trackers, but with syntax inspired by jazz/music theory.
 

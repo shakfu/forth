@@ -113,10 +113,6 @@ jobs:
       - name: Build MicroHs
         run: make -C thirdparty/MicroHs
 
-      - name: Install MicroHs packages (for PKG modes)
-        if: contains(matrix.cmake_opts, 'MHS_USE_PKG')
-        run: make -C thirdparty/MicroHs install
-
       - name: Configure CMake (${{ matrix.name }})
         run: cmake -B build ${{ matrix.cmake_opts }}
 

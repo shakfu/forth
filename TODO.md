@@ -25,6 +25,7 @@ Ideas for extending MIDI implementations.
 - [ ] OSC support for external control
 - [ ] Ableton Link for tempo sync
 - [ ] Jack audio connection kit support (Linux)
+- [ ] MusicXML import/export (maybe [libmusicxml])(https://github.com/grame-cncm/libmusicxml))
 
 ### Enhance existing async features
 

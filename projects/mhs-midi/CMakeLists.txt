@@ -218,14 +218,50 @@ find_package(Python3 REQUIRED COMPONENTS Interpreter)
 # Build embedded files header based on options
 if(MHS_USE_PKG)
     # Package mode: embed precompiled .pkg files for fast startup
-    # Requires base.pkg from MicroHs installation
-    set(BASE_DIR "$ENV{HOME}/.mcabal/mhs-0.15.2.0")
-    set(BASE_PKG "${BASE_DIR}/packages/base-0.15.2.0.pkg")
-    if(NOT EXISTS ${BASE_PKG})
-        message(FATAL_ERROR
-            "base-0.15.2.0.pkg not found at ${BASE_PKG}\n"
-            "Please run 'make install' in thirdparty/MicroHs to install MicroHs packages.")
-    endif()
+    # Build base.pkg in build/ directory (keeps source tree clean)
+    set(MHS_VERSION "0.15.2.0")
+    set(LOCAL_MCABAL "${CMAKE_BINARY_DIR}/mcabal")
+    set(BASE_DIR "${LOCAL_MCABAL}/mhs-${MHS_VERSION}")
+    set(BASE_PKG "${BASE_DIR}/packages/base-${MHS_VERSION}.pkg")
+    set(LOCAL_MCABAL_STAMP "${LOCAL_MCABAL}/.installed")
+    set(MHS_BASE_BUILD "${CMAKE_BINARY_DIR}/mhs-base-src")
+    set(DIST_BASE_PKG "${MHS_BASE_BUILD}/dist-mcabal/base-${MHS_VERSION}.pkg")
+
+    # Copy lib to build/ and build base.pkg there (avoids polluting source tree)
+    add_custom_command(
+        OUTPUT ${DIST_BASE_PKG}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${MHS_BASE_BUILD}
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${MHS_LIB} ${MHS_BASE_BUILD}
+        COMMAND ${CMAKE_COMMAND} -E chdir ${MHS_BASE_BUILD}
+            ${CMAKE_COMMAND} -E env
+            "PATH=${MHS_DIR}/bin:$ENV{PATH}"
+            "MHSDIR=${MHS_DIR}"
+            ${MHS_DIR}/bin/mcabal build
+        DEPENDS ${MHS_COMPILER}
+        COMMENT "Building base-${MHS_VERSION}.pkg in build/mhs-base-src"
+        VERBATIM
+    )
+
+    # Install base.pkg locally using mhs -Q, and copy runtime files
+    set(MHS_DATA_DIR "${BASE_DIR}/packages/mhs-${MHS_VERSION}/data")
+    add_custom_command(
+        OUTPUT ${LOCAL_MCABAL_STAMP}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${LOCAL_MCABAL}/bin
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${BASE_DIR}/packages
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${MHS_DATA_DIR}/src/runtime
+        COMMAND ${CMAKE_COMMAND} -E copy ${MHS_DIR}/bin/mhs ${LOCAL_MCABAL}/bin/
+        COMMAND ${CMAKE_COMMAND} -E copy ${MHS_DIR}/bin/cpphs ${LOCAL_MCABAL}/bin/
+        COMMAND ${CMAKE_COMMAND} -E copy ${MHS_DIR}/bin/mcabal ${LOCAL_MCABAL}/bin/
+        COMMAND ${CMAKE_COMMAND} -E env "MHSDIR=${MHS_DIR}"
+            ${MHS_COMPILER} -Q ${DIST_BASE_PKG} ${BASE_DIR}
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${MHS_RUNTIME} ${MHS_DATA_DIR}/src/runtime
+        COMMAND ${CMAKE_COMMAND} -E copy ${MHS_DIR}/targets.conf ${MHS_DATA_DIR}/
+        COMMAND ${CMAKE_COMMAND} -E touch ${LOCAL_MCABAL_STAMP}
+        DEPENDS ${MHS_COMPILER} ${DIST_BASE_PKG}
+        COMMENT "Installing MicroHs packages to build/mcabal"
+        VERBATIM
+    )
+    add_custom_target(mhs-local-install DEPENDS ${LOCAL_MCABAL_STAMP})
 
     # Generate music.pkg from MIDI library sources
     set(MUSIC_PKG ${CMAKE_CURRENT_BINARY_DIR}/music-0.1.0.pkg)
@@ -262,7 +298,7 @@ if(MHS_USE_PKG)
             --header include/midi_ffi.h=${CMAKE_CURRENT_SOURCE_DIR}/midi_ffi.h
         DEPENDS
             ${CMAKE_SOURCE_DIR}/scripts/embed_pkgs.py
-            ${BASE_PKG}
+            ${LOCAL_MCABAL_STAMP}
             ${MUSIC_PKG}
             ${CMAKE_CURRENT_SOURCE_DIR}/midi_ffi.h
             libremidi

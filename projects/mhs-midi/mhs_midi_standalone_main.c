@@ -184,14 +184,17 @@ int main(int argc, char **argv) {
         new_argv[j++] = "-framework";
         new_argv[j++] = "-optl";
         new_argv[j++] = "CoreAudio";
+        /* C++ standard library (libremidi is C++) - Clang uses libc++ */
+        new_argv[j++] = "-optl";
+        new_argv[j++] = "-lc++";
 #else
         /* Linux: ALSA */
         new_argv[j++] = "-optl";
         new_argv[j++] = "-lasound";
-#endif
-        /* C++ standard library (libremidi is C++) */
+        /* C++ standard library (libremidi is C++) - GCC uses libstdc++ */
         new_argv[j++] = "-optl";
-        new_argv[j++] = "-lc++";
+        new_argv[j++] = "-lstdc++";
+#endif
     }
 
     /* Copy remaining arguments */

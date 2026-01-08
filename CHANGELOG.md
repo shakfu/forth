@@ -33,7 +33,7 @@ All notable changes to midi-langs are documented in this file.
     - Static libraries (libremidi, midi_ffi, music_theory, midi_file)
   - VFS intercepts `opendir`/`readdir` for virtual package directory listing
   - New script: `scripts/embed_pkgs.py` for package embedding
-  - Requires `make install` in `thirdparty/MicroHs` first
+  - Self-contained build: packages built locally in `build/` (no `~/.mcabal` required)
   - Documentation: `docs/mhs-midi/mhs-pkg-build.md`
 
 - **mhs-midi-standalone zstd compression**: Optional build-time compression for smaller binaries
