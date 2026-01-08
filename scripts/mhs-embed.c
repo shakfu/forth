@@ -204,8 +204,9 @@ static int add_synthetic_file(const char* vfs_path, const char* content_str, int
  * Directory traversal
  *-----------------------------------------------------------*/
 
-static int collect_files_recursive(const char* dir_path, const char* base_name,
-                                   const char* pattern, int include_subdirs) {
+static int collect_files_recursive_typed(const char* dir_path, const char* base_name,
+                                         const char* pattern, int include_subdirs,
+                                         int file_type) {
     DIR* dir = opendir(dir_path);
     if (!dir) {
         fprintf(stderr, "Warning: Could not open directory %s: %s\n",
@@ -228,7 +229,7 @@ static int collect_files_recursive(const char* dir_path, const char* base_name,
                     snprintf(new_base, sizeof(new_base), "%s/%s", base_name, entry->d_name);
                 else
                     snprintf(new_base, sizeof(new_base), "%s", entry->d_name);
-                collect_files_recursive(full_path, new_base, pattern, 1);
+                collect_files_recursive_typed(full_path, new_base, pattern, 1, file_type);
             }
         } else if (matches_pattern(entry->d_name, pattern)) {
             char vfs_path[MAX_PATH];
@@ -236,12 +237,17 @@ static int collect_files_recursive(const char* dir_path, const char* base_name,
                 snprintf(vfs_path, sizeof(vfs_path), "%s/%s", base_name, entry->d_name);
             else
                 snprintf(vfs_path, sizeof(vfs_path), "%s", entry->d_name);
-            add_file(vfs_path, full_path);
+            add_file_with_type(vfs_path, full_path, file_type);
         }
     }
 
     closedir(dir);
     return 0;
+}
+
+static int collect_files_recursive(const char* dir_path, const char* base_name,
+                                   const char* pattern, int include_subdirs) {
+    return collect_files_recursive_typed(dir_path, base_name, pattern, include_subdirs, FILE_TYPE_SOURCE);
 }
 
 static int collect_hs_files(const char* lib_dir) {
@@ -274,8 +280,8 @@ static int collect_runtime_files(const char* runtime_dir) {
     const char* src_pos = strstr(dir_copy, "src/runtime");
     const char* base = src_pos ? src_pos : "src/runtime";
 
-    collect_files_recursive(dir_copy, base, "*.c", 1);
-    collect_files_recursive(dir_copy, base, "*.h", 1);
+    collect_files_recursive_typed(dir_copy, base, "*.c", 1, FILE_TYPE_RUNTIME);
+    collect_files_recursive_typed(dir_copy, base, "*.h", 1, FILE_TYPE_RUNTIME);
 
     return 0;
 }

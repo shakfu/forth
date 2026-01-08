@@ -390,6 +390,7 @@ add_custom_command(
         --pkg packages/music-0.1.0.pkg=${MUSIC_PKG}
         --txt-dir ${BASE_DIR}
         --music-modules music-0.1.0.pkg:Async,Midi,MidiPerform,Music,MusicPerform
+        --runtime ${MHS_DATA_DIR}/src/runtime
         --lib ${CMAKE_BINARY_DIR}/thirdparty/libremidi/liblibremidi.a
         --lib ${CMAKE_BINARY_DIR}/projects/mhs-midi/libmidi_ffi.a
         --lib ${CMAKE_BINARY_DIR}/projects/common/libmusic_theory.a
@@ -420,6 +421,7 @@ add_custom_command(
         --pkg packages/music-0.1.0.pkg=${MUSIC_PKG}
         --txt-dir ${BASE_DIR}
         --music-modules music-0.1.0.pkg:Async,Midi,MidiPerform,Music,MusicPerform
+        --runtime ${MHS_DATA_DIR}/src/runtime
         --lib ${CMAKE_BINARY_DIR}/thirdparty/libremidi/liblibremidi.a
         --lib ${CMAKE_BINARY_DIR}/projects/mhs-midi/libmidi_ffi.a
         --lib ${CMAKE_BINARY_DIR}/projects/common/libmusic_theory.a
