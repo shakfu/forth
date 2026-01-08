@@ -68,6 +68,7 @@ jobs:
           cp build/s7_midi artifacts/
           cp build/alda_midi artifacts/
           cp build/mhs-midi artifacts/
+          cp build/mhs-midi-standalone artifacts/
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
