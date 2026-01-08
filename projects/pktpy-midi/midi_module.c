@@ -14,8 +14,15 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
-#include <unistd.h>
 #include <time.h>
+
+/* Cross-platform sleep */
+#ifdef _WIN32
+#include <windows.h>
+#define usleep(us) Sleep((us) / 1000)
+#else
+#include <unistd.h>
+#endif
 
 #define MAX_PORTS 64
 #define MAX_CAPTURE_EVENTS 4096

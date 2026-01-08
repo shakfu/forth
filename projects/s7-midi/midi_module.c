@@ -7,8 +7,15 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
-#include <unistd.h>
 #include <time.h>
+
+/* Cross-platform sleep */
+#ifdef _WIN32
+#include <windows.h>
+#define usleep(us) Sleep((us) / 1000)
+#else
+#include <unistd.h>
+#endif
 
 #include "s7.h"
 #include <libremidi/libremidi-c.h>

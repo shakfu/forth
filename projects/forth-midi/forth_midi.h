@@ -12,8 +12,15 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdint.h>
-#include <unistd.h>
 #include <time.h>
+
+/* Cross-platform sleep */
+#ifdef _WIN32
+#include <windows.h>
+#define usleep(us) Sleep((us) / 1000)
+#else
+#include <unistd.h>
+#endif
 
 #include <libremidi/libremidi-c.h>
 #include "music_theory.h"
