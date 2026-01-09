@@ -18,6 +18,10 @@ All notable changes to midi-langs are documented in this file.
   - `build-windows-mhs.yml` workflow builds MicroHs compiler and mhs-midi REPL
   - Cross-platform Python script `mhs-patch-xffi.py` replaces sed for patching mhs.c
 
+- **BUILD_MHS_MIDI CMake option**: Control whether mhs-midi targets are built
+  - Defaults to ON; set `-DBUILD_MHS_MIDI=OFF` to skip mhs-midi (avoids MicroHs build at configure time)
+  - Used by Windows CI to skip mhs-midi in `build-windows` job (separate `build-windows-mhs` handles it)
+
 ### Fixed
 
 - **Windows build compatibility**: All MIDI language implementations now build and test on Windows

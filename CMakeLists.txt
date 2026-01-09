@@ -10,6 +10,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 option(BUILD_EXAMPLES "Build language standalone examples" OFF)
+option(BUILD_MHS_MIDI "Build mhs-midi targets (requires MicroHs)" ON)
 # Option to enable address and undefined behavior sanitizers
 option(ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
 
@@ -69,7 +70,9 @@ add_subdirectory(projects/common)
 
 # Add project subdirectories
 add_subdirectory(projects/forth-midi)
-add_subdirectory(projects/mhs-midi)
+if(BUILD_MHS_MIDI)
+    add_subdirectory(projects/mhs-midi)
+endif()
 add_subdirectory(projects/pktpy-midi)
 add_subdirectory(projects/s7-midi)
 add_subdirectory(projects/lua-midi)
@@ -88,11 +91,14 @@ add_custom_target(alda-midi DEPENDS alda_midi)
 
 # Convenience target to build all midi-langs
 add_custom_target(all-midi-langs
-    DEPENDS forth_midi lua_midi pktpy_midi s7_midi alda_midi mhs-midi
+    DEPENDS forth_midi lua_midi pktpy_midi s7_midi alda_midi
 )
-if(NOT WIN32)
-    # Standalone variants require fmemopen (not available on Windows)
-    add_dependencies(all-midi-langs mhs-midi-src mhs-midi-src-zstd mhs-midi-pkg mhs-midi-pkg-zstd)
+if(BUILD_MHS_MIDI)
+    add_dependencies(all-midi-langs mhs-midi)
+    if(NOT WIN32)
+        # Standalone variants require fmemopen (not available on Windows)
+        add_dependencies(all-midi-langs mhs-midi-src mhs-midi-src-zstd mhs-midi-pkg mhs-midi-pkg-zstd)
+    endif()
 endif()
 
 # Enable testing

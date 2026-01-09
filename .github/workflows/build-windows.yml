@@ -24,7 +24,7 @@ jobs:
           python scripts/prelude2c.py projects/pktpy-midi/prelude.py
 
       - name: Configure CMake
-        run: cmake -B build -G "Visual Studio 17 2022"
+        run: cmake -B build -G "Visual Studio 17 2022" -DBUILD_MHS_MIDI=OFF
 
       - name: Build forth_midi
         run: cmake --build build --config Release --target forth_midi
