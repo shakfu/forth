@@ -69,9 +69,7 @@ add_subdirectory(projects/common)
 
 # Add project subdirectories
 add_subdirectory(projects/forth-midi)
-if(NOT WIN32)
 add_subdirectory(projects/mhs-midi)
-endif()
 add_subdirectory(projects/pktpy-midi)
 add_subdirectory(projects/s7-midi)
 add_subdirectory(projects/lua-midi)
@@ -90,10 +88,11 @@ add_custom_target(alda-midi DEPENDS alda_midi)
 
 # Convenience target to build all midi-langs
 add_custom_target(all-midi-langs
-    DEPENDS forth_midi lua_midi pktpy_midi s7_midi alda_midi
+    DEPENDS forth_midi lua_midi pktpy_midi s7_midi alda_midi mhs-midi
 )
 if(NOT WIN32)
-    add_dependencies(all-midi-langs mhs-midi mhs-midi-src mhs-midi-src-zstd mhs-midi-pkg mhs-midi-pkg-zstd)
+    # Standalone variants require fmemopen (not available on Windows)
+    add_dependencies(all-midi-langs mhs-midi-src mhs-midi-src-zstd mhs-midi-pkg mhs-midi-pkg-zstd)
 endif()
 
 # Enable testing

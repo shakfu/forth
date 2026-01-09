@@ -220,8 +220,9 @@ endif()
 add_strip_command(mhs-midi)
 
 # ============================================
-# mhs-midi standalone variants
+# mhs-midi standalone variants (Unix only - requires fmemopen)
 # ============================================
+if(NOT WIN32)
 #
 # Builds 3 standalone variants:
 #   - mhs-midi-src:       source embedding (default)
@@ -548,11 +549,23 @@ add_custom_target(mhs-midi-all
 )
 
 # ============================================
-# Installation rules
+# Installation rules (standalone variants)
 # ============================================
 
-# Install binaries
-install(TARGETS mhs-midi mhs-midi-src mhs-midi-src-zstd mhs-midi-pkg mhs-midi-pkg-zstd
+# Install standalone binaries (Unix only)
+install(TARGETS mhs-midi-src mhs-midi-src-zstd mhs-midi-pkg mhs-midi-pkg-zstd
+    RUNTIME DESTINATION bin
+    COMPONENT mhs-midi
+)
+
+endif() # NOT WIN32
+
+# ============================================
+# Installation rules (all platforms)
+# ============================================
+
+# Install mhs-midi REPL (all platforms)
+install(TARGETS mhs-midi
     RUNTIME DESTINATION bin
     COMPONENT mhs-midi
 )
