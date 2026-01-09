@@ -14,10 +14,32 @@
 #include <stdint.h>
 #include <time.h>
 
-/* Cross-platform sleep */
+/* Cross-platform compatibility */
 #ifdef _WIN32
 #include <windows.h>
 #define usleep(us) Sleep((us) / 1000)
+/* Windows high-resolution timing */
+static LARGE_INTEGER forth_perf_freq;
+static int forth_perf_freq_init = 0;
+static inline void forth_init_perf_freq(void) {
+    if (!forth_perf_freq_init) {
+        QueryPerformanceFrequency(&forth_perf_freq);
+        forth_perf_freq_init = 1;
+    }
+}
+#ifndef CLOCK_MONOTONIC
+#define CLOCK_MONOTONIC 0
+struct timespec { long tv_sec; long tv_nsec; };
+static inline int clock_gettime(int clk_id, struct timespec *tp) {
+    (void)clk_id;
+    forth_init_perf_freq();
+    LARGE_INTEGER count;
+    QueryPerformanceCounter(&count);
+    tp->tv_sec = (long)(count.QuadPart / forth_perf_freq.QuadPart);
+    tp->tv_nsec = (long)((count.QuadPart % forth_perf_freq.QuadPart) * 1000000000 / forth_perf_freq.QuadPart);
+    return 0;
+}
+#endif
 #else
 #include <unistd.h>
 #endif
