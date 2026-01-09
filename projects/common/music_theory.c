@@ -7,7 +7,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+
+/* Cross-platform case-insensitive string compare */
+#ifdef _WIN32
+#define strcasecmp _stricmp
+#else
 #include <strings.h>
+#endif
 
 /* ============================================================================
  * Chord Interval Definitions
