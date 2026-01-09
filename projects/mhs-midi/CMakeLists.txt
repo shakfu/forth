@@ -3,7 +3,11 @@
 
 # Paths
 set(MHS_DIR ${CMAKE_SOURCE_DIR}/thirdparty/MicroHs)
-set(MHS_COMPILER ${MHS_DIR}/bin/mhs)
+if(WIN32)
+    set(MHS_COMPILER ${MHS_DIR}/bin/mhs.exe)
+else()
+    set(MHS_COMPILER ${MHS_DIR}/bin/mhs)
+endif()
 set(MHS_RUNTIME ${MHS_DIR}/src/runtime)
 set(MHS_LIB ${MHS_DIR}/lib)
 set(MIDI_LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib)
