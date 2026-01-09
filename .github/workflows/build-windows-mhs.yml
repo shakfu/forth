@@ -26,13 +26,23 @@ jobs:
         run: |
           nmake -f Makefile.windows
 
-      - name: Verify MicroHs compiler
+      - name: Verify MicroHs compiler and files
         shell: cmd
         run: |
+          echo "Checking MicroHs compiler..."
           thirdparty\MicroHs\bin\mhs.exe --version
+          echo "Checking generated/mhs.c exists..."
+          if exist thirdparty\MicroHs\generated\mhs.c (echo Found) else (echo NOT FOUND && exit 1)
 
       - name: Configure CMake
-        run: cmake -B build -G "Visual Studio 17 2022"
+        run: cmake -B build -G "Visual Studio 17 2022" --log-level=VERBOSE
+
+      - name: List CMake targets
+        shell: cmd
+        run: |
+          echo "Checking if mhs-midi target was generated..."
+          if exist build\projects\mhs-midi\mhs-midi.vcxproj (echo Found mhs-midi.vcxproj) else (echo mhs-midi.vcxproj NOT FOUND)
+          dir build\projects\mhs-midi\*.vcxproj 2>nul || echo "No vcxproj files in mhs-midi"
 
       - name: Build mhs-midi
         run: cmake --build build --config Release --target mhs-midi
