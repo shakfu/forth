@@ -7935,9 +7935,9 @@ static void unmark_semipermanent_objects(s7_scheme *sc)
 }
 
 #if !MS_Windows
-  #include <time.h>
   #include <sys/time.h>
 #endif
+#include <time.h>
 
 #if s7_Debugging
 static s7_int gc(s7_scheme *sc, const char *func, int32_t line)
@@ -38801,7 +38801,8 @@ static s7_pointer g_uname(s7_scheme *sc, s7_pointer unused_args)
 #else
 static s7_pointer g_uname(s7_scheme *sc, s7_pointer args)
 { /* return a list to be somewhat compatible with the uname-related functions */
-  return(s7_list(sc, 5, sc->nil_string, sc->nil_string, sc->nil_string, sc->nil_string, sc->nil_string));
+  (void)args;
+  return(s7_list(sc, 5, nil_string, nil_string, nil_string, nil_string, nil_string));
 }
 #endif
 
