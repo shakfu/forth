@@ -11,9 +11,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <direct.h>
+#define PATH_MAX MAX_PATH
+#define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
+#else
 #include <unistd.h>
 #include <libgen.h>
-#include <sys/stat.h>
+#endif
 
 #ifdef __APPLE__
 #include <mach-o/dyld.h>
@@ -32,7 +41,18 @@ int mhs_main(int argc, char **argv);
 
 /* Get the directory containing the executable */
 static int get_exe_dir(char *buf, size_t size) {
-#ifdef __APPLE__
+#ifdef _WIN32
+    DWORD len = GetModuleFileNameA(NULL, buf, (DWORD)size);
+    if (len > 0 && len < size) {
+        /* Find last backslash and truncate */
+        char *last_sep = strrchr(buf, '\\');
+        if (!last_sep) last_sep = strrchr(buf, '/');
+        if (last_sep) {
+            *last_sep = '\0';
+            return 0;
+        }
+    }
+#elif defined(__APPLE__)
     uint32_t bufsize = (uint32_t)size;
     if (_NSGetExecutablePath(buf, &bufsize) == 0) {
         char *dir = dirname(buf);
@@ -59,6 +79,29 @@ static int file_exists(const char *path) {
     return stat(path, &st) == 0 && S_ISREG(st.st_mode);
 }
 
+/* Resolve a path to its absolute form */
+static char* resolve_path(const char *path) {
+#ifdef _WIN32
+    char *resolved = malloc(PATH_MAX);
+    if (resolved && _fullpath(resolved, path, PATH_MAX)) {
+        return resolved;
+    }
+    free(resolved);
+    return NULL;
+#else
+    return realpath(path, NULL);
+#endif
+}
+
+/* Cross-platform setenv */
+static int set_env(const char *name, const char *value) {
+#ifdef _WIN32
+    return _putenv_s(name, value);
+#else
+    return setenv(name, value, 1);
+#endif
+}
+
 /* Try to find MHSDIR relative to executable */
 static int find_mhsdir(char *buf, size_t size, const char *exe_dir) {
     const char *candidates[] = {
@@ -79,7 +122,7 @@ static int find_mhsdir(char *buf, size_t size, const char *exe_dir) {
         snprintf(prelude_path, sizeof(prelude_path), "%s/lib/Prelude.hs", buf);
 
         if (file_exists(prelude_path)) {
-            char *resolved = realpath(buf, NULL);
+            char *resolved = resolve_path(buf);
             if (resolved) {
                 strncpy(buf, resolved, size - 1);
                 buf[size - 1] = '\0';
@@ -111,7 +154,7 @@ static int find_midi_lib(char *buf, size_t size, const char *exe_dir) {
         snprintf(midi_path, sizeof(midi_path), "%s/Midi.hs", buf);
 
         if (file_exists(midi_path)) {
-            char *resolved = realpath(buf, NULL);
+            char *resolved = resolve_path(buf);
             if (resolved) {
                 strncpy(buf, resolved, size - 1);
                 buf[size - 1] = '\0';
@@ -159,7 +202,7 @@ int main(int argc, char **argv) {
     /* Set MHSDIR if not already set */
     if (!getenv("MHSDIR")) {
         if (exe_dir[0] && find_mhsdir(mhsdir, sizeof(mhsdir), exe_dir) == 0) {
-            setenv("MHSDIR", mhsdir, 1);
+            set_env("MHSDIR", mhsdir);
         } else {
             fprintf(stderr, "Error: Cannot find MicroHs directory.\n");
             fprintf(stderr, "Set MHSDIR environment variable or ensure proper installation.\n");

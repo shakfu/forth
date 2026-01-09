@@ -4,6 +4,31 @@ All notable changes to midi-langs are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **mhs-midi Windows support**: New GitHub workflow for building mhs-midi on Windows
+  - `build-windows-mhs.yml` workflow builds MicroHs compiler and mhs-midi REPL
+  - Cross-platform Python script `mhs-patch-xffi.py` replaces sed for patching mhs.c
+
+### Fixed
+
+- **Windows build compatibility**: All MIDI language implementations now build and test on Windows
+  - Added `WIN32_LEAN_AND_MEAN` before `<windows.h>` includes to prevent winsock.h/winsock2.h conflicts
+  - Removed `struct timespec` definitions (Windows UCRT already provides it in `<time.h>`)
+  - Added `#ifndef CLOCK_MONOTONIC` guards with `QueryPerformanceCounter`-based timing implementation
+  - Fixed `getopt.h` unavailability in pktpy-midi with Windows-specific argument parsing
+  - Disabled pocketpy threading on Windows (`PK_ENABLE_THREADS=0`) to avoid MSVC C11 atomics issues
+  - Patched s7.c: fixed `nil_string` bug in Windows `g_uname()` and added `<time.h>` include
+
+- **mhs-midi Windows compatibility**:
+  - `mhs_midi_main.c`: Added `GetModuleFileNameA()`, `_fullpath()`, `_putenv_s()` for Windows
+  - `midi_ffi.c`: Added `Sleep()` and `QueryPerformanceCounter()` implementations for Windows
+  - `CMakeLists.txt`: Added Windows runtime include path and `winmm` library
+
+- **Windows CI tests**: Shell-based tests now properly excluded on Windows
+  - Wrapped all `sh -c` and `.sh` script tests in `if(NOT WIN32)` blocks
+  - Cross-platform tests (direct executable calls) remain available on all platforms
+
 ## [0.1.8]
 
 ### Added

@@ -7,7 +7,31 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#define usleep(us) Sleep((us) / 1000)
+
+#ifndef CLOCK_MONOTONIC
+#define CLOCK_MONOTONIC 0
+#endif
+
+static int clock_gettime(int clk_id, struct timespec *tp) {
+    (void)clk_id;
+    static LARGE_INTEGER freq = {0};
+    LARGE_INTEGER counter;
+    if (freq.QuadPart == 0) {
+        QueryPerformanceFrequency(&freq);
+    }
+    QueryPerformanceCounter(&counter);
+    tp->tv_sec = (long)(counter.QuadPart / freq.QuadPart);
+    tp->tv_nsec = (long)((counter.QuadPart % freq.QuadPart) * 1000000000LL / freq.QuadPart);
+    return 0;
+}
+#else
 #include <unistd.h>
+#endif
 
 #define MAX_PORTS 64
 #define MAX_PORT_NAME 256

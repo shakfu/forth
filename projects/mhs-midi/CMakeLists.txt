@@ -154,11 +154,13 @@ endif()
 
 # Strip xffi_table definition from mhs.c to avoid multiple definition error
 # Our midi_ffi_wrappers.c provides its own xffi_table with MIDI FFI functions
+# Use Python for cross-platform compatibility (sed not available on Windows)
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/mhs_repl.c
-    COMMAND sed -e "s/const struct ffi_entry .xffi_table = imp_table;/\\/\\/ xffi_table defined in midi_ffi_wrappers.c/"
-            ${MHS_DIR}/generated/mhs.c > ${CMAKE_CURRENT_BINARY_DIR}/mhs_repl.c
-    DEPENDS ${MHS_DIR}/generated/mhs.c
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/mhs-patch-xffi.py
+        ${MHS_DIR}/generated/mhs.c
+        ${CMAKE_CURRENT_BINARY_DIR}/mhs_repl.c
+    DEPENDS ${MHS_DIR}/generated/mhs.c ${CMAKE_SOURCE_DIR}/scripts/mhs-patch-xffi.py
     COMMENT "Creating mhs_repl.c with xffi_table removed"
     VERBATIM
 )
@@ -174,15 +176,20 @@ add_executable(mhs-midi
 
 target_include_directories(mhs-midi PRIVATE
     ${MHS_RUNTIME}
-    ${MHS_RUNTIME}/unix
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/thirdparty/libremidi/include
 )
 
+# Platform-specific runtime includes
+if(WIN32)
+    target_include_directories(mhs-midi PRIVATE ${MHS_RUNTIME}/windows)
+else()
+    target_include_directories(mhs-midi PRIVATE ${MHS_RUNTIME}/unix)
+endif()
+
 target_link_libraries(mhs-midi PRIVATE
     music_theory
     midi_file
-    m
 )
 
 # Platform-specific dependencies
@@ -191,8 +198,12 @@ if(APPLE)
         "-framework CoreMIDI"
         "-framework CoreFoundation"
         "-framework CoreAudio"
+        m
     )
+elseif(WIN32)
+    target_link_libraries(mhs-midi PRIVATE winmm)
 elseif(UNIX)
+    target_link_libraries(mhs-midi PRIVATE m)
     find_package(ALSA)
     if(ALSA_FOUND)
         target_link_libraries(mhs-midi PRIVATE ${ALSA_LIBRARIES})
@@ -219,11 +230,13 @@ set(MHS_VERSION "0.15.2.0")
 # ============================================
 
 # Create modified mhs.c for standalone (removes xffi_table definition)
+# Use Python for cross-platform compatibility (sed not available on Windows)
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/mhs_standalone.c
-    COMMAND sed -e "s/const struct ffi_entry .xffi_table = imp_table;/\\/\\/ xffi_table defined in midi_ffi_wrappers.c/"
-            ${MHS_DIR}/generated/mhs.c > ${CMAKE_CURRENT_BINARY_DIR}/mhs_standalone.c
-    DEPENDS ${MHS_DIR}/generated/mhs.c
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/mhs-patch-xffi.py
+            ${MHS_DIR}/generated/mhs.c
+            ${CMAKE_CURRENT_BINARY_DIR}/mhs_standalone.c
+    DEPENDS ${MHS_DIR}/generated/mhs.c ${CMAKE_SOURCE_DIR}/scripts/mhs-patch-xffi.py
     COMMENT "Creating mhs_standalone.c with xffi_table removed"
     VERBATIM
 )

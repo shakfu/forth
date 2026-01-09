@@ -1,0 +1,59 @@
+name: build-windows-mhs
+
+on: [workflow_dispatch]
+
+jobs:
+  build-mhs-midi:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build MicroHs compiler
+        shell: cmd
+        working-directory: thirdparty/MicroHs
+        run: |
+          nmake -f Makefile.windows
+
+      - name: Verify MicroHs compiler
+        shell: cmd
+        run: |
+          thirdparty\MicroHs\bin\mhs.exe --version
+
+      - name: Configure CMake
+        run: cmake -B build -G "Visual Studio 17 2022"
+
+      - name: Build mhs-midi
+        run: cmake --build build --config Release --target mhs-midi
+
+      - name: List built executables
+        run: |
+          echo "Built executables:"
+          dir build\Release\*.exe
+
+      - name: Test mhs-midi help
+        shell: cmd
+        run: |
+          set MHSDIR=%CD%\thirdparty\MicroHs
+          build\Release\mhs-midi.exe --help
+
+      - name: Prepare artifacts
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          cp build/Release/mhs-midi.exe artifacts/ || true
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mhs-midi-windows
+          path: artifacts/
+          if-no-files-found: warn
