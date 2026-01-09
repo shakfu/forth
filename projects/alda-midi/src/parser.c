@@ -447,17 +447,29 @@ static AldaNode* parse_event_sequence(AldaParser* p, AldaTokenType stop) {
     AldaNode* events = NULL;
 
     while (!is_at_end(p) && !p->error) {
-        skip_newlines(p);
+        /* Check for stop token BEFORE skipping newlines
+         * (important when stop=NEWLINE for variable definitions) */
+        if (stop != ALDA_TOK_EOF && check(p, stop)) break;
+
+        /* Skip newlines between events (but not when NEWLINE is our stop) */
+        if (stop != ALDA_TOK_NEWLINE) {
+            skip_newlines(p);
+        }
 
         if (is_at_end(p)) break;
         if (stop != ALDA_TOK_EOF && check(p, stop)) break;
 
-        /* Check for part declaration (NAME followed by COLON) */
+        /* Check for part declaration (NAME followed by COLON, ALIAS, or SEPARATOR) */
         if (check(p, ALDA_TOK_NAME)) {
             AldaToken* next = peek_next(p);
             if (next && (next->type == ALDA_TOK_COLON ||
-                         next->type == ALDA_TOK_SEPARATOR)) {
+                         next->type == ALDA_TOK_SEPARATOR ||
+                         next->type == ALDA_TOK_ALIAS)) {
                 break; /* Part declaration - let caller handle */
+            }
+            /* Also check for variable definition (NAME followed by EQUALS) */
+            if (next && next->type == ALDA_TOK_EQUALS) {
+                break; /* Variable definition - let caller handle */
             }
         }
 
@@ -547,6 +559,47 @@ static int is_part_declaration(AldaParser* p) {
     return found;
 }
 
+static int is_var_definition(AldaParser* p) {
+    /* Variable definition: NAME = ... */
+    if (!check(p, ALDA_TOK_NAME)) return 0;
+
+    /* Look ahead for EQUALS */
+    AldaToken* next = peek_next(p);
+    return next && next->type == ALDA_TOK_EQUALS;
+}
+
+static AldaNode* parse_var_definition(AldaParser* p) {
+    /* Parse: NAME = events */
+    if (!check(p, ALDA_TOK_NAME)) {
+        set_error(p, "Expected variable name");
+        return NULL;
+    }
+
+    AldaToken* name_tok = advance(p);
+    AldaSourcePos pos = name_tok->pos;
+    char* name = strdup_safe(name_tok->lexeme);
+
+    if (!match(p, ALDA_TOK_EQUALS)) {
+        set_error(p, "Expected '=' after variable name");
+        free(name);
+        return NULL;
+    }
+
+    /* Parse the events (RHS of the definition) */
+    /* Events continue until newline or another top-level construct */
+    AldaNode* events = NULL;
+
+    /* Check if RHS is a bracket sequence */
+    if (check(p, ALDA_TOK_BRACKET_OPEN)) {
+        events = parse_event(p);
+    } else {
+        /* Parse events until newline */
+        events = parse_event_sequence(p, ALDA_TOK_NEWLINE);
+    }
+
+    return alda_node_var_def(name, events, pos);
+}
+
 static AldaNode* parse_top_level(AldaParser* p) {
     AldaSourcePos pos = alda_pos_new(1, 1, p->filename);
     AldaNode* root = alda_node_root(pos);
@@ -556,7 +609,13 @@ static AldaNode* parse_top_level(AldaParser* p) {
         skip_newlines(p);
         if (is_at_end(p)) break;
 
-        if (is_part_declaration(p)) {
+        if (is_var_definition(p)) {
+            /* Parse variable definition: name = events */
+            AldaNode* var_def = parse_var_definition(p);
+            if (var_def) {
+                alda_node_append(&root->data.root.children, var_def);
+            }
+        } else if (is_part_declaration(p)) {
             /* Parse part declaration */
             AldaNode* part_decl = parse_part_declaration(p);
             if (part_decl) {
@@ -572,7 +631,7 @@ static AldaNode* parse_top_level(AldaParser* p) {
                 }
             }
         } else {
-            /* Parse events without part declaration */
+            /* Parse events without part declaration (e.g., global attributes) */
             AldaNode* events = parse_event_sequence(p, ALDA_TOK_EOF);
             if (events) {
                 AldaNode* event_seq = alda_node_event_seq(events, events->pos);
@@ -580,7 +639,7 @@ static AldaNode* parse_top_level(AldaParser* p) {
                     alda_node_append(&root->data.root.children, event_seq);
                 }
             }
-            break;
+            /* Continue loop - there may be part declarations following */
         }
     }
 

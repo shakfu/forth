@@ -29,6 +29,9 @@ static int visit_repeat(AldaContext* ctx, AldaNode* node);
 static int visit_bracket_seq(AldaContext* ctx, AldaNode* node);
 static int visit_voice_group(AldaContext* ctx, AldaNode* node);
 static int visit_voice(AldaContext* ctx, AldaNode* node);
+static int visit_var_def(AldaContext* ctx, AldaNode* node);
+static int visit_var_ref(AldaContext* ctx, AldaNode* node);
+static int visit_cram(AldaContext* ctx, AldaNode* node);
 
 /* ============================================================================
  * Pitch Calculation
@@ -183,12 +186,18 @@ static int visit_node(AldaContext* ctx, AldaNode* node) {
             /* Barlines are visual-only, no action needed */
             return 0;
 
-        /* Deferred features */
         case ALDA_NODE_VAR_DEF:
+            return visit_var_def(ctx, node);
+
         case ALDA_NODE_VAR_REF:
+            return visit_var_ref(ctx, node);
+
+        case ALDA_NODE_CRAM:
+            return visit_cram(ctx, node);
+
+        /* Deferred features */
         case ALDA_NODE_MARKER:
         case ALDA_NODE_AT_MARKER:
-        case ALDA_NODE_CRAM:
         case ALDA_NODE_ON_REPS:
             if (ctx->verbose_mode) {
                 fprintf(stderr, "Warning: %s not yet implemented\n",
@@ -556,6 +565,274 @@ static int visit_voice(AldaContext* ctx, AldaNode* node) {
             return -1;
         }
         event = event->next;
+    }
+
+    return 0;
+}
+
+/* ============================================================================
+ * Variable Handling
+ * ============================================================================ */
+
+static AldaVariable* find_variable(AldaContext* ctx, const char* name) {
+    for (int i = 0; i < ctx->variable_count; i++) {
+        if (strcmp(ctx->variables[i].name, name) == 0) {
+            return &ctx->variables[i];
+        }
+    }
+    return NULL;
+}
+
+static int store_variable(AldaContext* ctx, const char* name, AldaNode* events) {
+    /* Check if variable already exists */
+    AldaVariable* existing = find_variable(ctx, name);
+    if (existing) {
+        /* Update existing variable */
+        existing->events = events;
+        return 0;
+    }
+
+    /* Add new variable */
+    if (ctx->variable_count >= ALDA_MAX_VARIABLES) {
+        fprintf(stderr, "Error: Too many variables (max %d)\n", ALDA_MAX_VARIABLES);
+        return -1;
+    }
+
+    AldaVariable* var = &ctx->variables[ctx->variable_count++];
+    strncpy(var->name, name, sizeof(var->name) - 1);
+    var->name[sizeof(var->name) - 1] = '\0';
+    var->events = events;
+
+    return 0;
+}
+
+static int visit_var_def(AldaContext* ctx, AldaNode* node) {
+    const char* name = node->data.var_def.name;
+    AldaNode* events = node->data.var_def.events;
+
+    if (ctx->verbose_mode) {
+        fprintf(stderr, "Defining variable: %s\n", name);
+    }
+
+    /* Store the variable (we store the AST node, not a copy) */
+    return store_variable(ctx, name, events);
+}
+
+static int visit_var_ref(AldaContext* ctx, AldaNode* node) {
+    const char* name = node->data.var_ref.name;
+
+    AldaVariable* var = find_variable(ctx, name);
+    if (!var) {
+        fprintf(stderr, "Error: Undefined variable '%s'\n", name);
+        return -1;
+    }
+
+    if (ctx->verbose_mode) {
+        fprintf(stderr, "Expanding variable: %s\n", name);
+    }
+
+    /* Visit all stored events (linked list) */
+    AldaNode* event = var->events;
+    while (event) {
+        if (visit_node(ctx, event) < 0) {
+            return -1;
+        }
+        event = event->next;
+    }
+
+    return 0;
+}
+
+/* ============================================================================
+ * Cram Expression Handling
+ * ============================================================================ */
+
+/* Calculate the "weight" of a duration node (relative to quarter note = 1.0) */
+static double duration_weight(AldaContext* ctx, AldaPartState* part, AldaNode* dur) {
+    if (!dur) {
+        /* Default: quarter note = 1.0 */
+        return 1.0;
+    }
+
+    if (dur->type == ALDA_NODE_NOTE_LENGTH) {
+        int denom = dur->data.note_length.denominator;
+        int dots = dur->data.note_length.dots;
+
+        /* Base weight: 4/denom (quarter=1, half=2, whole=4, eighth=0.5) */
+        double weight = 4.0 / (double)denom;
+
+        /* Apply dots */
+        double dot_add = weight / 2.0;
+        for (int i = 0; i < dots; i++) {
+            weight += dot_add;
+            dot_add /= 2.0;
+        }
+
+        return weight;
+    }
+
+    /* For other duration types, use default */
+    return 1.0;
+}
+
+/* Calculate cram note duration with scaling */
+static int calculate_cram_duration(AldaContext* ctx, AldaPartState* part,
+                                   AldaNode* note_dur, double scale_factor) {
+    /* Get the weight of this note's duration */
+    double weight = duration_weight(ctx, part, note_dur);
+
+    /* Apply scale factor to get actual ticks */
+    int ticks = (int)(weight * scale_factor + 0.5);
+
+    return ticks > 0 ? ticks : 1;
+}
+
+static int visit_cram(AldaContext* ctx, AldaNode* node) {
+    AldaPartState* part = alda_current_part(ctx);
+    if (!part) {
+        fprintf(stderr, "Error: No current part for cram\n");
+        return -1;
+    }
+
+    /* Get the cram's total duration in ticks */
+    int cram_duration_ticks = alda_ast_duration_to_ticks(ctx, part, node->data.cram.duration);
+
+    /* Calculate total weight of all children */
+    double total_weight = 0.0;
+    AldaNode* child = node->data.cram.events;
+    while (child) {
+        if (child->type == ALDA_NODE_NOTE) {
+            total_weight += duration_weight(ctx, part, child->data.note.duration);
+        } else if (child->type == ALDA_NODE_REST) {
+            total_weight += duration_weight(ctx, part, child->data.rest.duration);
+        } else if (child->type == ALDA_NODE_CHORD) {
+            /* Chord uses duration of first note or default */
+            AldaNode* first = child->data.chord.notes;
+            if (first && first->type == ALDA_NODE_NOTE) {
+                total_weight += duration_weight(ctx, part, first->data.note.duration);
+            } else {
+                total_weight += 1.0;
+            }
+        } else if (child->type == ALDA_NODE_CRAM) {
+            /* Nested cram: its weight is its duration */
+            total_weight += duration_weight(ctx, part, child->data.cram.duration);
+        } else {
+            /* Other events (octave changes, etc.) don't have duration weight */
+        }
+        child = child->next;
+    }
+
+    if (total_weight <= 0.0) {
+        total_weight = 1.0;  /* Avoid division by zero */
+    }
+
+    /* Calculate scale factor: ticks per unit of weight */
+    double scale_factor = (double)cram_duration_ticks / total_weight;
+
+    if (ctx->verbose_mode) {
+        fprintf(stderr, "Cram: total_weight=%.2f, duration=%d ticks, scale=%.2f\n",
+                total_weight, cram_duration_ticks, scale_factor);
+    }
+
+    /* Process each child with scaled duration */
+    child = node->data.cram.events;
+    while (child) {
+        if (child->type == ALDA_NODE_NOTE) {
+            /* Calculate scaled duration for this note */
+            int note_ticks = calculate_cram_duration(ctx, part, child->data.note.duration, scale_factor);
+
+            /* Calculate pitch */
+            int pitch = alda_calculate_pitch(
+                child->data.note.letter,
+                child->data.note.accidentals,
+                part->octave
+            );
+
+            if (pitch >= 0) {
+                int velocity = alda_effective_velocity(ctx, part);
+
+                /* Schedule note for all active parts */
+                for (int i = 0; i < ctx->current_part_count; i++) {
+                    int idx = ctx->current_part_indices[i];
+                    AldaPartState* p = &ctx->parts[idx];
+
+                    int* tick = (p->current_voice >= 0 && p->in_voice_group)
+                                ? &p->voices[p->current_voice].current_tick
+                                : &p->current_tick;
+
+                    alda_schedule_note(ctx, p, *tick, pitch, velocity, note_ticks);
+                    *tick += note_ticks;
+                }
+            }
+        } else if (child->type == ALDA_NODE_REST) {
+            int rest_ticks = calculate_cram_duration(ctx, part, child->data.rest.duration, scale_factor);
+
+            /* Advance tick for all active parts */
+            for (int i = 0; i < ctx->current_part_count; i++) {
+                int idx = ctx->current_part_indices[i];
+                AldaPartState* p = &ctx->parts[idx];
+
+                int* tick = (p->current_voice >= 0 && p->in_voice_group)
+                            ? &p->voices[p->current_voice].current_tick
+                            : &p->current_tick;
+
+                *tick += rest_ticks;
+            }
+        } else if (child->type == ALDA_NODE_CRAM) {
+            /* Nested cram: recursively visit */
+            /* The nested cram calculates its own duration and handles tick advancement */
+            if (visit_cram(ctx, child) < 0) {
+                return -1;
+            }
+        } else if (child->type == ALDA_NODE_CHORD) {
+            /* Handle chord within cram */
+            AldaNode* first = child->data.chord.notes;
+            int chord_ticks = 1;
+            if (first && first->type == ALDA_NODE_NOTE) {
+                chord_ticks = calculate_cram_duration(ctx, part, first->data.note.duration, scale_factor);
+            } else {
+                chord_ticks = calculate_cram_duration(ctx, part, NULL, scale_factor);
+            }
+
+            int velocity = alda_effective_velocity(ctx, part);
+
+            /* Collect pitches */
+            int pitches[16];
+            int count = 0;
+            AldaNode* note = child->data.chord.notes;
+            while (note && count < 16) {
+                if (note->type == ALDA_NODE_NOTE) {
+                    pitches[count] = alda_calculate_pitch(
+                        note->data.note.letter,
+                        note->data.note.accidentals,
+                        part->octave
+                    );
+                    if (pitches[count] >= 0) count++;
+                }
+                note = note->next;
+            }
+
+            /* Schedule chord for all active parts */
+            for (int i = 0; i < ctx->current_part_count; i++) {
+                int idx = ctx->current_part_indices[i];
+                AldaPartState* p = &ctx->parts[idx];
+
+                int* tick = (p->current_voice >= 0 && p->in_voice_group)
+                            ? &p->voices[p->current_voice].current_tick
+                            : &p->current_tick;
+
+                for (int j = 0; j < count; j++) {
+                    alda_schedule_note(ctx, p, *tick, pitches[j], velocity, chord_ticks);
+                }
+                *tick += chord_ticks;
+            }
+        } else {
+            /* Other node types (octave changes, etc.) - visit normally */
+            if (visit_node(ctx, child) < 0) {
+                return -1;
+            }
+        }
+        child = child->next;
     }
 
     return 0;

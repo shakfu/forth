@@ -24,6 +24,16 @@ All notable changes to midi-langs are documented in this file.
 
 ### Fixed
 
+- **alda-midi global attributes before parts**: Fixed parser exiting early when global attributes appear before part declarations
+  - Files starting with `(tempo! 90)` or `(quant! 95)` before `piano:` now parse correctly
+  - Root cause: `parse_top_level()` had a `break` that exited after parsing non-part events
+  - Now continues parsing to find subsequent part declarations and their events
+
+- **alda-midi comment parsing**: Fixed `#` comments being ignored at start of file or after whitespace
+  - Comments (`# ...`) are now properly skipped to end of line
+  - Sharp accidentals (`c#4`) still work correctly (only `#` followed by space/newline/alpha is a comment)
+  - Fixes parsing of example files like `twinkle.alda` that have leading comments
+
 - **Windows build compatibility**: All MIDI language implementations now build and test on Windows
   - Added `WIN32_LEAN_AND_MEAN` before `<windows.h>` includes to prevent winsock.h/winsock2.h conflicts
   - Removed `struct timespec` definitions (Windows UCRT already provides it in `<time.h>`)

@@ -82,6 +82,20 @@ static void skip_whitespace(AldaScanner* s) {
         char c = peek(s);
         if (c == ' ' || c == '\t' || c == '\r') {
             advance(s);
+        } else if (c == '#') {
+            /* Check if this is a comment (# followed by space/newline/EOF)
+             * vs a sharp accidental (# followed by digit or note-related char) */
+            char next_c = s->source[s->current + 1];
+            if (next_c == '\0' || next_c == ' ' || next_c == '\t' ||
+                next_c == '\n' || next_c == '\r' || isalpha((unsigned char)next_c)) {
+                /* Comment: skip to end of line */
+                while (!is_at_end(s) && peek(s) != '\n') {
+                    advance(s);
+                }
+            } else {
+                /* Sharp accidental - don't skip */
+                break;
+            }
         } else {
             break;
         }
