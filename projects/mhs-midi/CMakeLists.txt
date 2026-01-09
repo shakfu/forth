@@ -156,6 +156,9 @@ endif()
 # mhs-midi: Interactive REPL with MIDI support
 # ============================================
 
+# Python is needed for cross-platform patching scripts
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+
 # Strip xffi_table definition from mhs.c to avoid multiple definition error
 # Our midi_ffi_wrappers.c provides its own xffi_table with MIDI FFI functions
 # Use Python for cross-platform compatibility (sed not available on Windows)
@@ -225,7 +228,6 @@ add_strip_command(mhs-midi)
 #   - mhs-midi-src-zstd:  source embedding + zstd compression
 #   - mhs-midi-pkg:       precompiled .pkg embedding (fast startup)
 
-find_package(Python3 REQUIRED COMPONENTS Interpreter)
 set(ZSTD_DIR ${CMAKE_SOURCE_DIR}/thirdparty/zstd-1.5.7)
 set(MHS_VERSION "0.15.2.0")
 
