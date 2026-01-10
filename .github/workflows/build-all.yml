@@ -124,6 +124,9 @@ jobs:
       - name: Build test_forth_midi_unit
         run: cmake --build build --config Release --target test_forth_midi_unit
 
+      - name: Build test_shared_suite
+        run: cmake --build build --config Release --target test_shared_suite
+
       - name: List built executables
         run: |
           echo "Built executables:"

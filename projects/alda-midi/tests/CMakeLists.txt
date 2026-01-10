@@ -3,7 +3,9 @@
 # Shared suite test runner
 add_executable(test_shared_suite test_shared_suite.c)
 target_link_libraries(test_shared_suite PRIVATE alda)
-target_link_libraries(test_shared_suite PRIVATE m)  # for math functions
+if(NOT WIN32)
+    target_link_libraries(test_shared_suite PRIVATE m)  # for math functions (Unix only)
+endif()
 
 # CTest integration
 add_test(
