@@ -259,28 +259,32 @@ set_tests_properties(
     PROPERTIES LABELS "golden;midi"
 )
 
-# alda_midi test suite (shell script)
-add_test(
-    NAME alda_midi_test_suite
-    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/test_alda_midi.sh $<TARGET_FILE:alda_midi>
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-)
+# alda_midi integration tests (shell script, Unix only)
+if(NOT WIN32)
+    add_test(
+        NAME alda_midi_integration
+        COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/test_alda_midi.sh $<TARGET_FILE:alda_midi>
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
 
-set_tests_properties(alda_midi_test_suite PROPERTIES
-    TIMEOUT 60
-    LABELS "integration"
-)
+    set_tests_properties(alda_midi_integration PROPERTIES
+        TIMEOUT 60
+        LABELS "integration"
+    )
+endif()
 
-# Quick alda_midi tests (shell-based)
-add_test(
-    NAME alda_midi_smoke
-    COMMAND sh -c "$<TARGET_FILE:alda_midi> --help | grep -q 'Alda'"
-)
+# Quick alda_midi tests (shell-based, Unix only)
+if(NOT WIN32)
+    add_test(
+        NAME alda_midi_smoke
+        COMMAND sh -c "$<TARGET_FILE:alda_midi> --help | grep -q 'Alda'"
+    )
 
-set_tests_properties(
-    alda_midi_smoke
-    PROPERTIES LABELS "quick"
-)
+    set_tests_properties(
+        alda_midi_smoke
+        PROPERTIES LABELS "quick"
+    )
+endif()
 
 # demo_example_mhs (shell script)
 add_test(
