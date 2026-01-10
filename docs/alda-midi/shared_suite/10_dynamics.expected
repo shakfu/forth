@@ -1,0 +1,22 @@
+# Expected output for 10_dynamics.alda
+# Format: TYPE field1 field2 ...
+# NOTE pitch start duration velocity channel
+# PROGRAM program channel time
+# CC control value channel time
+# TEMPO bpm time
+
+PROGRAM 0 0 0.0000
+TEMPO 120.0 0.0000
+TEMPO 120.0 0.0000
+NOTE 60 0.0000 0.4500 30 0
+NOTE 62 0.5000 0.4500 39 0
+NOTE 64 1.0000 0.4500 50 0
+NOTE 65 1.5000 0.4500 58 0
+NOTE 67 2.0000 0.4500 69 0
+NOTE 69 2.5000 0.4500 79 0
+NOTE 71 3.0000 0.4500 88 0
+NOTE 72 3.5000 0.4500 98 0
+NOTE 72 4.0000 0.4500 50 0
+NOTE 74 4.5000 0.4500 69 0
+NOTE 76 5.0000 0.4500 79 0
+NOTE 77 5.5000 0.4500 88 0

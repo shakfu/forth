@@ -1,0 +1,25 @@
+# Test: Octaves
+# Tests octave setting and shifting
+# Middle C (C4) = MIDI 60
+
+piano:
+(tempo 120)
+
+# Explicit octave set
+o4 c  # C4 = 60
+o5 c  # C5 = 72
+o3 c  # C3 = 48
+o6 c  # C6 = 84
+
+# Octave up
+o4 c > c  # C4 then C5
+
+# Octave down
+o5 c < c  # C5 then C4
+
+# Multiple shifts
+o4 c > c > c < c  # C4, C5, C6, C5
+
+# Extreme octaves
+o0 c  # C0 = 12
+o8 c  # C8 = 108

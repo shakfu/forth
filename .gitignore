@@ -7,6 +7,7 @@ build/
 .mhscache
 .*_cache
 out.comb
+.cache
 
 # Prerequisites
 *.d

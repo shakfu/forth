@@ -1,0 +1,19 @@
+# Test: Dynamics
+# Tests dynamic markings (pp, p, mp, mf, f, ff, etc.)
+# Each dynamic maps to a specific velocity
+
+piano:
+(tempo 120)
+
+# Standard dynamics (quietest to loudest)
+(ppp) c4   # ~16
+(pp) d4    # ~32
+(p) e4     # ~48
+(mp) f4    # ~64
+(mf) g4    # ~80 (default)
+(f) a4     # ~96
+(ff) b4    # ~112
+(fff) > c4 # ~127
+
+# Dynamics in sequence
+(p) c4 (mf) d4 (f) e4 (ff) f4

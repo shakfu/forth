@@ -52,6 +52,21 @@ int alda_schedule_note(AldaContext* ctx, AldaPartState* part,
                        int start_tick, int pitch, int velocity, int duration_ticks);
 
 /**
+ * @brief Schedule a note with slur control.
+ * @param ctx Alda context.
+ * @param part Part state.
+ * @param start_tick Start tick position.
+ * @param pitch MIDI pitch (0-127).
+ * @param velocity MIDI velocity (0-127).
+ * @param duration_ticks Duration in ticks.
+ * @param slurred If non-zero, skip quantization (play full duration).
+ * @return 0 on success, -1 on error.
+ */
+int alda_schedule_note_slurred(AldaContext* ctx, AldaPartState* part,
+                               int start_tick, int pitch, int velocity,
+                               int duration_ticks, int slurred);
+
+/**
  * @brief Schedule a program change.
  * @param ctx Alda context.
  * @param part Part state.

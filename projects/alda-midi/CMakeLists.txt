@@ -117,3 +117,20 @@ install(TARGETS alda-core alda_midi
 install(DIRECTORY include/alda
     DESTINATION include
 )
+
+# ============================================================================
+# Tests
+# ============================================================================
+
+# Shared suite test runner
+add_executable(test_shared_suite tests/test_shared_suite.c)
+target_link_libraries(test_shared_suite PRIVATE alda-core)
+target_link_libraries(test_shared_suite PRIVATE m)  # for math functions
+
+# CTest integration
+enable_testing()
+add_test(
+    NAME shared_suite
+    COMMAND test_shared_suite "${CMAKE_SOURCE_DIR}/docs/alda-midi/shared_suite"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+)

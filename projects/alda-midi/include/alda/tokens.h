@@ -42,6 +42,7 @@ typedef enum {
     /* Lisp/S-expression tokens */
     ALDA_TOK_LEFT_PAREN,        /* ( */
     ALDA_TOK_RIGHT_PAREN,       /* ) */
+    ALDA_TOK_QUOTE,             /* ' (quote for lists like '(g major)) */
     ALDA_TOK_SYMBOL,            /* lisp symbols (tempo, vol, etc.) */
     ALDA_TOK_NUMBER,            /* numeric literals in lisp context */
     ALDA_TOK_STRING,            /* string literals in lisp context */

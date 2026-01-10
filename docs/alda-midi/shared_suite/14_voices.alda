@@ -1,0 +1,28 @@
+# Test: Voices
+# Tests parallel voices within a single part
+# Voices play simultaneously, V0: ends voice section
+
+piano:
+(tempo 120)
+
+# Two voices playing in parallel
+V1: c2 d2
+V2: e2 f2
+V0:
+
+# Three voices
+V1: c1
+V2: e1
+V3: g1
+V0:
+
+# Voices with different rhythms
+V1: c4 d4 e4 f4
+V2: g2 a2
+V0:
+
+# Content after voices (continues from longest voice)
+V1: c2
+V2: e2
+V0:
+g4 a4 b4 > c4

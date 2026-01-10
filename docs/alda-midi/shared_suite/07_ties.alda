@@ -1,0 +1,21 @@
+# Test: Ties
+# Tests tied notes (extended duration) and slurs
+# Expected: Tied notes have combined duration
+
+piano:
+(tempo 120)
+
+# Duration tie: half + half = whole (2.0s at 120 BPM)
+c2~2
+
+# Quarter + quarter = half
+d4~4
+
+# Multiple ties: 1 + 1 + 1 = 3 whole notes
+e1~1~1
+
+# Tie across different durations: half + quarter = 3 beats
+f2~4
+
+# Slur (legato connection between different pitches)
+c4~d~e~f

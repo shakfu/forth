@@ -1,0 +1,28 @@
+# Test: Key Signature
+# Tests key signature attribute
+# Key signature affects note pitches automatically
+
+piano:
+(tempo 120)
+
+# G major (F#)
+(key-sig '(g major))
+f4 g4 a4 b4  # F is automatically sharp (F# = 66)
+
+# D minor (Bb)
+(key-sig '(d minor))
+a4 b4 c4 d4  # B is automatically flat (Bb = 70)
+
+# String format for accidentals
+(key-sig "f+ c+")  # F# and C#
+d4 e4 f4 g4
+
+# Natural sign overrides key signature
+(key-sig '(g major))
+f4   # F# (from key sig)
+f_4  # F natural (override)
+f4   # F# again
+
+# Modal key signature
+(key-sig '(d dorian))
+d4 e4 f4 g4 a4 b4 c4 d4

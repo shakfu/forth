@@ -47,13 +47,15 @@ int alda_interpret_file(AldaContext* ctx, const char* filename);
  * ============================================================================ */
 
 /**
- * @brief Calculate MIDI pitch from note letter, accidentals, and octave.
+ * @brief Calculate MIDI pitch from note letter, accidentals, octave, and key signature.
  * @param letter Note letter (a-g, case-insensitive).
  * @param accidentals Accidental string (+ for sharp, - for flat, _ for natural).
  * @param octave Octave number (0-9).
+ * @param key_sig Key signature array [7] for C,D,E,F,G,A,B (+1=sharp, -1=flat, 0=natural).
+ *                Can be NULL if no key signature.
  * @return MIDI pitch (0-127), or -1 on error.
  */
-int alda_calculate_pitch(char letter, const char* accidentals, int octave);
+int alda_calculate_pitch(char letter, const char* accidentals, int octave, const int* key_sig);
 
 /* ============================================================================
  * Duration Calculation from AST

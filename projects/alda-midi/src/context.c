@@ -55,6 +55,9 @@ void alda_context_init(AldaContext* ctx) {
     ctx->no_sleep_mode = 0;
     ctx->verbose_mode = 0;
 
+    /* Repeat context */
+    ctx->current_repetition = 0;
+
     /* File context */
     ctx->current_file = NULL;
     ctx->current_line = 0;
@@ -119,7 +122,8 @@ void alda_part_init(AldaPartState* part, const char* name, int channel, int prog
 
     /* Musical state defaults */
     part->octave = ALDA_DEFAULT_OCTAVE;
-    part->volume = 0;  /* 0 = use global */
+    part->volume = -1;  /* -1 = use global */
+    part->velocity_override = 69;  /* Default mf velocity (matches aldakit) */
     part->tempo = 0;   /* 0 = use global */
     part->quant = 0;   /* 0 = use global */
     part->pan = ALDA_DEFAULT_PAN;
@@ -140,6 +144,9 @@ void alda_part_init(AldaPartState* part, const char* name, int channel, int prog
     for (int i = 0; i < 7; i++) {
         part->key_signature[i] = 0;
     }
+
+    /* Transposition (none) */
+    part->transpose = 0;
 }
 
 AldaPartState* alda_find_part(AldaContext* ctx, const char* name) {
@@ -221,6 +228,58 @@ AldaPartState* alda_get_or_create_part(AldaContext* ctx, const char* name) {
     return part;
 }
 
+/* Helper to create a new part (always creates, never reuses) */
+static AldaPartState* alda_create_new_part(AldaContext* ctx, const char* name) {
+    if (!ctx || !name) return NULL;
+
+    /* Check capacity */
+    if (ctx->part_count >= ALDA_MAX_PARTS) {
+        fprintf(stderr, "Error: Maximum number of parts (%d) exceeded\n",
+                ALDA_MAX_PARTS);
+        return NULL;
+    }
+
+    /* Look up instrument program number */
+    int program = alda_instrument_program(name);
+    if (program < 0) {
+        if (ctx->verbose_mode) {
+            fprintf(stderr, "Warning: Unknown instrument '%s', using piano\n", name);
+        }
+        program = 0;
+    }
+
+    /* Allocate channel (skip 10 for non-percussion) */
+    int channel = ctx->next_channel;
+    int is_percussion = alda_instrument_is_percussion(name);
+
+    if (is_percussion) {
+        channel = 10;
+    } else {
+        if (channel == 10) {
+            channel = 11;
+        }
+        ctx->next_channel = channel + 1;
+        if (ctx->next_channel > 16) {
+            ctx->next_channel = 1;
+        }
+        if (ctx->next_channel == 10) {
+            ctx->next_channel = 11;
+        }
+    }
+
+    /* Create new part */
+    AldaPartState* part = &ctx->parts[ctx->part_count];
+    alda_part_init(part, name, channel, program);
+    ctx->part_count++;
+
+    if (ctx->verbose_mode) {
+        printf("Created part: %s (program=%d, channel=%d)\n",
+               name, program, channel);
+    }
+
+    return part;
+}
+
 int alda_set_current_parts(AldaContext* ctx, char** names, int count) {
     if (!ctx) return -1;
 
@@ -231,8 +290,21 @@ int alda_set_current_parts(AldaContext* ctx, char** names, int count) {
         return 0;
     }
 
+    /* For multi-instrument groups (count > 1), always create new parts.
+     * For single instruments, reuse existing or create new. */
+    int is_group = (count > 1);
+
     for (int i = 0; i < count && i < ALDA_MAX_PARTS; i++) {
-        AldaPartState* part = alda_get_or_create_part(ctx, names[i]);
+        AldaPartState* part;
+
+        if (is_group) {
+            /* Groups always create new parts for each instrument */
+            part = alda_create_new_part(ctx, names[i]);
+        } else {
+            /* Single instrument: reuse existing or create new */
+            part = alda_get_or_create_part(ctx, names[i]);
+        }
+
         if (!part) {
             return -1;
         }
@@ -270,15 +342,20 @@ int alda_effective_tempo(AldaContext* ctx, AldaPartState* part) {
 }
 
 int alda_effective_velocity(AldaContext* ctx, AldaPartState* part) {
+    /* Check for direct velocity override (set by dynamics) */
+    if (part && part->velocity_override >= 0) {
+        return part->velocity_override;
+    }
+
     int volume = ALDA_DEFAULT_VOLUME;
 
-    if (part && part->volume > 0) {
+    if (part && part->volume >= 0) {
         volume = part->volume;
     } else if (ctx) {
         volume = ctx->global_volume;
     }
 
-    /* Map 0-100 to 0-127 */
+    /* Map 0-100 to 0-127 (truncation matches aldakit) */
     int velocity = (volume * 127) / 100;
     if (velocity < 0) velocity = 0;
     if (velocity > 127) velocity = 127;

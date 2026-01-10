@@ -1,0 +1,27 @@
+# Test: Cram (Tuplets)
+# Tests tuplet expressions - fitting multiple notes into a duration
+# {notes}duration divides duration equally among notes
+
+piano:
+(tempo 120)
+
+# Triplet: 3 notes in the space of a quarter note
+{c d e}4
+
+# Quintuplet: 5 notes in a half note
+{c d e f g}2
+
+# Duplet in triplet feel: 2 notes in triplet time
+{c d}4
+
+# Sextuplet: 6 notes in a quarter
+{c d e f g a}4
+
+# Nested cram
+{c {d e} f}4
+
+# Cram with rests
+{c r d}4
+
+# Cram with different note values inside
+{c8 d8 e4}2

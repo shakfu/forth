@@ -1,0 +1,20 @@
+# Test: Rests
+# Tests rest notation - rests produce silence (no MIDI notes)
+# Expected: Notes with gaps between them
+
+piano:
+(tempo 120)
+
+# Quarter note, quarter rest, quarter note
+c4 r4 d4
+
+# Different rest durations
+c4 r2 d4  # Half rest
+c4 r1 d4  # Whole rest
+c4 r8 d4  # Eighth rest
+
+# Rest with milliseconds
+c4 r500ms d4
+
+# Rest with seconds
+c4 r1s d4

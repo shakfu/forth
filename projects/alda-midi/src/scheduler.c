@@ -68,16 +68,23 @@ int alda_schedule_event(AldaContext* ctx, int tick, AldaEventType type,
     return 0;
 }
 
-int alda_schedule_note(AldaContext* ctx, AldaPartState* part,
-                       int start_tick, int pitch, int velocity, int duration_ticks) {
+int alda_schedule_note_slurred(AldaContext* ctx, AldaPartState* part,
+                               int start_tick, int pitch, int velocity,
+                               int duration_ticks, int slurred) {
     if (!ctx || !part) return -1;
 
     int part_index = (int)(part - ctx->parts);
     int channel = part->channel - 1;  /* Convert to 0-based for storage */
 
-    /* Apply quantization to get actual sounding duration */
-    int quant = alda_effective_quant(ctx, part);
-    int sounding_ticks = alda_apply_quant(duration_ticks, quant);
+    /* Apply quantization to get actual sounding duration.
+     * Slurred notes skip quantization (play full duration). */
+    int sounding_ticks;
+    if (slurred) {
+        sounding_ticks = duration_ticks;  /* Full duration for slurred notes */
+    } else {
+        int quant = alda_effective_quant(ctx, part);
+        sounding_ticks = alda_apply_quant(duration_ticks, quant);
+    }
 
     /* Ensure capacity for both note-on and note-off */
     if (alda_events_reserve(ctx, 2) < 0) {
@@ -98,6 +105,13 @@ int alda_schedule_note(AldaContext* ctx, AldaPartState* part,
     }
 
     return 0;
+}
+
+int alda_schedule_note(AldaContext* ctx, AldaPartState* part,
+                       int start_tick, int pitch, int velocity, int duration_ticks) {
+    /* Non-slurred note: apply normal quantization */
+    return alda_schedule_note_slurred(ctx, part, start_tick, pitch, velocity,
+                                      duration_ticks, 0);
 }
 
 int alda_schedule_program_change(AldaContext* ctx, AldaPartState* part, int tick) {

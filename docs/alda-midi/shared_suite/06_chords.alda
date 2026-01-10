@@ -1,0 +1,24 @@
+# Test: Chords
+# Tests simultaneous notes
+# Expected: Multiple notes starting at same time
+
+piano:
+(tempo 120)
+
+# C major triad (C4, E4, G4)
+c/e/g
+
+# Chord with explicit duration (whole note)
+c1/e/g
+
+# Chord with octave change
+c/e/g/>c  # C4, E4, G4, C5
+
+# Minor chord
+a/c/e
+
+# Seventh chord
+g/b/d/f
+
+# Two chords in sequence
+c/e/g d/f/a

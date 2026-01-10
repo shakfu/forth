@@ -29,6 +29,7 @@ static const char* TOKEN_TYPE_NAMES[] = {
     "EQUALS",
     "LEFT_PAREN",
     "RIGHT_PAREN",
+    "QUOTE",
     "SYMBOL",
     "NUMBER",
     "STRING",

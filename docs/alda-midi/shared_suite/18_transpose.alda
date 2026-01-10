@@ -1,0 +1,33 @@
+# Test: Transposition
+# Tests transpose attribute
+# Transpose shifts all pitches by semitones
+
+piano:
+(tempo 120)
+
+# No transposition (C4 = 60)
+c4
+
+# Transpose up 5 semitones (C4 -> F4 = 65)
+(transpose 5)
+c4
+
+# Transpose down 7 semitones (C4 -> F3 = 53)
+(transpose -7)
+c4
+
+# Reset transposition
+(transpose 0)
+c4  # Back to C4 = 60
+
+# Transposing instruments example
+# Bb clarinet sounds a whole step lower than written
+clarinet:
+(transpose -2)
+c4 d4 e4 f4  # Sounds Bb3, C4, D4, Eb4
+
+# Transpose with key signature
+piano:
+(key-sig '(g major))
+(transpose 5)
+c4 d4 e4 f4  # Transposed with key sig applied

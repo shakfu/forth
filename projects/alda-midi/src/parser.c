@@ -7,6 +7,7 @@
 #include "alda/scanner.h"
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 struct AldaParser {
     const char* source;
@@ -159,15 +160,26 @@ static AldaNode* parse_duration(AldaParser* p) {
         alda_node_append(&components, comp);
     }
 
-    /* Handle tied durations */
-    while (match(p, ALDA_TOK_TIE)) {
-        if (check(p, ALDA_TOK_NOTE_LENGTH) ||
-            check(p, ALDA_TOK_NOTE_LENGTH_MS) ||
-            check(p, ALDA_TOK_NOTE_LENGTH_S)) {
+    /* Handle tied durations (e.g., c4~4).
+     * Only consume TIE if followed by another duration component.
+     * If TIE is followed by a note letter, it's a slur and should
+     * be handled by parse_note. */
+    while (check(p, ALDA_TOK_TIE)) {
+        /* Peek ahead: is there a duration after the TIE? */
+        AldaToken* next = peek_next(p);
+        if (next &&
+            (next->type == ALDA_TOK_NOTE_LENGTH ||
+             next->type == ALDA_TOK_NOTE_LENGTH_MS ||
+             next->type == ALDA_TOK_NOTE_LENGTH_S)) {
+            /* Consume the TIE and parse the duration */
+            advance(p);  /* consume TIE */
             comp = parse_duration_component(p);
             if (comp) {
                 alda_node_append(&components, comp);
             }
+        } else {
+            /* TIE is followed by something else (note letter = slur), stop here */
+            break;
         }
     }
 
@@ -188,6 +200,21 @@ static AldaNode* parse_note_or_chord(AldaParser* p) {
 
     while (match(p, ALDA_TOK_SEPARATOR)) {
         skip_newlines(p);
+
+        /* Handle octave changes within chord (e.g., c/e/g/>c) */
+        while (check(p, ALDA_TOK_OCTAVE_UP) || check(p, ALDA_TOK_OCTAVE_DOWN)) {
+            AldaToken* tok = advance(p);
+            AldaNode* octave_node;
+            if (tok->type == ALDA_TOK_OCTAVE_UP) {
+                octave_node = alda_node_octave_up(tok->pos);
+            } else {
+                octave_node = alda_node_octave_down(tok->pos);
+            }
+            if (octave_node) {
+                alda_node_append(&notes, octave_node);
+            }
+        }
+
         if (check(p, ALDA_TOK_NOTE_LETTER)) {
             AldaNode* note = parse_note(p);
             if (note) {
@@ -221,6 +248,15 @@ static AldaNode* parse_sexp(AldaParser* p) {
 
         if (check(p, ALDA_TOK_LEFT_PAREN)) {
             elem = parse_sexp(p);
+        } else if (check(p, ALDA_TOK_QUOTE)) {
+            /* Quoted list like '(g major) - parse as regular list */
+            advance(p);  /* consume ' */
+            if (check(p, ALDA_TOK_LEFT_PAREN)) {
+                elem = parse_sexp(p);
+            } else {
+                set_error(p, "Expected '(' after quote");
+                break;
+            }
         } else if (check(p, ALDA_TOK_SYMBOL)) {
             AldaToken* sym = advance(p);
             elem = alda_node_lisp_symbol(strdup_safe(sym->lexeme), sym->pos);
@@ -417,6 +453,65 @@ static AldaNode* parse_primary_event(AldaParser* p) {
     }
 }
 
+/* Parse repetition specification like "1", "1,3", "1-3", "1,3-5,7"
+ * Returns array of repetition numbers and count via out parameters */
+static int parse_rep_spec(const char* spec, int** out_reps, size_t* out_count) {
+    if (!spec || !out_reps || !out_count) return -1;
+
+    /* Allocate initial array */
+    size_t capacity = 16;
+    int* reps = (int*)malloc(capacity * sizeof(int));
+    if (!reps) return -1;
+    size_t count = 0;
+
+    const char* p = spec;
+    while (*p) {
+        /* Skip any non-digit characters at start */
+        while (*p && !isdigit((unsigned char)*p)) p++;
+        if (!*p) break;
+
+        /* Parse first number */
+        int start = 0;
+        while (*p && isdigit((unsigned char)*p)) {
+            start = start * 10 + (*p - '0');
+            p++;
+        }
+
+        int end = start;
+
+        /* Check for range */
+        if (*p == '-') {
+            p++;
+            end = 0;
+            while (*p && isdigit((unsigned char)*p)) {
+                end = end * 10 + (*p - '0');
+                p++;
+            }
+        }
+
+        /* Add all numbers in range */
+        for (int i = start; i <= end; i++) {
+            if (count >= capacity) {
+                capacity *= 2;
+                int* new_reps = (int*)realloc(reps, capacity * sizeof(int));
+                if (!new_reps) {
+                    free(reps);
+                    return -1;
+                }
+                reps = new_reps;
+            }
+            reps[count++] = i;
+        }
+
+        /* Skip comma if present */
+        if (*p == ',') p++;
+    }
+
+    *out_reps = reps;
+    *out_count = count;
+    return 0;
+}
+
 static AldaNode* parse_postfix(AldaParser* p, AldaNode* event) {
     /* Handle repeat (*N) */
     if (check(p, ALDA_TOK_REPEAT)) {
@@ -428,10 +523,15 @@ static AldaNode* parse_postfix(AldaParser* p, AldaNode* event) {
     /* Handle on-repetitions ('1-3,5) */
     if (check(p, ALDA_TOK_REPETITIONS)) {
         AldaToken* tok = advance(p);
-        /* Parse the repetition specification */
-        /* For now, just store the raw lexeme - full parsing would be more complex */
-        /* TODO: Parse the repetition ranges properly */
-        event = alda_node_on_reps(event, NULL, 0, tok->pos);
+        /* Parse the repetition specification from the lexeme */
+        int* reps = NULL;
+        size_t rep_count = 0;
+        if (parse_rep_spec(tok->lexeme, &reps, &rep_count) == 0 && rep_count > 0) {
+            event = alda_node_on_reps(event, reps, rep_count, tok->pos);
+        } else {
+            /* Failed to parse - create empty on_reps (will always play) */
+            event = alda_node_on_reps(event, NULL, 0, tok->pos);
+        }
     }
 
     return event;

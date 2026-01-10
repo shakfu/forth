@@ -358,6 +358,11 @@ static AldaToken scan_lisp_token(AldaScanner* s) {
         return scan_lisp_string(s);
     }
 
+    if (c == '\'') {
+        /* Quote for quoted lists like '(g major) */
+        return make_token(s, ALDA_TOK_QUOTE);
+    }
+
     if (isdigit((unsigned char)c) || (c == '-' && isdigit((unsigned char)peek(s)))) {
         return scan_lisp_number(s);
     }

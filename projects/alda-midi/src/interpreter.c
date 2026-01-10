@@ -32,6 +32,9 @@ static int visit_voice(AldaContext* ctx, AldaNode* node);
 static int visit_var_def(AldaContext* ctx, AldaNode* node);
 static int visit_var_ref(AldaContext* ctx, AldaNode* node);
 static int visit_cram(AldaContext* ctx, AldaNode* node);
+static int visit_marker(AldaContext* ctx, AldaNode* node);
+static int visit_at_marker(AldaContext* ctx, AldaNode* node);
+static int visit_on_reps(AldaContext* ctx, AldaNode* node);
 
 /* ============================================================================
  * Pitch Calculation
@@ -48,7 +51,7 @@ static const int NOTE_OFFSETS[] = {
     7   /* G */
 };
 
-int alda_calculate_pitch(char letter, const char* accidentals, int octave) {
+int alda_calculate_pitch(char letter, const char* accidentals, int octave, const int* key_sig) {
     /* Validate letter */
     int c = tolower((unsigned char)letter);
     if (c < 'a' || c > 'g') {
@@ -58,17 +61,44 @@ int alda_calculate_pitch(char letter, const char* accidentals, int octave) {
     /* Get base semitone offset */
     int semitone = NOTE_OFFSETS[c - 'a'];
 
-    /* Apply accidentals */
+    /* Check for explicit accidentals or natural sign */
+    int has_explicit_accidental = 0;
+    int has_natural = 0;
+    int accidental_offset = 0;
+
     if (accidentals) {
         for (const char* p = accidentals; *p; p++) {
             if (*p == '+') {
-                semitone++;  /* Sharp */
+                accidental_offset++;
+                has_explicit_accidental = 1;
             } else if (*p == '-') {
-                semitone--;  /* Flat */
+                accidental_offset--;
+                has_explicit_accidental = 1;
+            } else if (*p == '_') {
+                has_natural = 1;  /* Natural sign overrides key signature */
             }
-            /* _ (natural) has no effect in equal temperament */
         }
     }
+
+    /* Apply accidentals: explicit > natural > key signature */
+    if (has_explicit_accidental) {
+        semitone += accidental_offset;
+    } else if (!has_natural && key_sig) {
+        /* Apply key signature (C=0, D=1, E=2, F=3, G=4, A=5, B=6) */
+        /* Map letter to key_sig index */
+        static const int LETTER_TO_INDEX[] = {
+            5,  /* a -> index 5 (A) */
+            6,  /* b -> index 6 (B) */
+            0,  /* c -> index 0 (C) */
+            1,  /* d -> index 1 (D) */
+            2,  /* e -> index 2 (E) */
+            3,  /* f -> index 3 (F) */
+            4   /* g -> index 4 (G) */
+        };
+        int idx = LETTER_TO_INDEX[c - 'a'];
+        semitone += key_sig[idx];
+    }
+    /* If has_natural and no explicit accidental, keep semitone as-is (natural) */
 
     /* Calculate MIDI pitch: C4 = 60 */
     /* octave 4, C = 0 -> 60 */
@@ -195,15 +225,14 @@ static int visit_node(AldaContext* ctx, AldaNode* node) {
         case ALDA_NODE_CRAM:
             return visit_cram(ctx, node);
 
-        /* Deferred features */
         case ALDA_NODE_MARKER:
+            return visit_marker(ctx, node);
+
         case ALDA_NODE_AT_MARKER:
+            return visit_at_marker(ctx, node);
+
         case ALDA_NODE_ON_REPS:
-            if (ctx->verbose_mode) {
-                fprintf(stderr, "Warning: %s not yet implemented\n",
-                        alda_node_type_name(node->type));
-            }
-            return 0;
+            return visit_on_reps(ctx, node);
 
         default:
             return 0;
@@ -270,11 +299,12 @@ static int visit_note(AldaContext* ctx, AldaNode* node) {
         return -1;
     }
 
-    /* Calculate pitch */
+    /* Calculate pitch (with key signature and transposition) */
     int pitch = alda_calculate_pitch(
         node->data.note.letter,
         node->data.note.accidentals,
-        part->octave
+        part->octave,
+        part->key_signature
     );
 
     if (pitch < 0) {
@@ -282,18 +312,30 @@ static int visit_note(AldaContext* ctx, AldaNode* node) {
         return -1;
     }
 
+    /* Apply transposition */
+    pitch += part->transpose;
+    if (pitch < 0) pitch = 0;
+    if (pitch > 127) pitch = 127;
+
     /* Calculate duration */
     int duration_ticks = alda_ast_duration_to_ticks(ctx, part, node->data.note.duration);
 
-    /* Update part's default duration if note specified one */
+    /* Update part's default duration if note specified one.
+     * Note: duration node is ALDA_NODE_DURATION containing component nodes. */
     if (node->data.note.duration &&
-        node->data.note.duration->type == ALDA_NODE_NOTE_LENGTH) {
-        part->default_duration = node->data.note.duration->data.note_length.denominator;
-        part->default_dots = node->data.note.duration->data.note_length.dots;
+        node->data.note.duration->type == ALDA_NODE_DURATION) {
+        AldaNode* first_comp = node->data.note.duration->data.duration.components;
+        if (first_comp && first_comp->type == ALDA_NODE_NOTE_LENGTH) {
+            part->default_duration = first_comp->data.note_length.denominator;
+            part->default_dots = first_comp->data.note_length.dots;
+        }
     }
 
     /* Get velocity */
     int velocity = alda_effective_velocity(ctx, part);
+
+    /* Check if this note is slurred (should skip quantization) */
+    int slurred = node->data.note.slurred;
 
     /* Schedule note for all active parts */
     for (int i = 0; i < ctx->current_part_count; i++) {
@@ -304,7 +346,7 @@ static int visit_note(AldaContext* ctx, AldaNode* node) {
                     ? &p->voices[p->current_voice].current_tick
                     : &p->current_tick;
 
-        alda_schedule_note(ctx, p, *tick, pitch, velocity, duration_ticks);
+        alda_schedule_note_slurred(ctx, p, *tick, pitch, velocity, duration_ticks, slurred);
 
         /* Advance tick position */
         *tick += duration_ticks;
@@ -345,7 +387,22 @@ static int visit_chord(AldaContext* ctx, AldaNode* node) {
         return -1;
     }
 
-    /* Collect all notes in the chord */
+    /* First pass: check if first note has an explicit duration, and update default.
+     * Note: duration node is ALDA_NODE_DURATION containing component nodes. */
+    AldaNode* first_note = node->data.chord.notes;
+    if (first_note && first_note->type == ALDA_NODE_NOTE &&
+        first_note->data.note.duration &&
+        first_note->data.note.duration->type == ALDA_NODE_DURATION) {
+        /* Get the first component of the duration */
+        AldaNode* first_comp = first_note->data.note.duration->data.duration.components;
+        if (first_comp && first_comp->type == ALDA_NODE_NOTE_LENGTH) {
+            /* Update default duration from first note in chord */
+            part->default_duration = first_comp->data.note_length.denominator;
+            part->default_dots = first_comp->data.note_length.dots;
+        }
+    }
+
+    /* Collect all notes in the chord, handling octave changes */
     int pitches[16];
     int durations[16];
     int count = 0;
@@ -353,12 +410,29 @@ static int visit_chord(AldaContext* ctx, AldaNode* node) {
 
     AldaNode* note = node->data.chord.notes;
     while (note && count < 16) {
-        if (note->type == ALDA_NODE_NOTE) {
-            pitches[count] = alda_calculate_pitch(
+        if (note->type == ALDA_NODE_OCTAVE_UP) {
+            /* Apply octave change for subsequent notes in chord */
+            if (part->octave < 9) {
+                part->octave++;
+            }
+        } else if (note->type == ALDA_NODE_OCTAVE_DOWN) {
+            if (part->octave > 0) {
+                part->octave--;
+            }
+        } else if (note->type == ALDA_NODE_NOTE) {
+            int p = alda_calculate_pitch(
                 note->data.note.letter,
                 note->data.note.accidentals,
-                part->octave
+                part->octave,
+                part->key_signature
             );
+
+            /* Apply transposition */
+            p += part->transpose;
+            if (p < 0) p = 0;
+            if (p > 127) p = 127;
+
+            pitches[count] = p;
 
             durations[count] = alda_ast_duration_to_ticks(ctx, part, note->data.note.duration);
 
@@ -388,7 +462,8 @@ static int visit_chord(AldaContext* ctx, AldaNode* node) {
                     : &p->current_tick;
 
         for (int n = 0; n < count; n++) {
-            alda_schedule_note(ctx, p, *tick, pitches[n], velocity, durations[n]);
+            /* All chord notes use the same duration (max of all notes) */
+            alda_schedule_note(ctx, p, *tick, pitches[n], velocity, max_duration);
         }
 
         /* Advance by max duration (all notes start at same time) */
@@ -457,11 +532,21 @@ static int visit_repeat(AldaContext* ctx, AldaNode* node) {
     int count = node->data.repeat.count;
     AldaNode* event = node->data.repeat.event;
 
+    /* Save outer repetition context (for nested repeats) */
+    int saved_rep = ctx->current_repetition;
+
     for (int i = 0; i < count; i++) {
+        /* Set current repetition (1-indexed) */
+        ctx->current_repetition = i + 1;
+
         if (visit_node(ctx, event) < 0) {
+            ctx->current_repetition = saved_rep;
             return -1;
         }
     }
+
+    /* Restore outer repetition context */
+    ctx->current_repetition = saved_rep;
 
     return 0;
 }
@@ -644,6 +729,112 @@ static int visit_var_ref(AldaContext* ctx, AldaNode* node) {
 }
 
 /* ============================================================================
+ * Marker Handling
+ * ============================================================================ */
+
+static AldaMarker* find_marker(AldaContext* ctx, const char* name) {
+    for (int i = 0; i < ctx->marker_count; i++) {
+        if (strcmp(ctx->markers[i].name, name) == 0) {
+            return &ctx->markers[i];
+        }
+    }
+    return NULL;
+}
+
+static int store_marker(AldaContext* ctx, const char* name, int tick) {
+    /* Check if marker already exists */
+    AldaMarker* existing = find_marker(ctx, name);
+    if (existing) {
+        /* Update existing marker */
+        existing->tick = tick;
+        return 0;
+    }
+
+    /* Add new marker */
+    if (ctx->marker_count >= ALDA_MAX_MARKERS) {
+        fprintf(stderr, "Error: Too many markers (max %d)\n", ALDA_MAX_MARKERS);
+        return -1;
+    }
+
+    AldaMarker* marker = &ctx->markers[ctx->marker_count++];
+    strncpy(marker->name, name, sizeof(marker->name) - 1);
+    marker->name[sizeof(marker->name) - 1] = '\0';
+    marker->tick = tick;
+
+    return 0;
+}
+
+static int visit_marker(AldaContext* ctx, AldaNode* node) {
+    const char* name = node->data.marker.name;
+
+    /* Get current tick from the first active part */
+    AldaPartState* part = alda_current_part(ctx);
+    if (!part) {
+        fprintf(stderr, "Error: No current part for marker\n");
+        return -1;
+    }
+
+    int tick = part->current_tick;
+
+    if (ctx->verbose_mode) {
+        fprintf(stderr, "Setting marker '%s' at tick %d\n", name, tick);
+    }
+
+    return store_marker(ctx, name, tick);
+}
+
+static int visit_at_marker(AldaContext* ctx, AldaNode* node) {
+    const char* name = node->data.at_marker.name;
+
+    AldaMarker* marker = find_marker(ctx, name);
+    if (!marker) {
+        fprintf(stderr, "Error: Undefined marker '%s'\n", name);
+        return -1;
+    }
+
+    if (ctx->verbose_mode) {
+        fprintf(stderr, "Jumping to marker '%s' at tick %d\n", name, marker->tick);
+    }
+
+    /* Set tick position for all active parts */
+    for (int i = 0; i < ctx->current_part_count; i++) {
+        int idx = ctx->current_part_indices[i];
+        AldaPartState* part = &ctx->parts[idx];
+        part->current_tick = marker->tick;
+    }
+
+    return 0;
+}
+
+/* ============================================================================
+ * On-Repetitions Handling
+ * ============================================================================ */
+
+static int visit_on_reps(AldaContext* ctx, AldaNode* node) {
+    /* Check if current repetition is in the allowed list */
+    int current_rep = ctx->current_repetition;
+
+    /* If not in a repeat context, always play */
+    if (current_rep == 0) {
+        return visit_node(ctx, node->data.on_reps.event);
+    }
+
+    /* Check if current repetition is in the list */
+    int* reps = node->data.on_reps.reps;
+    size_t rep_count = node->data.on_reps.rep_count;
+
+    for (size_t i = 0; i < rep_count; i++) {
+        if (reps[i] == current_rep) {
+            /* Current repetition matches - play the event */
+            return visit_node(ctx, node->data.on_reps.event);
+        }
+    }
+
+    /* Current repetition not in list - skip the event */
+    return 0;
+}
+
+/* ============================================================================
  * Cram Expression Handling
  * ============================================================================ */
 
@@ -651,6 +842,15 @@ static int visit_var_ref(AldaContext* ctx, AldaNode* node) {
 static double duration_weight(AldaContext* ctx, AldaPartState* part, AldaNode* dur) {
     if (!dur) {
         /* Default: quarter note = 1.0 */
+        return 1.0;
+    }
+
+    /* Handle DURATION container nodes by extracting the first component */
+    if (dur->type == ALDA_NODE_DURATION) {
+        AldaNode* first_comp = dur->data.duration.components;
+        if (first_comp) {
+            return duration_weight(ctx, part, first_comp);
+        }
         return 1.0;
     }
 
@@ -687,6 +887,9 @@ static int calculate_cram_duration(AldaContext* ctx, AldaPartState* part,
     return ticks > 0 ? ticks : 1;
 }
 
+/* Forward declaration for nested cram handling */
+static int process_cram_with_duration(AldaContext* ctx, AldaNode* node, int cram_duration_ticks);
+
 static int visit_cram(AldaContext* ctx, AldaNode* node) {
     AldaPartState* part = alda_current_part(ctx);
     if (!part) {
@@ -696,6 +899,17 @@ static int visit_cram(AldaContext* ctx, AldaNode* node) {
 
     /* Get the cram's total duration in ticks */
     int cram_duration_ticks = alda_ast_duration_to_ticks(ctx, part, node->data.cram.duration);
+
+    return process_cram_with_duration(ctx, node, cram_duration_ticks);
+}
+
+/* Process a cram expression with a specified duration (used for nested crams) */
+static int process_cram_with_duration(AldaContext* ctx, AldaNode* node, int cram_duration_ticks) {
+    AldaPartState* part = alda_current_part(ctx);
+    if (!part) {
+        fprintf(stderr, "Error: No current part for cram\n");
+        return -1;
+    }
 
     /* Calculate total weight of all children */
     double total_weight = 0.0;
@@ -741,12 +955,20 @@ static int visit_cram(AldaContext* ctx, AldaNode* node) {
             /* Calculate scaled duration for this note */
             int note_ticks = calculate_cram_duration(ctx, part, child->data.note.duration, scale_factor);
 
-            /* Calculate pitch */
+            /* Calculate pitch (with key signature and transposition) */
             int pitch = alda_calculate_pitch(
                 child->data.note.letter,
                 child->data.note.accidentals,
-                part->octave
+                part->octave,
+                part->key_signature
             );
+
+            /* Apply transposition */
+            if (pitch >= 0) {
+                pitch += part->transpose;
+                if (pitch < 0) pitch = 0;
+                if (pitch > 127) pitch = 127;
+            }
 
             if (pitch >= 0) {
                 int velocity = alda_effective_velocity(ctx, part);
@@ -779,9 +1001,11 @@ static int visit_cram(AldaContext* ctx, AldaNode* node) {
                 *tick += rest_ticks;
             }
         } else if (child->type == ALDA_NODE_CRAM) {
-            /* Nested cram: recursively visit */
-            /* The nested cram calculates its own duration and handles tick advancement */
-            if (visit_cram(ctx, child) < 0) {
+            /* Nested cram: calculate its allocated duration from parent's scale factor */
+            int nested_ticks = calculate_cram_duration(ctx, part, child->data.cram.duration, scale_factor);
+
+            /* Process nested cram with the allocated duration (not its own) */
+            if (process_cram_with_duration(ctx, child, nested_ticks) < 0) {
                 return -1;
             }
         } else if (child->type == ALDA_NODE_CHORD) {
@@ -796,18 +1020,26 @@ static int visit_cram(AldaContext* ctx, AldaNode* node) {
 
             int velocity = alda_effective_velocity(ctx, part);
 
-            /* Collect pitches */
+            /* Collect pitches (with key signature and transposition) */
             int pitches[16];
             int count = 0;
             AldaNode* note = child->data.chord.notes;
             while (note && count < 16) {
                 if (note->type == ALDA_NODE_NOTE) {
-                    pitches[count] = alda_calculate_pitch(
+                    int p = alda_calculate_pitch(
                         note->data.note.letter,
                         note->data.note.accidentals,
-                        part->octave
+                        part->octave,
+                        part->key_signature
                     );
-                    if (pitches[count] >= 0) count++;
+                    if (p >= 0) {
+                        /* Apply transposition */
+                        p += part->transpose;
+                        if (p < 0) p = 0;
+                        if (p > 127) p = 127;
+                        pitches[count] = p;
+                        count++;
+                    }
                 }
                 note = note->next;
             }

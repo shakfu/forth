@@ -1,0 +1,24 @@
+# Test: Accidentals
+# Tests sharp (+), flat (-), natural (_), double sharp (++), double flat (--)
+# Expected: Various chromatic pitches
+
+piano:
+(tempo 120)
+
+# Sharp: C# = 61
+c+
+
+# Flat: Bb = 70
+b-
+
+# Natural (explicit): C = 60
+c_
+
+# Double sharp: C## = 62
+c++
+
+# Double flat: Bbb = 69
+b--
+
+# Multiple accidentals in sequence
+c+ d- e_ f+ g-

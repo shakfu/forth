@@ -1,0 +1,30 @@
+# Test: Markers
+# Tests marker definition (%name) and jump (@name)
+# Markers synchronize parts at specific points
+
+piano:
+(tempo 120)
+c4 d4 e4 f4
+%chorus
+g4 a4 b4 > c4
+
+# Violin jumps to chorus marker
+violin:
+@chorus
+e4 f4 g4 a4
+
+# Another example with multiple markers
+piano:
+c2
+%verse
+d2 e2
+%bridge
+f2 g2
+%outro
+a2 b2
+
+cello:
+@verse
+a2 b2
+@bridge
+> c2 d2

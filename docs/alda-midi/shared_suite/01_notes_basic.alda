@@ -1,0 +1,7 @@
+# Test: Basic Notes
+# Tests basic note pitches in default octave (o4)
+# Expected: 7 quarter notes, C4 through B4
+
+piano:
+(tempo 120)
+c4 d4 e4 f4 g4 a4 b4

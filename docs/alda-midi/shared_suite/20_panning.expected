@@ -1,0 +1,24 @@
+# Expected output for 20_panning.alda
+# Format: TYPE field1 field2 ...
+# NOTE pitch start duration velocity channel
+# PROGRAM program channel time
+# CC control value channel time
+# TEMPO bpm time
+
+PROGRAM 0 0 0.0000
+TEMPO 120.0 0.0000
+TEMPO 120.0 0.0000
+NOTE 60 0.0000 0.4500 69 0
+NOTE 62 0.5000 0.4500 69 0
+CC 10 0 0 1.0000
+NOTE 64 1.0000 0.4500 69 0
+NOTE 65 1.5000 0.4500 69 0
+CC 10 127 0 2.0000
+NOTE 67 2.0000 0.4500 69 0
+NOTE 69 2.5000 0.4500 69 0
+CC 10 63 0 3.0000
+NOTE 71 3.0000 0.4500 69 0
+NOTE 72 3.5000 0.4500 69 0
+NOTE 72 4.0000 0.4500 69 0
+NOTE 74 4.5000 0.4500 69 0
+NOTE 76 5.0000 0.4500 69 0

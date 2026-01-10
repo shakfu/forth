@@ -1,0 +1,29 @@
+# Test: Quantization
+# Tests quantization (note length as percentage of duration)
+# Default is 90% (slight gap between notes)
+
+piano:
+(tempo 120)
+
+# Default quantization (90%)
+c4 d4 e4 f4
+
+# Full legato (100% - no gap)
+(quant 100)
+c4 d4 e4 f4
+
+# Staccato (50% - half length)
+(quant 50)
+c4 d4 e4 f4
+
+# Very short (25%)
+(quant 25)
+c4 d4 e4 f4
+
+# Back to normal
+(quant 90)
+c4 d4 e4 f4
+
+# Alternative syntax
+(quantization 80)
+g4 a4 b4 > c4

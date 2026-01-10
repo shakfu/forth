@@ -1,0 +1,23 @@
+# Test: Volume
+# Tests volume/velocity attribute
+# Volume 0-100 maps to MIDI velocity 0-127
+
+piano:
+(tempo 120)
+
+# Default volume (80)
+c4
+
+# Explicit volume settings
+(vol 100) d4  # Max velocity (127)
+(vol 50) e4   # Medium velocity (~64)
+(vol 25) f4   # Soft velocity (~32)
+(vol 0) g4    # Silent (velocity 0)
+
+# Alternative syntax
+(volume 80) a4
+
+# Volume changes
+(vol 40) c4
+(vol 80) d4
+(vol 120) e4  # Clamped to 100

@@ -1,0 +1,29 @@
+# Test: Panning
+# Tests stereo panning attribute
+# 0 = left, 50 = center, 100 = right
+
+piano:
+(tempo 120)
+
+# Default (center)
+c4 d4
+
+# Pan left
+(panning 0)
+e4 f4
+
+# Pan right
+(panning 100)
+g4 a4
+
+# Pan center
+(panning 50)
+b4 > c4
+
+# Gradual pan
+(pan 25)
+c4
+(pan 50)
+d4
+(pan 75)
+e4

@@ -28,9 +28,9 @@ extern "C" {
 /* Default values */
 #define ALDA_DEFAULT_TEMPO      120
 #define ALDA_DEFAULT_OCTAVE     4
-#define ALDA_DEFAULT_VOLUME     100   /* 0-100, maps to velocity */
+#define ALDA_DEFAULT_VOLUME     54    /* 0-100, maps to velocity (mf) */
 #define ALDA_DEFAULT_QUANT      90    /* Quantization percentage */
-#define ALDA_DEFAULT_PAN        64    /* Center */
+#define ALDA_DEFAULT_PAN        64    /* Center (MIDI 0-127, corresponds to Alda 50) */
 #define ALDA_DEFAULT_DURATION   4     /* Quarter note */
 
 /* ============================================================================
@@ -69,6 +69,7 @@ typedef struct {
     /* Musical state */
     int octave;              /* Current octave (0-9), default 4 */
     int volume;              /* 0-100, maps to velocity */
+    int velocity_override;   /* 0-127, -1 = use volume, set by dynamics */
     int tempo;               /* BPM, 0 = use global */
     int quant;               /* Quantization percentage (0-100) */
     int pan;                 /* Pan position (0-127, 64=center) */
@@ -89,6 +90,9 @@ typedef struct {
     /* Key signature (sharps/flats for each scale degree C-B) */
     /* +1 = sharp, -1 = flat, 0 = natural */
     int key_signature[7];
+
+    /* Transposition (semitones, positive = up, negative = down) */
+    int transpose;
 } AldaPartState;
 
 /* ============================================================================
@@ -166,6 +170,9 @@ typedef struct AldaContext {
     int no_sleep_mode;   /* Disable timing (for tests) */
     int verbose_mode;    /* Debug output */
     int tsf_enabled;     /* Built-in synth enabled */
+
+    /* Repeat context for on-repetitions */
+    int current_repetition;  /* 1-indexed, 0 means not in a repeat */
 
     /* Current file context for error reporting */
     const char* current_file;

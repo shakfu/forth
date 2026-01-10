@@ -1,0 +1,25 @@
+# Test: Tempo
+# Tests tempo attribute
+# Tempo affects duration: at 60 BPM quarter = 1.0s, at 120 BPM quarter = 0.5s
+
+piano:
+
+# Default tempo test (120 BPM)
+(tempo 120)
+c4 d4 e4 f4  # Each 0.5s
+
+# Slower tempo
+(tempo 60)
+g4 a4  # Each 1.0s
+
+# Faster tempo
+(tempo 240)
+b4 > c4  # Each 0.25s
+
+# Tempo change mid-score
+(tempo 120)
+c4
+(tempo 60)
+d4
+(tempo 120)
+e4

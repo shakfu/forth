@@ -1,0 +1,28 @@
+# Test: Variables
+# Tests variable definition and reference
+# Variable definition should NOT produce sound
+# Variable reference should play the stored events
+
+# Define a motif (no sound yet)
+theme = c4 d4 e4 f4
+
+# Define a chord pattern
+chords = c/e/g d/f/a
+
+piano:
+(tempo 120)
+
+# Reference the variable (plays c d e f)
+theme
+
+# Reference again
+theme
+
+# Use chord variable
+chords
+
+# Variables with different content
+riff = g8 a8 b8 > c8
+
+violin:
+riff riff

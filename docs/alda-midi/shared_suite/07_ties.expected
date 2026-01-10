@@ -1,0 +1,18 @@
+# Expected output for 07_ties.alda
+# Format: TYPE field1 field2 ...
+# NOTE pitch start duration velocity channel
+# PROGRAM program channel time
+# CC control value channel time
+# TEMPO bpm time
+
+PROGRAM 0 0 0.0000
+TEMPO 120.0 0.0000
+TEMPO 120.0 0.0000
+NOTE 60 0.0000 1.8000 69 0
+NOTE 62 2.0000 0.9000 69 0
+NOTE 64 3.0000 5.4000 69 0
+NOTE 65 9.0000 1.3500 69 0
+NOTE 60 10.5000 0.5000 69 0
+NOTE 62 11.0000 0.5000 69 0
+NOTE 64 11.5000 0.5000 69 0
+NOTE 65 12.0000 0.4500 69 0

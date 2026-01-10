@@ -1,0 +1,30 @@
+# Test: Parts and Instruments
+# Tests part declarations and instrument assignment
+# Each part gets a MIDI channel and program change
+
+# Single instrument
+piano:
+(tempo 120)
+c4 d4 e4
+
+# Different instrument
+violin:
+c4 d4 e4
+
+# Part with alias
+trumpet "brass":
+c4 d4 e4
+
+# Multi-instrument part (all play same notes)
+violin/viola/cello "strings":
+c4 d4 e4
+
+# Multiple sequential parts
+piano:
+c4 d4
+
+violin:
+e4 f4
+
+piano:
+g4 a4

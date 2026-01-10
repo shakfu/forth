@@ -1,0 +1,20 @@
+# Expected output for 03_notes_durations.alda
+# Format: TYPE field1 field2 ...
+# NOTE pitch start duration velocity channel
+# PROGRAM program channel time
+# CC control value channel time
+# TEMPO bpm time
+
+PROGRAM 0 0 0.0000
+TEMPO 120.0 0.0000
+TEMPO 120.0 0.0000
+NOTE 60 0.0000 1.8000 69 0
+NOTE 62 2.0000 0.9000 69 0
+NOTE 64 3.0000 0.4500 69 0
+NOTE 65 3.5000 0.2250 69 0
+NOTE 67 3.7500 0.1125 69 0
+NOTE 69 3.8750 0.0563 69 0
+NOTE 71 3.9375 0.6750 69 0
+NOTE 60 4.6875 0.7875 69 0
+NOTE 62 5.5625 0.4500 69 0
+NOTE 64 6.0625 1.8000 69 0

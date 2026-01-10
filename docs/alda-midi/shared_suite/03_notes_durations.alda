@@ -1,0 +1,36 @@
+# Test: Note Durations
+# Tests various duration values
+# At 120 BPM: quarter = 0.5s, half = 1.0s, whole = 2.0s
+
+piano:
+(tempo 120)
+
+# Whole note (4 beats = 2.0s)
+c1
+
+# Half note (2 beats = 1.0s)
+d2
+
+# Quarter note (1 beat = 0.5s)
+e4
+
+# Eighth note (0.5 beats = 0.25s)
+f8
+
+# Sixteenth note (0.25 beats = 0.125s)
+g16
+
+# Thirty-second note (0.125 beats = 0.0625s)
+a32
+
+# Dotted quarter (1.5 beats = 0.75s)
+b4.
+
+# Double-dotted quarter (1.75 beats = 0.875s)
+c4..
+
+# Milliseconds duration
+d500ms
+
+# Seconds duration
+e2s
