@@ -738,6 +738,12 @@ static AldaNode* parse_top_level(AldaParser* p) {
                 if (event_seq) {
                     alda_node_append(&root->data.root.children, event_seq);
                 }
+            } else if (!is_at_end(p)) {
+                /* No events could be parsed and we're not at EOF.
+                 * This means we have an unexpected token - report error
+                 * and skip it to avoid infinite loop. */
+                set_error(p, "Unexpected token");
+                advance(p);
             }
             /* Continue loop - there may be part declarations following */
         }

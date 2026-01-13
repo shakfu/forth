@@ -51,3 +51,13 @@
 - [ ] `program :: Int -> IO ()` - quick program change
 - [ ] `cc :: Int -> Int -> IO ()` - quick control change
 - [ ] `bend :: Int -> IO ()` - quick pitch bend
+
+## Implement to `fmemopen` on windows
+
+- [ ] Here are some options to check out.
+
+	1. [an actual implementation](https://github.com/Arryboom/fmemopen_windows)
+
+	2. [include tmp file fallback for windows](https://github.com/Cibiv/PDA/blob/master/fmemopen.c)
+
+	3. [another tmp-based implementation](https://github.com/openSUSE/libsolv/blob/master/win32/fmemopen.c)
