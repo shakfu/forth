@@ -27,3 +27,14 @@ endforeach()
 # Summary target to count tests
 list(LENGTH JOY_TEST_FILES JOY_TEST_COUNT)
 message(STATUS "Added ${JOY_TEST_COUNT} Joy unit tests")
+
+# Timing verification test (verifies parallel parts synchronization)
+add_test(
+    NAME joy_midi_timing
+    COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/timing_test.sh $<TARGET_FILE:joy_midi>
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+set_tests_properties(joy_midi_timing PROPERTIES
+    LABELS "joy_midi"
+    TIMEOUT 10
+)

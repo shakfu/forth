@@ -989,5 +989,10 @@ int joy_load_file(JoyContext* ctx, const char* filename) {
     joy_eval_line(ctx, content);
     free(content);
 
+    /* Call post-eval hook (e.g., for MIDI schedule playback) */
+    if (ctx->post_eval_hook) {
+        ctx->post_eval_hook();
+    }
+
     return 0;
 }

@@ -1,0 +1,56 @@
+\ Joy-MIDI Timing Test
+\ Verifies that parallel parts are correctly synchronized
+
+120 tempo
+midi-debug
+
+\ ========================================
+\ Test 1: Parallel parts sync
+\ Both channels should have notes at exactly t=0, 500, 1000, 1500
+\ ========================================
+
+SEQ sync_test
+    1: [c4 c4 c4 c4] quarter;
+    2: [c3 c3 c3 c3] quarter .
+
+sync_test
+
+\ Expected output (both channels synchronized at each beat):
+\ t=0    ch=1 pitch=60, ch=2 pitch=48
+\ t=500  ch=1 pitch=60, ch=2 pitch=48
+\ t=1000 ch=1 pitch=60, ch=2 pitch=48
+\ t=1500 ch=1 pitch=60, ch=2 pitch=48
+
+\ ========================================
+\ Test 2: Mixed durations (same total time)
+\ 4 quarters = 8 eighths = 2000ms total
+\ ========================================
+
+SEQ duration_test
+    1: [c4 c4 c4 c4] quarter;
+    2: [g3 g3 g3 g3 g3 g3 g3 g3] eighth .
+
+duration_test
+
+\ Expected: 4 quarters = 8 eighths musically (relative timing)
+\ Channel 1 quarters: 500ms intervals (0, 500, 1000, 1500 relative)
+\ Channel 2 eighths: 250ms intervals (0, 250, 500, 750, 1000, 1250, 1500, 1750 relative)
+
+\ ========================================
+\ Test 3: Sequence composition
+\ Two sequences back-to-back should have correct offsets
+\ ========================================
+
+SEQ phrase_a
+    1: [c4 e4] quarter;
+    2: [c3 c3] quarter .
+
+SEQ phrase_b
+    1: [g4 e4] quarter;
+    2: [g3 g3] quarter .
+
+composed == phrase_a phrase_b .
+composed
+
+\ Expected: phrase_a at t=0-1000, phrase_b at t=1000-2000
+\ Total duration: 2000ms

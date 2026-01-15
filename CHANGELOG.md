@@ -91,6 +91,9 @@ All notable changes to midi-langs are documented in this file.
   - Fixed LIFO stack order: notes pushed onto stack now play in correct order (not reversed)
   - Rests (pitch=-1) no longer scheduled as events, just advance time
   - Updated example files (ode_to_joy.joy, frere_jacques.joy) with correct beat counts
+  - Fixed file execution: post_eval_hook (accumulator_flush) now called after loading files
+  - Debug output shows schedule even without MIDI port open (`midi-debug` works in test mode)
+  - Added automated timing verification test (`joy_midi_timing` in ctest)
 
 ### Changed
 

@@ -851,7 +851,7 @@ void midi_debug_(JoyContext* ctx) {
 
 /* Play a schedule - sorts events and plays them with proper timing */
 void schedule_play(MidiSchedule* sched) {
-    if (!sched || sched->count == 0 || !midi_out) return;
+    if (!sched || sched->count == 0) return;
 
     /* Sort events by time */
     qsort(sched->events, sched->count, sizeof(ScheduledEvent), compare_events);
@@ -859,13 +859,16 @@ void schedule_play(MidiSchedule* sched) {
     if (g_schedule_debug) {
         printf("=== Schedule: %zu events, duration %d ms ===\n",
                sched->count, sched->total_duration_ms);
-        for (size_t i = 0; i < sched->count && i < 20; i++) {
+        for (size_t i = 0; i < sched->count && i < 30; i++) {
             ScheduledEvent* ev = &sched->events[i];
             printf("  t=%4d ch=%d pitch=%3d vel=%3d dur=%d\n",
                    ev->time_ms, ev->channel, ev->pitch, ev->velocity, ev->duration_ms);
         }
-        if (sched->count > 20) printf("  ... (%zu more)\n", sched->count - 20);
+        if (sched->count > 30) printf("  ... (%zu more)\n", sched->count - 30);
     }
+
+    /* Skip actual playback if no MIDI output */
+    if (!midi_out) return;
 
     /* Track active notes for note-off scheduling */
     typedef struct { int pitch; int channel; int off_time; } ActiveNote;
