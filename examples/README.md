@@ -8,6 +8,9 @@ Runnable examples demonstrating each language's unique strengths.
 # Forth - concise stack-based notation
 ./build/forth_midi examples/melody_forth.4th
 
+# Joy - algebraic composition with combinators
+./build/joy_midi examples/algebraic_joy.joy
+
 # Lua - coroutine-based concurrent voices
 ./build/lua_midi examples/concurrent_lua.lua
 
@@ -26,6 +29,7 @@ Runnable examples demonstrating each language's unique strengths.
 | File | Language | Key Features |
 | ------ | ---------- | -------------- |
 | `melody_forth.4th` | Forth | Concise notation, word definitions, dynamics |
+| `algebraic_joy.joy` | Joy | Parse-time notes, combinators, `def`, `play`/`chord` |
 | `concurrent_lua.lua` | Lua | Coroutines, `spawn`/`run`, `play()` helpers |
 | `generative_pktpy.py` | PocketPy | Generators, `yield` pattern, concurrent voices |
 | `functional_s7.scm` | s7 Scheme | Thunks, closures, functional voice builders |

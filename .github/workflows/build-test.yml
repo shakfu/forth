@@ -63,6 +63,7 @@ jobs:
         run: |
           mkdir -p artifacts
           cp build/forth_midi artifacts/
+          cp build/joy_midi artifacts/
           cp build/lua_midi artifacts/
           cp build/pktpy_midi artifacts/
           cp build/s7_midi artifacts/

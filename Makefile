@@ -18,7 +18,7 @@ PRELUDE_HEADERS := $(HEADER_SCM) $(HEADER_LUA) $(HEADER_PY)
 
 .PHONY: all build configure clean test test-quick test-verbose \
 		rebuild ctidy help reset preludes build-debug \
-		alda-midi forth-midi lua-midi pktpy-midi s7-midi \
+		alda-midi forth-midi joy-midi lua-midi pktpy-midi s7-midi \
 		mhs-midi mhs-midi-all \
 		mhs-midi-src mhs-midi-src-zstd \
 		mhs-midi-pkg mhs-midi-pkg-zstd 
@@ -55,6 +55,9 @@ alda-midi: configure
 
 forth-midi: configure
 	@$(CMAKE) --build $(BUILD_DIR) --target forth_midi
+
+joy-midi: configure
+	@$(CMAKE) --build $(BUILD_DIR) --target joy_midi
 
 lua-midi: configure
 	@$(CMAKE) --build $(BUILD_DIR) --target lua_midi
@@ -124,6 +127,7 @@ help:
 	@echo "Language targets:"
 	@echo "  alda-midi        Build Alda interpreter"
 	@echo "  forth-midi       Build Forth interpreter"
+	@echo "  joy-midi         Build Joy interpreter"
 	@echo "  lua-midi         Build Lua interpreter"
 	@echo "  pktpy-midi       Build PocketPy interpreter"
 	@echo "  s7-midi          Build s7 Scheme interpreter"

@@ -6,6 +6,44 @@ All notable changes to midi-langs are documented in this file.
 
 ### Added
 
+- **joy-midi**: New Joy-based MIDI language using the [pyjoy](https://github.com/shakfu/pyjoy-lang) runtime
+  - `projects/joy-midi/` - Complete project structure
+  - Concatenative functional programming with stack-based execution
+  - **Parse-time note conversion**: Notes become MIDI integers at parse time
+    - `c` = 60, `c5` = 72, `c+` = 61 (C#4)
+    - `[c d e]` directly becomes `[60 62 64]`
+    - All Joy combinators work naturally with notes
+  - Core features:
+    - Note literals: `c d e f g a b` with octave suffix `c4 c5 c6`
+    - Accidentals: `c+ c- d++ e--` (sharp/flat)
+    - Rests: `r` (rest marker -1)
+    - Sequential play: `[c e g] play` (arpeggio)
+    - Chord play: `[c e g] chord` (simultaneous)
+  - Music theory:
+    - Chord builders: `c major`, `d minor`, `e dim`, `f aug`
+    - 7th chords: `c dom7`, `d maj7`, `e min7`
+    - Transpose: `60 7 transpose` (transpose by semitones)
+  - Musical state:
+    - Dynamics: `pp p mp mf f ff` (set velocity)
+    - Tempo: `120 tempo` (set BPM)
+    - Quantization: `80 quant` (gate time percentage)
+    - Volume: `75 vol` (velocity percentage)
+  - User definitions with Joy's standard syntax:
+    - `def name == body .` (single definition)
+    - `DEFINE name == body .` (same as def)
+    - `DEFINE n1 == b1 ; n2 == b2 .` (multiple definitions)
+  - MIDI port management:
+    - Auto-creates virtual MIDI port "JoyMIDI" in REPL
+    - `midi-list`, `midi-virtual`, `midi-open`, `midi-close`
+    - `midi-note`, `midi-chord`, `midi-note-on`, `midi-note-off`
+    - `midi-cc`, `midi-program`, `midi-panic`
+  - Built on pyjoy-runtime (`thirdparty/pyjoy-runtime/`):
+    - Clean C implementation of Joy language
+    - Symbol transformer hook for parse-time note conversion
+    - Parser dictionary hook for DEFINE handling
+  - Test suite integrated with CTest
+  - Documentation: `docs/joy-midi/README.md`, `docs/joy-midi/next-steps.md`
+
 - **alda-midi transpose**: Transposition support for shifting pitch by semitones
   - `(transpose 5)` shifts all notes up 5 semitones
   - `(transpose -7)` shifts all notes down 7 semitones

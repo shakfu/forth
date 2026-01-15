@@ -41,6 +41,9 @@ jobs:
       - name: Build alda_midi
         run: cmake --build build --config Release --target alda_midi
 
+      - name: Build joy_midi
+        run: cmake --build build --config Release --target joy_midi
+
       - name: Build test_forth_midi_unit
         run: cmake --build build --config Release --target test_forth_midi_unit
 
@@ -57,6 +60,7 @@ jobs:
         run: |
           mkdir -p artifacts
           cp build/Release/forth_midi.exe artifacts/ || true
+          cp build/Release/joy_midi.exe artifacts/ || true
           cp build/Release/lua_midi.exe artifacts/ || true
           cp build/Release/pktpy_midi.exe artifacts/ || true
           cp build/Release/s7_midi.exe artifacts/ || true

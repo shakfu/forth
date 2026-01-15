@@ -4,14 +4,14 @@ This guide helps you choose the right MIDI language implementation for your need
 
 ## Quick Comparison
 
-| Feature | alda-midi | forth-midi | lua-midi | s7-midi | pktpy-midi | mhs-midi |
-| --------- | ----------- | ------------ | ---------- | --------- | ------------ | ---------- |
-| **Language** | Alda | Forth-like | Lua 5.5 | Scheme (s7) | Python (PocketPy) | Haskell (MicroHs) |
-| **Paradigm** | Declarative | Stack-based | Imperative | Functional/Lisp | Object-oriented | Pure functional |
-| **Binary size** | ~300KB | ~200KB | ~400KB | ~350KB | ~500KB | ~1.5MB |
-| **Startup time** | Instant | Instant | Instant | Instant | Instant | ~0.5s |
-| **Learning curve** | Easy | Medium | Easy | Medium | Easy | Hard |
-| **Notation** | Music notation | Concise DSL | Method calls | S-expressions | Method calls | DSL + combinators |
+| Feature | alda-midi | forth-midi | joy-midi | lua-midi | s7-midi | pktpy-midi | mhs-midi |
+| --------- | ----------- | ------------ | ---------- | ---------- | --------- | ------------ | ---------- |
+| **Language** | Alda | Forth-like | Joy | Lua 5.5 | Scheme (s7) | Python (PocketPy) | Haskell (MicroHs) |
+| **Paradigm** | Declarative | Stack-based | Concatenative | Imperative | Functional/Lisp | Object-oriented | Pure functional |
+| **Binary size** | ~300KB | ~200KB | ~150KB | ~400KB | ~350KB | ~500KB | ~1.5MB |
+| **Startup time** | Instant | Instant | Instant | Instant | Instant | Instant | ~0.5s |
+| **Learning curve** | Easy | Medium | Medium | Easy | Medium | Easy | Hard |
+| **Notation** | Music notation | Concise DSL | Algebraic | Method calls | S-expressions | Method calls | DSL + combinators |
 
 ## Language Profiles
 
@@ -76,6 +76,39 @@ melody 4 times
 - Limited data structures
 
 **Choose if:** You want the most direct path from idea to sound, or you're comfortable with Forth/stack-based languages.
+
+---
+
+### joy-midi
+
+**Best for:** Algebraic composition, functional transformations, concatenative programming
+
+```joy
+\ Notes are integers at parse time
+[c d e f g] play              \ Play melody
+[c e g] chord                 \ Play C major chord
+[c d e] [7 +] map play        \ Transpose up a fifth
+
+def pick == dup size rand swap rem at .
+[c d e f g a b] pick play     \ Random note
+```
+
+**Strengths:**
+
+- Notes become MIDI integers at parse time (`c` = 60, `c5` = 72)
+- All Joy combinators work naturally with notes (`map`, `filter`, `fold`)
+- Pure functional transformations on note lists
+- User definitions with `def name == body .`
+- Stack-based but more algebraic than Forth
+- Minimal syntax - composition through concatenation
+
+**Weaknesses:**
+
+- No async/concurrent voices yet
+- Smaller ecosystem than other languages
+- Concatenative paradigm unfamiliar to most
+
+**Choose if:** You appreciate functional programming, want algebraic note manipulation, or enjoy concatenative languages like Factor or Forth.
 
 ---
 
@@ -216,6 +249,7 @@ main = do
 | ---------- | --------- | ------- |
 | alda-midi | `c4` `c#4` `db4` | Duration suffix (4=quarter) |
 | forth-midi | `c4,` `C#4,` `Db4,` | Comma triggers, case-insensitive |
+| joy-midi | `c` `c5` `c+` `c-` | Parse-time integers, octave/accidentals |
 | lua-midi | `midi.c4` or `midi.note("C4")` | Constants or string parsing |
 | s7-midi | `c4` `cs4` | Scheme symbols |
 | pktpy-midi | `midi.c4` or `midi.note("C4")` | Constants or string parsing |
@@ -227,6 +261,7 @@ main = do
 | ---------- | ------------- | -------------- |
 | alda-midi | `c/e/g` | `c/e/g/b-` |
 | forth-midi | `(c4 e4 g4),` | `(c4 e4 g4 bb4),` |
+| joy-midi | `c major chord` or `[c e g] chord` | `c dom7 chord` |
 | lua-midi | `midi.major(c4)` | `midi.dom7(c4)` |
 | s7-midi | `(major c4)` | `(dom7 c4)` |
 | pktpy-midi | `midi.major(c4)` | `midi.dom7(c4)` |
@@ -238,6 +273,7 @@ main = do
 | ---------- | -------------- |
 | alda-midi | `c4 c c c` or `[c4 c]*2` (limited) |
 | forth-midi | `melody 4 times` or `{ c4, } 4 *` |
+| joy-midi | `4 [[c] play] times` or `[c c c c] play` |
 | lua-midi | `for i=1,4 do m:note(c4,mf,quarter) end` |
 | s7-midi | `(times 4 (lambda () (midi-note m c4 mf quarter)))` |
 | pktpy-midi | `for i in range(4): m.note(c4, mf, quarter)` |
@@ -249,6 +285,7 @@ main = do
 | ---------- | ------------ | ------------------ |
 | alda-midi | N/A | N/A |
 | forth-midi | `c4 50%,` | `c4\|e4\|g4,` |
+| joy-midi | `rand 50 < [[c] play] [] ifte` | `[c e g] dup size rand swap rem at` |
 | lua-midi | `if math.random() < 0.5 then ... end` | `midi.pick({c4,e4,g4})` |
 | s7-midi | `(chance 50 ...)` | `(pick (list c4 e4 g4))` |
 | pktpy-midi | `if random.random() < 0.5: ...` | `random.choice([c4,e4,g4])` |
@@ -262,6 +299,7 @@ All implementations support MIDI event recording:
 | ---------- | ------- | ------ | ------ |
 | alda-midi | N/A | N/A | N/A (file-based) |
 | forth-midi | `rec-midi` | `stop` | `save-midi file.4th` |
+| joy-midi | N/A | N/A | N/A (planned) |
 | lua-midi | `record_midi()` | `record_stop()` | `save_midi("file.lua")` |
 | s7-midi | `(record-midi)` | `(record-stop)` | `(save-midi "file.scm")` |
 | pktpy-midi | `midi.record_midi()` | `midi.record_stop()` | `midi.save_midi("file.py")` |
@@ -291,9 +329,9 @@ lua-midi and pktpy-midi use familiar syntax for programmers. alda-midi is ideal 
 
 ### Algorithmic Composition
 
-**Recommended:** s7-midi or mhs-midi
+**Recommended:** s7-midi, mhs-midi, or joy-midi
 
-Functional programming excels at algorithmic music. s7 for Lisp macros, mhs-midi for type-safe pure functions.
+Functional programming excels at algorithmic music. s7 for Lisp macros, mhs-midi for type-safe pure functions, joy-midi for concatenative transformations on note lists.
 
 ### Quick Prototyping
 
@@ -315,12 +353,12 @@ Type safety catches errors early. Pure functional style makes code easier to rea
 
 ## Performance Comparison
 
-| Metric | alda-midi | forth-midi | lua-midi | s7-midi | pktpy-midi | mhs-midi |
-| -------- | ----------- | ------------ | ---------- | --------- | ------------ | ---------- |
-| Startup | <1ms | <1ms | <1ms | <1ms | <1ms | ~500ms |
-| Note latency | <1ms | <1ms | <1ms | <1ms | <1ms | <1ms |
-| Memory usage | ~3MB | ~2MB | ~4MB | ~3MB | ~5MB | ~10MB |
-| Test count | 3 | 82 | 26 | 33 | 22 | 149 |
+| Metric | alda-midi | forth-midi | joy-midi | lua-midi | s7-midi | pktpy-midi | mhs-midi |
+| -------- | ----------- | ------------ | ---------- | ---------- | --------- | ------------ | ---------- |
+| Startup | <1ms | <1ms | <1ms | <1ms | <1ms | <1ms | ~500ms |
+| Note latency | <1ms | <1ms | <1ms | <1ms | <1ms | <1ms | <1ms |
+| Memory usage | ~3MB | ~2MB | ~2MB | ~4MB | ~3MB | ~5MB | ~10MB |
+| Test count | 3 | 82 | 14 | 26 | 33 | 22 | 149 |
 
 Note: MicroHs compiles Haskell to C at startup, which adds latency. Once running, performance is equivalent.
 
@@ -332,13 +370,13 @@ This section analyzes each implementation's ability to create complex multi-voic
 
 ### Capability Matrix
 
-| Feature | alda-midi | forth-midi | lua-midi | s7-midi | pktpy-midi | mhs-midi |
-| --------- | ----------- | ------------ | ---------- | --------- | ------------ | ---------- |
-| **MIDI Channels** | 16 | 16 | 16 | 16 | 16 | 16 |
-| **Simultaneous Notes** | Chords/Voices | Chords | Chords/Arpeggio | Chords/Arpeggio | Chords/Arpeggio | Chords/Melody |
-| **Sequence System** | Tick-based events | Yes (64 seq, 256 events) | No | No | No | No |
-| **Async Launch** | Yes (always) | Yes (seq-play&) | Yes (spawn/run) | Yes (spawn/run) | Yes (spawn/run) | Yes (spawn/run) |
-| **Host Concurrency** | libuv thread | libuv thread | libuv + coroutines | libuv + thunks | libuv + generators | Native threads |
+| Feature | alda-midi | forth-midi | joy-midi | lua-midi | s7-midi | pktpy-midi | mhs-midi |
+| --------- | ----------- | ------------ | ---------- | ---------- | --------- | ------------ | ---------- |
+| **MIDI Channels** | 16 | 16 | 16 | 16 | 16 | 16 | 16 |
+| **Simultaneous Notes** | Chords/Voices | Chords | Chords | Chords/Arpeggio | Chords/Arpeggio | Chords/Arpeggio | Chords/Melody |
+| **Sequence System** | Tick-based events | Yes (64 seq, 256 events) | No | No | No | No | No |
+| **Async Launch** | Yes (always) | Yes (seq-play&) | No (planned) | Yes (spawn/run) | Yes (spawn/run) | Yes (spawn/run) | Yes (spawn/run) |
+| **Host Concurrency** | libuv thread | libuv thread | Synchronous | libuv + coroutines | libuv + thunks | libuv + generators | Native threads |
 
 ### Multi-Voice Support
 
@@ -364,6 +402,17 @@ c4 d e f
 0 2 64 100 480 seq-note-ch   \ time=0, ch=2, E4 on different channel
 480 1 62 100 480 seq-note-ch \ time=480, ch=1, D4
 seq-play
+```
+
+**joy-midi** uses chord and list operations:
+
+```joy
+\ Play chord - all notes simultaneously
+[c e g] chord
+
+\ Channel support via midi-note primitive
+60 80 500 1 midi-note-ch    \ C4 on channel 1
+64 80 500 2 midi-note-ch    \ E4 on channel 2
 ```
 
 **lua-midi**, **pktpy-midi**, **s7-midi** use method calls with channel parameters:
@@ -440,8 +489,9 @@ For complex multi-voice compositions:
 | **Multi-part scores** | alda-midi with parts (piano:, violin:) and voices (V1:, V2:) |
 | **Interleaved timeline** | forth-midi sequences with manual time offsets |
 | **Polyphonic chords** | Any implementation using chord functions |
-| **Algorithmic voices** | mhs-midi or s7-midi with functional composition |
+| **Algorithmic voices** | mhs-midi, s7-midi, or joy-midi with functional composition |
 | **Live layering** | alda-midi concurrent mode, or DAW receiving from multiple instances |
+| **List-based transformations** | joy-midi with `map`, `filter`, combinators |
 
 ---
 
@@ -458,6 +508,7 @@ Run any implementation:
 ```bash
 ./build/alda_midi     # Alda
 ./build/forth_midi    # Forth
+./build/joy_midi      # Joy
 ./build/lua_midi      # Lua
 ./build/s7_midi       # Scheme
 ./build/pktpy_midi    # Python

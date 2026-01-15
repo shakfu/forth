@@ -8,6 +8,7 @@ Each implementation leverages [libremidi](https://github.com/celtera/libremidi) 
 | ---------- | ---------- | ------- |
 | **alda-midi** | [Alda](https://alda.io/) | Music-first notation--compose with elegant, human-readable syntax. |
 | **forth-midi** | Custom Forth | Concise stack-based programming for minimalist control over MIDI events. |
+| **joy-midi** | [Joy](https://hypercubed.github.io/joy/joy.html) | Concatenative functional programming with algebraic note composition. |
 | **lua-midi** | [Lua 5.5](https://www.lua.org/) | Lightweight scripting with tables, closures, and event-driven workflows. |
 | **mhs-midi** | [MicroHs](https://github.com/augustss/MicroHs) | Pure functional Haskell for compositions, algorithmic patterns, and type-safe transformations. |
 | **pktpy-midi** | [PocketPy](https://pocketpy.dev) | Pythonic abstraction with context managers and expressive APIs. |
@@ -29,6 +30,7 @@ make help         # Show all targets
 ```sh
 make alda-midi    # Alda interpreter
 make forth-midi   # Forth interpreter
+make joy-midi     # Joy interpreter
 make lua-midi     # Lua interpreter
 make pktpy-midi   # PocketPy interpreter
 make s7-midi      # s7 Scheme interpreter
@@ -127,6 +129,47 @@ seq-play&                    \ non-blocking playback
 ```
 
 [Full documentation](docs/forth-midi/README.md) | [API](docs/forth-midi/api-reference.md) | [Tutorial](docs/forth-midi/tutorial.md)
+
+### joy-midi
+
+```sh
+% ./build/joy_midi --help
+Usage: ./build/joy_midi [options] [file.joy]
+Options:
+  -h        Show this help
+  -v        Show version
+
+Without arguments, starts an interactive REPL with virtual MIDI port.
+```
+
+Joy-MIDI treats notes as integers at parse time, enabling algebraic composition:
+
+```joy
+\ Notes are integers - c=60, d=62, e=64, etc.
+c d e                     \ Stack: 60 62 64
+[c d e]                   \ List: [60 62 64]
+
+\ All Joy combinators work naturally
+[c d e] [7 +] map         \ Transpose: [67 69 71]
+[c e g] reverse           \ Reverse: [67 64 60]
+
+\ Play notes sequentially or as chord
+[c e g] play              \ Arpeggio
+[c e g] chord             \ C major chord
+
+\ User-defined words
+def pick == dup size rand swap rem at .
+def arp == [play] step .
+
+[c d e f g a b] pick play         \ Random note
+[c e g] 12 [+] cons map arp       \ Arpeggiate octave up
+
+\ Chord builders and dynamics
+mf c major chord          \ C major at mezzo-forte
+ff d minor chord          \ D minor at fortissimo
+```
+
+[Full documentation](docs/joy-midi/README.md) | [Next Steps](docs/joy-midi/next-steps.md)
 
 ### lua-midi
 
@@ -304,6 +347,7 @@ Most implementations share functionality from a common C library (`projects/comm
 | Implementation | Uses music_theory.c |
 | ---------------- | --------------------- |
 | forth-midi | Yes |
+| joy-midi | No (uses pyjoy-runtime) |
 | lua-midi | Yes |
 | mhs-midi | Yes |
 | pktpy-midi | Yes |
@@ -343,6 +387,7 @@ projects/
   alda-midi/        # Alda interpreter (~3000 lines C)
   common/           # Shared music theory library
   forth-midi/       # Forth interpreter (~2700 lines C)
+  joy-midi/         # Joy interpreter with MIDI extensions
   lua-midi/         # Lua 5.5 + MIDI bindings
   mhs-midi/         # MicroHs + MIDI FFI
   pktpy-midi/       # PocketPy + MIDI bindings
@@ -350,6 +395,7 @@ projects/
 thirdparty/
   libremidi/        # MIDI I/O library (auto-built)
   MicroHs/          # Haskell compiler
+  pyjoy-runtime/    # Joy language runtime
   s7/               # Scheme interpreter
   lua-5.5.0/        # Lua interpreter
 docs/               # Per-language documentation
@@ -402,6 +448,7 @@ Download a GM SoundFont like [FluidR3_GM.sf2](https://musical-artifacts.com/arti
 | ---------- | ------ |
 | alda-midi | [README](docs/alda-midi/README.md), [Language](docs/alda-midi/language-reference.md), [Examples](docs/alda-midi/examples.md) |
 | forth-midi | [README](docs/forth-midi/README.md), [API](docs/forth-midi/api-reference.md), [Tutorial](docs/forth-midi/tutorial.md) |
+| joy-midi | [README](docs/joy-midi/README.md), [Next Steps](docs/joy-midi/next-steps.md) |
 | lua-midi | [README](docs/lua-midi/README.md), [API](docs/lua-midi/api-reference.md), [Examples](docs/lua-midi/examples.md) |
 | mhs-midi | [README](docs/mhs-midi/README.md), [API](docs/mhs-midi/api-reference.md), [Examples](docs/mhs-midi/examples.md) |
 | pktpy-midi | [README](docs/pktpy-midi/README.md), [API](docs/pktpy-midi/api-reference.md), [Examples](docs/pktpy-midi/examples.md) |

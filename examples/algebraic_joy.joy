@@ -1,0 +1,38 @@
+\ Algebraic composition demonstrating Joy-MIDI's parse-time note conversion
+\ Run: ./build/joy_midi examples/algebraic_joy.joy
+
+\ Notes are integers at parse time - no special syntax needed
+\ c=60, d=62, e=64, etc.
+
+480 tempo
+
+\ Define reusable patterns
+def pick == dup size rand swap rem at .
+def arp == [play] step .
+def up == [+] cons map .
+
+\ Twinkle melody using Joy list operations
+mf
+[c c g g a a g] arp
+[f f e e d d c] arp
+
+\ Transpose a phrase up a fifth (7 semitones)
+pp
+[c e g] 7 up arp
+
+\ Play chord - notes become integers, chord plays them together
+ff
+[c e g] chord
+
+\ Random note selection from scale
+mf
+[c d e f g a b] pick play
+[c d e f g a b] pick play
+[c d e f g a b] pick play
+
+\ Chord progression using chord builders
+c major chord
+f major chord
+g major chord
+c major chord
+
