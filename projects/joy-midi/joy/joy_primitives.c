@@ -6,12 +6,14 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include "joy_runtime.h"
+#include "joy_parser.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
 #include <time.h>
 #include <inttypes.h>
+#include <sys/stat.h>
 
 /* Global storage for command line arguments */
 static int joy_argc = 0;
@@ -3491,6 +3493,71 @@ static void prim_frename(JoyContext* ctx) {
     PUSH(joy_boolean(result == 0));
 }
 
+static void prim_finclude(JoyContext* ctx) {
+    /* S -> : read and execute Joy code from file handle S */
+    REQUIRE(1, "finclude");
+    JoyValue v = POP();
+    EXPECT_TYPE(v, JOY_FILE, "finclude");
+
+    FILE* f = v.data.file;
+    if (!f) {
+        joy_error("finclude: invalid file handle");
+        return;
+    }
+
+    /* Read entire file from current position */
+    long start = ftell(f);
+    fseek(f, 0, SEEK_END);
+    long end = ftell(f);
+    long size = end - start;
+    fseek(f, start, SEEK_SET);
+
+    if (size <= 0) {
+        return;  /* Empty or at end */
+    }
+
+    char* content = malloc(size + 1);
+    if (!content) {
+        joy_error("finclude: out of memory");
+        return;
+    }
+
+    size_t read = fread(content, 1, size, f);
+    content[read] = '\0';
+
+    /* Parse and execute */
+    joy_eval_line(ctx, content);
+    free(content);
+}
+
+static void prim_include(JoyContext* ctx) {
+    /* "filename" -> : load and execute Joy file */
+    REQUIRE(1, "include");
+    JoyValue v = POP();
+    EXPECT_TYPE(v, JOY_STRING, "include");
+
+    int result = joy_load_file(ctx, v.data.string);
+    if (result != 0) {
+        fprintf(stderr, "include: could not load file '%s'\n", v.data.string);
+    }
+    joy_value_free(&v);
+}
+
+static void prim_filetime(JoyContext* ctx) {
+    /* "filename" -> T : get file modification time, or false if not found */
+    REQUIRE(1, "filetime");
+    JoyValue v = POP();
+    EXPECT_TYPE(v, JOY_STRING, "filetime");
+
+    struct stat st;
+    if (stat(v.data.string, &st) == 0) {
+        PUSH(joy_integer((int64_t)st.st_mtime));
+    } else {
+        PUSH(joy_boolean(false));
+    }
+    joy_value_free(&v);
+}
+
 /* ---------- Additional Math Functions ---------- */
 
 static void prim_acos(JoyContext* ctx) {
@@ -5099,4 +5166,7 @@ void joy_register_primitives(JoyContext* ctx) {
     joy_dict_define_primitive(d, "ftell", prim_ftell);
     joy_dict_define_primitive(d, "fremove", prim_fremove);
     joy_dict_define_primitive(d, "frename", prim_frename);
+    joy_dict_define_primitive(d, "finclude", prim_finclude);
+    joy_dict_define_primitive(d, "include", prim_include);
+    joy_dict_define_primitive(d, "filetime", prim_filetime);
 }

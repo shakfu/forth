@@ -233,9 +233,9 @@ This document lists all Joy primitives and their implementation status in joy-mi
 - [x] `ferror`: Test file error
 - [x] `fremove`: Remove file
 - [x] `frename`: Rename file
-- [ ] `filetime`: Get file modification time
-- [ ] `finclude`: Include/execute file
-- [ ] `include`: Include/execute Joy file (alias for finclude)
+- [x] `filetime`: Get file modification time (or false if not found)
+- [x] `finclude`: Execute Joy code from file handle
+- [x] `include`: Include/execute Joy file by name
 
 ## Time
 
@@ -327,17 +327,11 @@ This document lists all Joy primitives and their implementation status in joy-mi
 
 ## Summary
 
-**Standard Joy primitives: 221**
-- Implemented: 218
-- Not implemented: 3
+**Standard Joy primitives: 221** - all implemented
 
-**MIDI primitives: 26** (all implemented)
+**MIDI primitives: 26** - all implemented
 
-### Not Yet Implemented
-
-- [ ] `filetime`: Get file modification time
-- [ ] `finclude`: Include and execute Joy file
-- [ ] `include`: Include and execute Joy file (alias)
+**Total: 247 primitives**
 
 ### Notes
 
