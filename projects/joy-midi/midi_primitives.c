@@ -6,6 +6,7 @@
 #include "midi_primitives.h"
 #include "music_theory.h"
 #include "music_context.h"
+#include "music_notation.h"
 #include <libremidi/libremidi-c.h>
 #include <stdio.h>
 #include <string.h>
@@ -619,6 +620,59 @@ void transpose_(JoyContext* ctx) {
     if (result > 127) result = 127;
 
     PUSH(joy_integer(result));
+}
+
+/* ============================================================================
+ * Channel Operations
+ * ============================================================================ */
+
+void channel_(JoyContext* ctx) {
+    /* N channel - set current MIDI channel (1-16) */
+    REQUIRE(1, "channel");
+
+    JoyValue n = POP();
+    EXPECT_TYPE(n, JOY_INTEGER, "channel");
+
+    int ch = (int)n.data.integer;
+    if (ch < 1) ch = 1;
+    if (ch > 16) ch = 16;
+    current_channel = ch;
+}
+
+void chan_(JoyContext* ctx) {
+    /* [P] N chan - execute quotation P on channel N, restore channel after */
+    REQUIRE(2, "chan");
+
+    JoyValue n = POP();
+    JoyValue p = POP();
+    EXPECT_TYPE(n, JOY_INTEGER, "chan");
+
+    int old_channel = current_channel;
+    int ch = (int)n.data.integer;
+    if (ch < 1) ch = 1;
+    if (ch > 16) ch = 16;
+    current_channel = ch;
+
+    /* Execute quotation or list */
+    if (p.type == JOY_QUOTATION) {
+        joy_execute_quotation(ctx, p.data.quotation);
+    } else if (p.type == JOY_LIST) {
+        /* Treat list as sequence of notes to play */
+        MusicContext* mctx = (MusicContext*)ctx->user_data;
+        if (mctx) {
+            for (size_t i = 0; i < p.data.list->length; i++) {
+                JoyValue item = p.data.list->items[i];
+                if (item.type == JOY_INTEGER) {
+                    /* Play note */
+                    PUSH(joy_integer(item.data.integer));
+                    music_play_(ctx);
+                }
+            }
+        }
+    }
+
+    current_channel = old_channel;
+    joy_value_free(&p);
 }
 
 /* ============================================================================

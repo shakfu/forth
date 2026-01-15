@@ -437,6 +437,15 @@ static bool is_define_keyword(const char* sym) {
 }
 
 /*
+ * Check if symbol is a SEQ keyword (SEQ, seq)
+ * Syntax: SEQ name body . (defines a named sequence)
+ */
+static bool is_seq_keyword(const char* sym) {
+    return strcmp(sym, "SEQ") == 0 ||
+           strcmp(sym, "seq") == 0;
+}
+
+/*
  * Parse a single definition: name == term1 term2 ... (terminated by ; or .)
  * Returns true if more definitions follow (;), false if done (.)
  */
@@ -511,6 +520,56 @@ static void parse_define_block(Lexer* lex) {
     }
 }
 
+/*
+ * Parse a SEQ block: SEQ name body .
+ * The body can contain ; separators which are ignored (statement separators)
+ * Defines a word 'name' with the body as its quotation
+ */
+static void parse_seq_block(Lexer* lex) {
+    /* Skip past SEQ/seq keyword */
+    lexer_next(lex);
+
+    /* Expect name */
+    if (lex->current.type != TOK_SYMBOL) {
+        fprintf(stderr, "SEQ: expected name\n");
+        return;
+    }
+
+    char* name = strdup(lex->current.value.string);
+    lexer_next(lex);
+
+    /* Parse body until . terminator */
+    JoyQuotation* body = joy_quotation_new(16);
+
+    while (lex->current.type != TOK_EOF) {
+        /* Check for . terminator */
+        if (lex->current.type == TOK_SYMBOL &&
+            strcmp(lex->current.value.string, ".") == 0) {
+            lexer_next(lex);  /* consume . */
+            break;
+        }
+
+        /* Skip ; separators (treat as statement separator within sequence) */
+        if (lex->current.type == TOK_SYMBOL &&
+            strcmp(lex->current.value.string, ";") == 0) {
+            lexer_next(lex);
+            continue;
+        }
+
+        /* Parse value and add to body */
+        JoyValue v = parse_value(lex);
+        joy_quotation_push(body, v);
+    }
+
+    /* Register the sequence as a word */
+    if (g_parser_dict) {
+        joy_dict_define_quotation(g_parser_dict, name, body);
+    } else {
+        joy_quotation_free(body);
+    }
+    free(name);
+}
+
 /* ---------- Public API ---------- */
 
 /*
@@ -548,6 +607,12 @@ JoyQuotation* joy_parse(const char* source) {
         /* Check for DEFINE/def/LIBRA/CONST keyword */
         if (lex.current.type == TOK_SYMBOL && is_define_keyword(lex.current.value.string)) {
             parse_define_block(&lex);
+            continue;
+        }
+
+        /* Check for SEQ/seq keyword */
+        if (lex.current.type == TOK_SYMBOL && is_seq_keyword(lex.current.value.string)) {
+            parse_seq_block(&lex);
             continue;
         }
 

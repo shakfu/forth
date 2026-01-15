@@ -41,6 +41,10 @@ void maj7_chord_(JoyContext* ctx);
 void min7_chord_(JoyContext* ctx);
 void transpose_(JoyContext* ctx);
 
+/* Channel operations */
+void channel_(JoyContext* ctx);
+void chan_(JoyContext* ctx);
+
 /* Init/cleanup */
 void midi_init(void);
 void midi_cleanup(void);

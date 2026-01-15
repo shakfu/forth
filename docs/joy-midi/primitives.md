@@ -325,13 +325,22 @@ This document lists all Joy primitives and their implementation status in joy-mi
 - [x] `maj7`: Build major 7th chord (root -> [pitches])
 - [x] `min7`: Build minor 7th chord (root -> [pitches])
 
+### Channel Operations
+
+- [x] `channel`: Set current MIDI channel (N channel)
+- [x] `chan`: Execute quotation on channel ([P] N chan)
+
+### Sequence Definition
+
+- [x] `SEQ`/`seq`: Define named sequence (SEQ name body .)
+
 ## Summary
 
 **Standard Joy primitives: 221** - all implemented
 
-**MIDI primitives: 26** - all implemented
+**MIDI primitives: 29** - all implemented (26 + channel, chan, SEQ)
 
-**Total: 247 primitives**
+**Total: 250 primitives**
 
 ### Notes
 

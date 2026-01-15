@@ -32,6 +32,27 @@ All notable changes to midi-langs are documented in this file.
   - Example: `double == 2 * .` then `5 double` yields `10`
   - DEFINE/def/LIBRA/CONST keywords still work for multi-definition blocks
 
+- **joy-midi channel operations**: Multi-channel MIDI support
+  - `channel`: Set current MIDI channel (1-16): `2 channel`
+  - `chan`: Execute quotation on channel, restore after: `[c4 e4 g4] arp 2 chan`
+  - Lists passed to `chan` play as note sequences: `[60 64 67] 2 chan`
+
+- **joy-midi SEQ keyword**: Define named sequences
+  - Syntax: `SEQ name body .` or `seq name body .`
+  - Semicolons separate statements within the sequence
+  - Example:
+    ```
+    SEQ melody
+      [c4 e4 g4] arp 2 chan;
+      [c3 e3 g3] 3 chan .
+    melody   \ execute the sequence
+    ```
+
+- **joy-midi file operations**: `include`, `finclude`, `filetime`
+  - `include`: Load and execute Joy file by name: `"lib.joy" include`
+  - `finclude`: Execute Joy code from file handle: `"lib.joy" "r" fopen finclude`
+  - `filetime`: Get file modification time (or false if not found)
+
 - **joy-midi new primitives**: `round`, `typeof`, `sametype`, `pick`, `assign`, `unassign`
   - `round`: Round float to nearest integer
   - `typeof`: Return type code (2=user-defined, 3=builtin, 4=bool, 5=char, 6=int, 7=set, 8=string, 9=list, 10=float, 11=file)
