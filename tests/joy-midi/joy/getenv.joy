@@ -1,0 +1,7 @@
+(*
+    module  : getenv.joy
+    version : 1.6
+    date    : 08/12/24
+*)
+"PATH" getenv.
+"DUMMY" getenv "" =.

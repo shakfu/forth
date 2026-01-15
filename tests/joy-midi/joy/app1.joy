@@ -1,0 +1,6 @@
+(*
+    module  : app1.joy
+    version : 1.4
+    date    : 03/21/24
+*)
+1 2 3 [+] app1 stack [5 1] equal.

@@ -1,0 +1,7 @@
+(*
+    module  : argv.joy
+    version : 1.4
+    date    : 03/21/24
+*)
+argv 0 at [dup '. has] [dup size 4 - take]	# strip .joy
+[] ifte "argv" =.

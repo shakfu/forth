@@ -1,0 +1,6 @@
+(*
+    module  : swap.joy
+    version : 1.4
+    date    : 03/21/24
+*)
+1 2 swap stack [1 2] equal.

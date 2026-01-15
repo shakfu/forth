@@ -1,0 +1,8 @@
+(*
+    module  : i.joy
+    version : 1.5
+    date    : 03/21/24
+*)
+2 3 [+] i 5 =.
+
+2 3 [] i stack [3 2] equal.

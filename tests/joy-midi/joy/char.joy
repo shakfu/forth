@@ -1,0 +1,8 @@
+(*
+    module  : char.joy
+    version : 1.4
+    date    : 03/21/24
+*)
+10 char false =.
+'\n char.
+'\010 char.

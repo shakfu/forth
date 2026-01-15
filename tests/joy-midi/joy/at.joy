@@ -1,0 +1,8 @@
+(*
+    module  : at.joy
+    version : 1.4
+    date    : 03/21/24
+*)
+[4 5 6] 2 at 6 =.
+"test" 2 at 's =.
+{4 5 6} 2 at 6 =.

@@ -337,6 +337,9 @@ if(NOT WIN32)
         joy_midi_virtual_port
         PROPERTIES LABELS "quick;midi"
     )
+
+    # Include Joy unit tests from pyjoy-lang
+    add_subdirectory(joy-midi)
 endif()
 
 # demo_example_mhs (shell script)

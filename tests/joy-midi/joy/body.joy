@@ -1,0 +1,6 @@
+(*
+    module  : body.joy
+    version : 1.5
+    date    : 04/19/24
+*)
+[sum] first body [0 [+] fold] equal.

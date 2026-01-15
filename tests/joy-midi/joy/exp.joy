@@ -1,0 +1,6 @@
+(*
+    module  : exp.joy
+    version : 1.4
+    date    : 03/21/24
+*)
+1.5 exp 'g 0 6 formatf strtod 4.48169 =.

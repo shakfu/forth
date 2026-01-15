@@ -1,0 +1,23 @@
+(*
+    module  : cond.joy
+    version : 1.5
+    date    : 03/21/24
+*)
+DEFINE	test == [[[dup 1 =] "one"]
+		 [[dup 2 =] "two"]
+		 ["other"]] cond.
+
+1 test stack ["one" 1] equal.
+
+[] unstack.
+2 test stack ["two" 2] equal.
+[] unstack.
+3 test stack ["other" 3] equal.
+
+DEFINE	test == [["other"]] cond.
+
+1 test "other" =.
+
+DEFINE	test == [[]] cond.
+
+1 test 1 =.

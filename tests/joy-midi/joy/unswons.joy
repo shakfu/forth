@@ -1,0 +1,19 @@
+(*
+    module  : unswons.joy
+    version : 1.7
+    date    : 08/29/24
+*)
+[1 2 3] unswons
+1 =.
+[2 3] equal.
+"test" unswons
+'t =.
+"est" =.
+{1 2 3} unswons
+1 =.
+{2 3} =.
+
+[1] unswons 1 =.
+
+(* error *)
+# 'A unswons.

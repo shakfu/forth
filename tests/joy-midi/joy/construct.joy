@@ -1,0 +1,8 @@
+(*
+    module  : construct.joy
+    version : 1.4
+    date    : 03/21/24
+*)
+DEFINE	test == [2.0 3.0] [[+] [*] [-] [/]] construct.
+
+test 'g 0 6 formatf strtod stack [0.666667 -1 6 5] equal.

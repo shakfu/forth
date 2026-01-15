@@ -1,0 +1,15 @@
+(*
+    module  : put.joy
+    version : 1.6
+    date    : 04/19/24
+*)
+[pop] first putln.
+[sum] first putln.
+true putln.
+'A putln.
+10 putln.
+{1 2 3} putln.
+"test" putln.
+[1 2 3] putln.
+3.14 putln.
+stdin putln.

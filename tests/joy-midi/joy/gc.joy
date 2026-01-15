@@ -1,0 +1,9 @@
+(*
+    module  : gc.joy
+    version : 1.15
+    date    : 11/20/24
+*)
+__memoryindex
+1 14000 from-to-list pop
+gc gc gc gc gc
+__memorymax <.

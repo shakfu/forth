@@ -1,0 +1,8 @@
+(*
+    module  : frename.joy
+    version : 1.5
+    date    : 03/22/24
+*)
+"/tmp/pyjoy_test" "w" fopen fclose.
+"/tmp/pyjoy_test" "/tmp/pyjoy_renamed" frename.
+$ rm /tmp/pyjoy_renamed

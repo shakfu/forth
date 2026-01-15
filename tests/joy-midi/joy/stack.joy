@@ -1,0 +1,6 @@
+(*
+    module  : stack.joy
+    version : 1.4
+    date    : 03/21/24
+*)
+1 2 3 stack [3 2 1] equal.

@@ -1,0 +1,6 @@
+(*
+    module  : feof.joy
+    version : 1.4
+    date    : 03/21/24
+*)
+"feof.joy" "r" fopen feof false =.

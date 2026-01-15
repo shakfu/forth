@@ -1,0 +1,9 @@
+(*
+    module  : ternary.joy
+    version : 1.5
+    date    : 03/21/24
+*)
+1 2 3 4 5 [+] ternary stack [9 2 1] equal.
+
+[] unstack.
+1 2 3 4 5 [] ternary stack [5 2 1] equal.

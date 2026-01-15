@@ -1,0 +1,7 @@
+(*
+    module  : iflist.joy
+    version : 1.4
+    date    : 03/21/24
+*)
+[1 2 3] ["islist"] ["nolist"] iflist "islist" =.
+10 ["islist"] ["nolist"] iflist "nolist" =.

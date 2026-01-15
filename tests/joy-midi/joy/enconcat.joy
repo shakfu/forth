@@ -1,0 +1,8 @@
+(*
+    module  : enconcat.joy
+    version : 1.4
+    date    : 03/21/24
+*)
+1 [2 3 4] [5 6 7] enconcat [2 3 4 1 5 6 7] equal.
+'a "test" "uftu" enconcat "testauftu" =.
+1 {2 3 4} {5 6 7} enconcat {1 2 3 4 5 6 7} =.

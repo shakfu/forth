@@ -1,0 +1,6 @@
+(*
+    module  : binrec.joy
+    version : 1.4
+    date    : 03/21/24
+*)
+10 [dup small] [] [pred dup pred] [+] binrec 55 =.

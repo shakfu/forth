@@ -1,0 +1,7 @@
+(*
+    module  : ifchar.joy
+    version : 1.4
+    date    : 03/21/24
+*)
+'A ["ischar"] ["nochar"] ifchar "ischar" =.
+10 ["ischar"] ["nochar"] ifchar "nochar" =.

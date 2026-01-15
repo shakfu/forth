@@ -1,0 +1,8 @@
+(*
+    module  : fput.joy
+    version : 1.8
+    date    : 03/22/24
+*)
+"/tmp/pyjoy_test" "w" fopen [1 2 3] fput 10 fput '. ord fputch fclose.
+$ cat /tmp/pyjoy_test
+$ rm /tmp/pyjoy_test

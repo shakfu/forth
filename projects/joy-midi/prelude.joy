@@ -1,0 +1,242 @@
+\ prelude.joy - Standard Joy-MIDI library
+\ Loaded automatically on startup
+\ Includes definitions from pyjoy-lang standard library
+
+\ ========================================
+\ Stack utilities (from inilib)
+\ ========================================
+
+def pop2 == pop pop .
+def dup2 == dupd dup swapd .
+def dip2 == [dip] cons dip .
+def dipd == dip2 .
+def swoncat == swap concat .
+
+\ ========================================
+\ Predicate combinators (from inilib)
+\ ========================================
+
+\ conjoin: combine two predicates with AND
+\ [P] [Q] conjoin -> [[P] [Q] [false] ifte]
+def conjoin == [[false] ifte] cons cons .
+
+\ disjoin: combine two predicates with OR
+\ [P] [Q] disjoin -> [[P] [true] [Q] ifte]
+def disjoin == [ifte] cons [true] swons cons .
+
+\ negate: negate a predicate
+\ [P] negate -> [[P] [false] [true] ifte]
+def negate == [[false] [true] ifte] cons .
+
+\ ========================================
+\ Aggregate utilities (from agglib)
+\ ========================================
+
+def unitlist == [] cons .
+def pairlist == [] cons cons .
+def unpair == uncons uncons pop .
+def second == rest first .
+def third == rest rest first .
+def shunt == [swons] step .
+
+\ ========================================
+\ Numeric aggregates (from agglib)
+\ ========================================
+
+def sum == 0 [+] fold .
+def product == 1 [*] fold .
+def average == [sum] [size] cleave / .
+
+\ ========================================
+\ Numeric predicates (from numlib)
+\ ========================================
+
+def positive == 0 > .
+def negative == 0 < .
+def even == 2 rem null .
+def odd == even not .
+
+\ ========================================
+\ Numeric functions (from numlib)
+\ ========================================
+
+def fact == [1 1] dip [dup [*] dip succ] times pop .
+def gcd == [0 >] [dup rollup rem] while pop .
+
+\ ========================================
+\ List utilities
+\ ========================================
+
+\ reverse: reverse a list
+\ [a b c] reverse -> [c b a]
+def reverse == [] swap shunt .
+
+\ concat-all: flatten list of lists
+def concat-all == [] [concat] fold .
+
+\ repeat: repeat list N times
+\ [c e g] 3 repeat -> [c e g c e g c e g]
+def repeat == [dup] swap pred times concat-all .
+
+\ range: generate list of integers
+\ 1 5 range -> [1 2 3 4 5]
+def range == [] rollup [dup [swons] dip succ] times pop reverse .
+
+\ from-to: build aggregate from lo to hi
+\ lo hi agg from-to -> agg with elements lo..hi
+def from-to == [] cons [pop pop] swoncat [>] swap [[dup succ] dip] [cons] linrec .
+
+\ from-to-list: build list from lo to hi
+\ 1 10 from-to-list -> [1 2 3 4 5 6 7 8 9 10]
+def from-to-list == [] from-to .
+
+\ ========================================
+\ Selection
+\ ========================================
+
+\ choose: select random element from list
+\ [a b c] choose -> a (or b or c)
+\ Note: 'pick' is reserved for the Joy stack primitive (copy Nth item)
+def choose == dup size rand swap rem at .
+
+\ ========================================
+\ Transposition
+\ ========================================
+
+\ up: transpose list up by N semitones
+\ [c d e] 7 up -> [g a b]
+def up == [+] cons map .
+
+\ down: transpose list down by N semitones
+\ [c d e] 7 down -> [f g a]
+def down == neg up .
+
+\ octave-up: transpose up one octave
+def octave-up == 12 up .
+
+\ octave-down: transpose down one octave
+def octave-down == 12 down .
+
+\ ========================================
+\ Intervals (semitone counts)
+\ ========================================
+
+def unison == 0 .
+def min2 == 1 .
+def maj2 == 2 .
+def min3 == 3 .
+def maj3 == 4 .
+def p4 == 5 .
+def tritone == 6 .
+def p5 == 7 .
+def min6 == 8 .
+def maj6 == 9 .
+def min7 == 10 .
+def maj7-interval == 11 .
+def octave == 12 .
+
+\ ========================================
+\ Scales (as interval patterns from root)
+\ ========================================
+
+def major-scale == [0 2 4 5 7 9 11 12] .
+def minor-scale == [0 2 3 5 7 8 10 12] .
+def harmonic-minor == [0 2 3 5 7 8 11 12] .
+def melodic-minor == [0 2 3 5 7 9 11 12] .
+def pentatonic == [0 2 4 7 9] .
+def minor-pentatonic == [0 3 5 7 10] .
+def blues == [0 3 5 6 7 10] .
+def chromatic == [0 1 2 3 4 5 6 7 8 9 10 11] .
+def whole-tone == [0 2 4 6 8 10] .
+def dorian == [0 2 3 5 7 9 10 12] .
+def phrygian == [0 1 3 5 7 8 10 12] .
+def lydian == [0 2 4 6 7 9 11 12] .
+def mixolydian == [0 2 4 5 7 9 10 12] .
+def locrian == [0 1 3 5 6 8 10 12] .
+
+\ scale: build scale from root note and interval pattern
+\ c major-scale scale -> [60 62 64 65 67 69 71 72]
+def scale == swap [+] cons map .
+
+\ ========================================
+\ Arpeggiation
+\ ========================================
+
+\ arp: play notes one by one
+\ [c e g] arp -> plays C, then E, then G
+def arp == [play] step .
+
+\ arp-down: play notes in reverse order
+def arp-down == reverse arp .
+
+\ arp-up-down: play up then down (skip last on way down)
+def arp-up-down == dup reverse rest concat arp .
+
+\ ========================================
+\ Rhythm helpers (set quantization)
+\ ========================================
+
+def staccato == 30 quant .
+def detached == 50 quant .
+def normal == 80 quant .
+def legato == 100 quant .
+
+\ ========================================
+\ Dynamics shortcuts
+\ ========================================
+
+def pianissimo == 25 vol .
+def piano == 50 vol .
+def mezzoforte == 75 vol .
+def forte == 100 vol .
+def fortissimo == 120 vol .
+
+\ ========================================
+\ Control Change helpers
+\ ========================================
+
+\ Sustain pedal
+def sustain-on == 64 127 midi-cc .
+def sustain-off == 64 0 midi-cc .
+
+\ Modulation wheel: 0-127
+def mod == 1 swap midi-cc .
+
+\ Expression: 0-127
+def expression == 11 swap midi-cc .
+
+\ Pan: 0=left, 64=center, 127=right
+def pan == 10 swap midi-cc .
+
+\ ========================================
+\ General MIDI instruments
+\ ========================================
+
+def gm-piano == 0 midi-program .
+def gm-epiano == 4 midi-program .
+def gm-harpsichord == 6 midi-program .
+def gm-vibraphone == 11 midi-program .
+def gm-organ == 19 midi-program .
+def gm-accordion == 21 midi-program .
+def gm-guitar == 24 midi-program .
+def gm-bass == 32 midi-program .
+def gm-strings == 48 midi-program .
+def gm-choir == 52 midi-program .
+def gm-trumpet == 56 midi-program .
+def gm-brass == 61 midi-program .
+def gm-sax == 66 midi-program .
+def gm-flute == 73 midi-program .
+def gm-synth-lead == 80 midi-program .
+def gm-synth-pad == 88 midi-program .
+
+\ ========================================
+\ Probability / Generative
+\ ========================================
+
+\ maybe: execute quotation with given probability (0-100)
+\ [c play] 50 maybe -> 50% chance to play C
+def maybe == rand 100 rem > [pop] [i] ifte .
+
+\ one-of: choose and execute random quotation from list
+\ [[c play] [e play] [g play]] one-of
+def one-of == choose i .

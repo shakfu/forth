@@ -11,6 +11,36 @@
 #include "midi_primitives.h"
 #include <string.h>
 #include <stdlib.h>
+#include <libgen.h>
+#include <unistd.h>
+
+/* Try to load prelude.joy from various locations */
+static void load_prelude(JoyContext* ctx, const char* argv0) {
+    char path[1024];
+
+    /* Try 1: Same directory as executable */
+    if (argv0) {
+        char* dir = strdup(argv0);
+        if (dir) {
+            char* d = dirname(dir);
+            snprintf(path, sizeof(path), "%s/prelude.joy", d);
+            if (access(path, R_OK) == 0) {
+                joy_load_file(ctx, path);
+                free(dir);
+                return;
+            }
+            free(dir);
+        }
+    }
+
+    /* Try 2: Current directory */
+    if (access("prelude.joy", R_OK) == 0) {
+        joy_load_file(ctx, "prelude.joy");
+        return;
+    }
+
+    /* Prelude not found - continue without it */
+}
 
 static void banner(void) {
     printf("Joy-MIDI  -  Joy interpreter with MIDI extensions\n");
@@ -82,6 +112,9 @@ int main(int argc, char** argv) {
     /* Register MIDI primitives */
     joy_midi_register_primitives(ctx);
 
+    /* Load prelude (standard library) */
+    load_prelude(ctx, argv[0]);
+
     /* Enable autoput (show stack after each line) */
     ctx->autoput = 1;
 
@@ -92,6 +125,37 @@ int main(int argc, char** argv) {
             joy_midi_cleanup();
             joy_context_free(ctx);
             return 1;
+        }
+    } else if (!isatty(STDIN_FILENO)) {
+        /* Stdin is a pipe - read all input at once for multi-line support */
+        midi_virtual_(ctx);
+
+        char* buffer = NULL;
+        size_t size = 0;
+        size_t capacity = 4096;
+        buffer = malloc(capacity);
+        if (buffer) {
+            int c;
+            while ((c = getchar()) != EOF) {
+                if (size + 1 >= capacity) {
+                    capacity *= 2;
+                    char* newbuf = realloc(buffer, capacity);
+                    if (!newbuf) break;
+                    buffer = newbuf;
+                }
+                buffer[size++] = c;
+            }
+            buffer[size] = '\0';
+            joy_eval_line(ctx, buffer);
+            /* Print final stack */
+            if (ctx->stack->depth > 0) {
+                for (size_t i = 0; i < ctx->stack->depth; i++) {
+                    if (i > 0) printf(" ");
+                    joy_value_print(ctx->stack->items[i]);
+                }
+                printf("\n");
+            }
+            free(buffer);
         }
     } else {
         /* Interactive mode */

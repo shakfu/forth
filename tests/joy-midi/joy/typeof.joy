@@ -1,0 +1,15 @@
+(*
+    module  : typeof.joy
+    version : 1.4
+    date    : 04/19/24
+*)
+[sum] first typeof 2 =.
+[pop] first typeof 3 =.
+true typeof 4 =.
+'A typeof 5 =.
+10 typeof 6 =.
+{1 2 3} typeof 7 =.
+"test" typeof 8 =.
+[1 2 3] typeof 9 =.
+1.1 typeof 10 =.
+stdin typeof 11 =.

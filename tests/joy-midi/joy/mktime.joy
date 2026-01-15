@@ -1,0 +1,12 @@
+(*
+    module  : mktime.joy
+    version : 1.5
+    date    : 07/14/24
+*)
+time dup
+dup putln
+gmtime
+dup putln
+mktime
+dup putln
+=.

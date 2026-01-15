@@ -1,0 +1,6 @@
+(*
+    module  : strtod.joy
+    version : 1.4
+    date    : 03/21/24
+*)
+"3.14" strtod 3.14 =.

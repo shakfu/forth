@@ -1,0 +1,14 @@
+(*
+    module  : size.joy
+    version : 1.5
+    date    : 08/29/24
+*)
+[1 2 3] size 3 =.
+"test" size 4 =.
+{1 2 3} size 3 =.
+[] size null.
+"" size null.
+{} size null.
+
+(* error *)
+# 10 size.

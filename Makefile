@@ -21,7 +21,8 @@ PRELUDE_HEADERS := $(HEADER_SCM) $(HEADER_LUA) $(HEADER_PY)
 		alda-midi forth-midi joy-midi lua-midi pktpy-midi s7-midi \
 		mhs-midi mhs-midi-all \
 		mhs-midi-src mhs-midi-src-zstd \
-		mhs-midi-pkg mhs-midi-pkg-zstd 
+		mhs-midi-pkg mhs-midi-pkg-zstd \
+		test-joy test-joy-passing test-joy-failing test-joy-verbose 
 
 all: build
 
@@ -99,6 +100,19 @@ test-quick: build
 test-verbose: build
 	@$(CTEST) --test-dir $(BUILD_DIR) -V
 
+# Joy unit tests (from pyjoy-lang test suite)
+test-joy: build
+	@$(CTEST) --test-dir $(BUILD_DIR) -L joy_unit --output-on-failure
+
+test-joy-passing: build
+	@$(CTEST) --test-dir $(BUILD_DIR) -L joy_unit -j8 2>&1 | grep -E "Passed|passed"
+
+test-joy-failing: build
+	@$(CTEST) --test-dir $(BUILD_DIR) -L joy_unit --rerun-failed --output-on-failure
+
+test-joy-verbose: build
+	@$(CTEST) --test-dir $(BUILD_DIR) -L joy_unit -V
+
 rebuild: reset build test
 
 ctidy:
@@ -120,6 +134,9 @@ help:
 	@echo "  test             Run all tests"
 	@echo "  test-quick       Run quick tests only"
 	@echo "  test-verbose     Run tests with verbose output"
+	@echo "  test-joy         Run Joy unit tests (pyjoy-lang suite)"
+	@echo "  test-joy-passing Show only passing Joy tests"
+	@echo "  test-joy-failing Re-run only failed Joy tests"
 	@echo "  rebuild          Clean and build"
 	@echo "  ctidy            Run clang-tidy"
 	@echo "  reset            Reset project to initial state"

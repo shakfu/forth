@@ -1,0 +1,7 @@
+(*
+    module  : ifinteger.joy
+    version : 1.4
+    date    : 03/21/24
+*)
+1.0 ["isinteger"] ["nointeger"] ifinteger "nointeger" =.
+10 ["isinteger"] ["nointeger"] ifinteger "isinteger" =.

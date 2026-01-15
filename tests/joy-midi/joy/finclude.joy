@@ -1,0 +1,15 @@
+(*
+    module  : finclude.joy
+    version : 1.1
+    date    : 06/21/24
+*)
+"/tmp/pyjoy_test" "w" fopen
+1 fput '\n fputch
+2 fput '\n fputch
+3 fput '\n fputch
+fclose
+"/tmp/pyjoy_test" finclude
+stack [3 2 1] equal.
+"/tmp/pyjoy_test" fremove.
+
+"exist" finclude.

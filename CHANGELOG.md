@@ -6,6 +6,89 @@ All notable changes to midi-langs are documented in this file.
 
 ### Added
 
+- **joy-midi standard library**: `prelude.joy` with functions from pyjoy-lang stdlib
+  - Stack utilities: `pop2`, `dup2`, `dip2`, `shunt`
+  - List operations: `reverse`, `conjoin`, `disjoin`, `unitlist`, `pairlist`
+  - Numeric aggregates: `sum`, `product`, `average`
+  - Predicates: `positive`, `negative`, `negate`, `even`, `odd`
+  - Math: `fact` (factorial), `gcd` (greatest common divisor)
+  - Auto-loaded at startup from executable directory
+
+- **joy-midi unit tests**: Integrated 211 tests from pyjoy-lang test suite
+  - Tests located in `tests/joy-midi/joy/*.joy`
+  - Test runner: `tests/joy-midi/run_single_joy_test.sh`
+  - CMake integration with `joy_unit` label
+  - Makefile targets: `test-joy`, `test-joy-passing`, `test-joy-failing`, `test-joy-verbose`
+  - Current status: 187/211 passing (89%)
+  - Test runner now handles smoke tests (no assertions, just checking for no crash)
+
+- **joy-midi new primitives**: `round`, `typeof`, `sametype`, `pick`, `assign`, `unassign`
+  - `round`: Round float to nearest integer
+  - `typeof`: Return type code (2=user-defined, 3=builtin, 4=bool, 5=char, 6=int, 7=set, 8=string, 9=list, 10=float, 11=file)
+  - `sametype`: Check if two values have the same type (compares function pointers for primitives)
+  - `pick`: Copy Nth item to top of stack (X Y Z N -> X Y Z X where N=2)
+  - `assign`: Bind value to symbol (`X [name] assign` binds X to name)
+  - `unassign`: Remove symbol binding (`[name] unassign` removes name from dictionary)
+
+- **joy-midi prelude additions**:
+  - `choose`: Select random element from list (renamed from `pick` to avoid conflict with stack primitive)
+  - `from-to`: Build aggregate from lo to hi using linrec
+  - `from-to-list`: Build list from lo to hi (e.g., `1 10 from-to-list` -> `[1 2 3 4 5 6 7 8 9 10]`)
+
+### Changed
+
+- **joy-midi architecture**: Separated core Joy interpreter from MIDI extensions
+  - Moved `thirdparty/pyjoy-runtime/` to `projects/joy-midi/joy/`
+  - Renamed library from `pyjoy_runtime` to `joy_core`
+  - Core Joy interpreter is now a reusable static library
+  - MIDI-specific code remains in `projects/joy-midi/`
+
+- **joy-midi tokenizer**: Fixed `.` handling for Joy compatibility
+  - `.` is now tokenized as a separate token (not part of symbols like `=.`)
+  - Enables proper parsing of Joy test files that use `.` as statement terminator
+
+### Fixed
+
+- **joy-midi `.` primitive**: Now prints-and-pops, with graceful empty stack handling
+  - `.` prints top of stack and pops it (standard Joy behavior)
+  - If stack is empty, `.` is a no-op (for smoke tests)
+  - Tests correctly clear results from stack after assertions
+
+- **joy-midi `typeof`**: Now correctly distinguishes user-defined (2) from builtin (3) words
+  - Looks up symbols in dictionary to determine if primitive or user-defined
+  - Matches reference Joy implementation behavior
+
+- **joy-midi `sametype`**: Now compares function pointers for primitives
+  - Two different builtins (like `pop` and `dup`) return false
+  - Two user-defined words return true (same type category)
+  - Matches reference Joy implementation behavior
+
+- **joy-midi `concat`**: Added SET and STRING support
+  - SET concat is union operation
+  - STRING concat joins two strings
+
+- **joy-midi `body`**: Returns empty quotation for undefined symbols instead of erroring
+
+- **joy-midi `treerec`/`treegenrec`**: Fixed tree recursion combinators
+  - Correctly preserve tree structure when mapping over nested lists
+  - Fixed iteration strategy (C parameter specifies how to recurse, not post-processing)
+
+- **joy-midi parser**: Fixed semicolon tokenization for multi-line DEFINE
+  - `;` now correctly separates multiple definitions in a single DEFINE block
+  - Example: `DEFINE a == 1; b == 2.` now correctly defines both `a` and `b`
+
+- **joy-midi character arithmetic**: Added character support to arithmetic operations
+  - `+`: char + int -> char, int + char -> char
+  - `-`: char - int -> char, char - char -> int (distance)
+  - `succ`/`pred`: Work on characters ('A succ -> 'B)
+  - `max`/`min`: Compare characters by ASCII value
+
+- **joy-midi aggregate operations**: Extended to support all aggregate types
+  - `cons`: Now supports strings (char + string) and sets
+  - `uncons`: Now supports strings and sets
+  - `has`: Now supports lists and strings (not just sets)
+  - `first`/`rest`: Now support sets (lowest element, remaining elements)
+
 - **joy-midi**: New Joy-based MIDI language using the [pyjoy](https://github.com/shakfu/pyjoy-lang) runtime
   - `projects/joy-midi/` - Complete project structure
   - Concatenative functional programming with stack-based execution

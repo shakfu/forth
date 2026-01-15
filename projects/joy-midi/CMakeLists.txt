@@ -1,5 +1,8 @@
 # Joy-MIDI - Joy interpreter with MIDI extensions
 
+# Include the core Joy interpreter library
+add_subdirectory(joy)
+
 # Main executable
 add_executable(joy_midi
     main.c
@@ -9,12 +12,12 @@ add_executable(joy_midi
     music_notation.c
 )
 
-# Link against pyjoy_runtime
-target_link_libraries(joy_midi PRIVATE pyjoy_runtime music_theory libremidi)
+# Link against joy_core (the standalone Joy interpreter)
+target_link_libraries(joy_midi PRIVATE joy_core music_theory libremidi)
 
 # Include paths
 target_include_directories(joy_midi PRIVATE
-    ${CMAKE_SOURCE_DIR}/thirdparty/pyjoy-runtime
+    ${CMAKE_CURRENT_SOURCE_DIR}/joy
     ${CMAKE_SOURCE_DIR}/projects/common
     ${CMAKE_SOURCE_DIR}/thirdparty/libremidi/include
 )
@@ -40,4 +43,13 @@ endif()
 
 add_strip_command(joy_midi)
 
+# Copy prelude.joy to build directory next to executable
+add_custom_command(TARGET joy_midi POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_CURRENT_SOURCE_DIR}/prelude.joy
+        $<TARGET_FILE_DIR:joy_midi>/prelude.joy
+    COMMENT "Copying prelude.joy to build directory"
+)
+
 install(TARGETS joy_midi RUNTIME DESTINATION bin)
+install(FILES prelude.joy DESTINATION bin)

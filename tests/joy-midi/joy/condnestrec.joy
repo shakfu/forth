@@ -1,0 +1,10 @@
+(*
+    module  : condnestrec.joy
+    version : 1.4
+    date    : 03/21/24
+*)
+DEFINE	cnr-ack == [[[over null] [popd succ]]
+		    [[dup null] [pop pred 1] []]
+		    [[[dup pred swap] dip pred] [] []]] condnestrec.
+
+3 4 cnr-ack 125 =.

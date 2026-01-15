@@ -1,0 +1,15 @@
+(*
+    module  : name.joy
+    version : 1.5
+    date    : 04/19/24
+*)
+[pop] first name "pop" =.
+[sum] first name "sum" =.
+true name " truth value type" =.
+'A name " character type" =.
+10 name " integer type" =.
+{} name " set type" =.
+"" name " string type" =.
+[] name " list type" =.
+1.1 name " float type" =.
+stdin name " file type" =.

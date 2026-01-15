@@ -1,0 +1,16 @@
+(*
+    module  : sametype.joy
+    version : 1.7
+    date    : 04/15/24
+*)
+[sum] first [average] first sametype.
+[pop] first [pop] first sametype.
+[pop] first [dup] first sametype false =.
+false true sametype.
+'\n 'A sametype.
+10 100 sametype.
+{1 2 3} {} sametype.
+"test" "" sametype.
+[1 2 3] [] sametype.
+-0.0 0.0 sametype.
+stdin stdout sametype.

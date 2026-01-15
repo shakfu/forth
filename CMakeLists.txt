@@ -65,9 +65,6 @@ set(LIBUV_BUILD_SHARED OFF CACHE BOOL "" FORCE)
 set(LIBUV_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 add_subdirectory(thirdparty/libuv)
 
-# Build pyjoy runtime (Joy language runtime)
-add_subdirectory(thirdparty/pyjoy-runtime)
-
 # Build common music theory library
 add_subdirectory(projects/common)
 

@@ -1,0 +1,12 @@
+(*
+    module  : sign.joy
+    version : 1.5
+    date    : 03/21/24
+*)
+1.0 sign 1 =.
+0.0 sign 0 =.
+-0.0 sign 0 =.
+-1.0 sign -1 =.
+2 sign 1 =.
+0 sign 0 =.
+-2 sign -1 =.

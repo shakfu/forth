@@ -1,0 +1,6 @@
+(*
+    module  : dup.joy
+    version : 1.4
+    date    : 03/21/24
+*)
+2 dup stack [2 2] equal.

@@ -1,0 +1,6 @@
+(*
+    module  : pow.joy
+    version : 1.4
+    date    : 03/21/24
+*)
+1.5 2.5 pow 'g 0 6 formatf strtod 2.75568 =.

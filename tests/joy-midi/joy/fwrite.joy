@@ -1,0 +1,8 @@
+(*
+    module  : fwrite.joy
+    version : 1.7
+    date    : 03/22/24
+*)
+"/tmp/pyjoy_test" "w" fopen [34 65 66 67 34 10] fwrite fclose.
+$ cat /tmp/pyjoy_test
+$ rm /tmp/pyjoy_test

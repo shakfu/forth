@@ -1,0 +1,7 @@
+(*
+    module  : fremove.joy
+    version : 1.5
+    date    : 03/21/24
+*)
+"/tmp/pyjoy_test" "w" fopen fclose.
+"/tmp/pyjoy_test" fremove.

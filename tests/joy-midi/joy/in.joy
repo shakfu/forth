@@ -1,0 +1,11 @@
+(*
+    module  : in.joy
+    version : 1.4
+    date    : 03/21/24
+*)
+2 [1 2 3] in.
+4 [1 2 3] in false =.
+'e "test" in.
+'a "test" in false =.
+2 {1 2 3} in.
+4 {1 2 3} in false =.

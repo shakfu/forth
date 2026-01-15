@@ -339,9 +339,9 @@ This would require integrating an audio library (miniaudio, PortAudio, etc.).
 ## Implementation Priority
 
 ### High Priority (Core Usability)
-1. **prelude.joy** - Standard library with common patterns
-2. **midi-cc** - Control change for expression
-3. **midi-program** - Instrument selection
+1. **prelude.joy** - Standard library with common patterns - DONE
+2. **midi-cc** - Control change for expression - DONE
+3. **midi-program** - Instrument selection - DONE
 4. **Documentation** - Complete reference for all primitives
 
 ### Medium Priority (Enhanced Expression)

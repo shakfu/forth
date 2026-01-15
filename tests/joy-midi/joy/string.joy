@@ -1,0 +1,7 @@
+(*
+    module  : string.joy
+    version : 1.4
+    date    : 03/21/24
+*)
+"test" string.
+10 string false =.
