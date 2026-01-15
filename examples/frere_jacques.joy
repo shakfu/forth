@@ -1,0 +1,63 @@
+\ Frere Jacques (Are You Sleeping?) - Traditional Round
+\ Perfect for demonstrating parallel parts - it's meant to be sung as a canon!
+
+100 tempo
+
+\ ========================================
+\ The four phrases of the song
+\ ========================================
+
+\ "Frere Jacques, Frere Jacques" - C D E C, C D E C
+SEQ p1
+    1: c4 d4 e4 c4 c4 d4 e4 c4 .
+
+\ "Dormez-vous? Dormez-vous?" - E F G, E F G
+SEQ p2
+    1: e4 f4 g4 e4 f4 g4 .
+
+\ "Sonnez les matines" - G A G F E C (twice, with eighth notes)
+SEQ p3
+    1: g4 a4 g4 f4 e4 c4 g4 a4 g4 f4 e4 c4 .
+
+\ "Din dan don" - C G3 C (twice)
+SEQ p4
+    1: c4 g3 c4 c4 g3 c4 .
+
+\ ========================================
+\ Complete melody (single voice)
+\ ========================================
+
+melody == p1 p2 p3 p4 .
+
+\ ========================================
+\ As a 2-voice round (canon)
+\ Voice 2 enters when voice 1 starts phrase 2
+\ ========================================
+
+SEQ round_part1
+    1: c4 d4 e4 c4 c4 d4 e4 c4;
+    2: r r r r r r r r .
+
+SEQ round_part2
+    1: e4 f4 g4 e4 f4 g4;
+    2: c3 d3 e3 c3 c3 d3 e3 c3 .
+
+SEQ round_part3
+    1: g4 a4 g4 f4 e4 c4 g4 a4 g4 f4 e4 c4;
+    2: e3 f3 g3 e3 f3 g3 g3 a3 g3 f3 e3 c3 .
+
+SEQ round_part4
+    1: c4 g3 c4 c4 g3 c4;
+    2: g3 a3 g3 f3 e3 c3 c3 g2 c3 c3 g2 c3 .
+
+SEQ round_ending
+    1: r r r r r r;
+    2: c3 g2 c3 c3 g2 c3 .
+
+round == round_part1 round_part2 round_part3 round_part4 round_ending .
+
+\ ========================================
+\ Play the round!
+\ ========================================
+
+round

@@ -9,8 +9,10 @@
 #include "music_notation.h"
 #include <libremidi/libremidi-c.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <limits.h>
 
 /* Helper macros (matching joy_primitives.c pattern) */
 #define REQUIRE(n, op) \
@@ -659,16 +661,32 @@ void chan_(JoyContext* ctx) {
     } else if (p.type == JOY_LIST) {
         /* Treat list as sequence of notes to play */
         MusicContext* mctx = (MusicContext*)ctx->user_data;
-        if (mctx) {
+        if (!mctx) {
+            fprintf(stderr, "chan: no music context\n");
+        } else if (!midi_out) {
+            fprintf(stderr, "chan: no MIDI output (use midi-virtual or midi-open first)\n");
+        } else {
             for (size_t i = 0; i < p.data.list->length; i++) {
                 JoyValue item = p.data.list->items[i];
                 if (item.type == JOY_INTEGER) {
-                    /* Play note */
+                    /* Play note as MIDI number */
                     PUSH(joy_integer(item.data.integer));
                     music_play_(ctx);
+                } else if (item.type == JOY_SYMBOL) {
+                    /* Try to parse symbol as pitch name (e.g., "c4", "C#4") */
+                    int pitch = music_parse_pitch(item.data.symbol);
+                    if (pitch >= 0) {
+                        PUSH(joy_integer(pitch));
+                        music_play_(ctx);
+                    }
                 }
             }
         }
+    } else {
+        fprintf(stderr, "chan: expected quotation or list, got %s\n",
+                p.type == JOY_INTEGER ? "integer" :
+                p.type == JOY_FLOAT ? "float" :
+                p.type == JOY_SYMBOL ? "symbol" : "unknown");
     }
 
     current_channel = old_channel;
@@ -706,4 +724,341 @@ void midi_cleanup(void) {
         libremidi_midi_observer_free(midi_observer);
         midi_observer = NULL;
     }
+}
+
+/* ============================================================================
+ * Schedule System Implementation
+ * ============================================================================ */
+
+/* Scheduling mode state */
+static bool g_scheduling_mode = false;
+static int g_schedule_channel = 1;
+static int g_schedule_time = 0;
+static MidiSchedule* g_current_schedule = NULL;
+
+/* Global accumulator state */
+static MidiSchedule* g_accumulator = NULL;
+static int g_accumulator_offset = 0;
+
+/* Create a new empty schedule */
+MidiSchedule* schedule_new(void) {
+    MidiSchedule* sched = malloc(sizeof(MidiSchedule));
+    sched->events = NULL;
+    sched->count = 0;
+    sched->capacity = 0;
+    sched->total_duration_ms = 0;
+    return sched;
+}
+
+/* Free a schedule */
+void schedule_free(MidiSchedule* sched) {
+    if (sched) {
+        free(sched->events);
+        free(sched);
+    }
+}
+
+/* Add an event to a schedule */
+void schedule_add_event(MidiSchedule* sched, int time_ms, int channel,
+                        int pitch, int velocity, int duration_ms) {
+    if (!sched) return;
+
+    /* Grow capacity if needed */
+    if (sched->count >= sched->capacity) {
+        size_t new_cap = sched->capacity == 0 ? 64 : sched->capacity * 2;
+        sched->events = realloc(sched->events, new_cap * sizeof(ScheduledEvent));
+        sched->capacity = new_cap;
+    }
+
+    /* Add the event */
+    ScheduledEvent* ev = &sched->events[sched->count++];
+    ev->time_ms = time_ms;
+    ev->channel = channel;
+    ev->pitch = pitch;
+    ev->velocity = velocity;
+    ev->duration_ms = duration_ms;
+
+    /* Update total duration */
+    int end_time = time_ms + duration_ms;
+    if (end_time > sched->total_duration_ms) {
+        sched->total_duration_ms = end_time;
+    }
+}
+
+/* Compare events by time for sorting */
+static int compare_events(const void* a, const void* b) {
+    const ScheduledEvent* ea = (const ScheduledEvent*)a;
+    const ScheduledEvent* eb = (const ScheduledEvent*)b;
+    return ea->time_ms - eb->time_ms;
+}
+
+/* Play a schedule - sorts events and plays them with proper timing */
+void schedule_play(MidiSchedule* sched) {
+    if (!sched || sched->count == 0 || !midi_out) return;
+
+    /* Sort events by time */
+    qsort(sched->events, sched->count, sizeof(ScheduledEvent), compare_events);
+
+    /* Track active notes for note-off scheduling */
+    typedef struct { int pitch; int channel; int off_time; } ActiveNote;
+    ActiveNote* active = malloc(sched->count * sizeof(ActiveNote));
+    size_t active_count = 0;
+
+    int current_time = 0;
+    size_t event_idx = 0;
+
+    while (event_idx < sched->count || active_count > 0) {
+        /* Find next event time */
+        int next_event_time = INT_MAX;
+        if (event_idx < sched->count) {
+            next_event_time = sched->events[event_idx].time_ms;
+        }
+
+        /* Find next note-off time */
+        int next_off_time = INT_MAX;
+        for (size_t i = 0; i < active_count; i++) {
+            if (active[i].off_time < next_off_time) {
+                next_off_time = active[i].off_time;
+            }
+        }
+
+        /* Determine what happens next */
+        int next_time = (next_event_time < next_off_time) ? next_event_time : next_off_time;
+        if (next_time == INT_MAX) break;
+
+        /* Sleep until next event */
+        if (next_time > current_time) {
+            usleep((next_time - current_time) * 1000);
+            current_time = next_time;
+        }
+
+        /* Process note-offs first */
+        for (size_t i = 0; i < active_count; ) {
+            if (active[i].off_time <= current_time) {
+                /* Send note-off */
+                unsigned char msg[3];
+                msg[0] = 0x80 | ((active[i].channel - 1) & 0x0F);
+                msg[1] = active[i].pitch & 0x7F;
+                msg[2] = 0;
+                libremidi_midi_out_send_message(midi_out, msg, 3);
+
+                /* Remove from active list */
+                active[i] = active[--active_count];
+            } else {
+                i++;
+            }
+        }
+
+        /* Process note-ons */
+        while (event_idx < sched->count &&
+               sched->events[event_idx].time_ms <= current_time) {
+            ScheduledEvent* ev = &sched->events[event_idx];
+
+            /* Send note-on */
+            unsigned char msg[3];
+            msg[0] = 0x90 | ((ev->channel - 1) & 0x0F);
+            msg[1] = ev->pitch & 0x7F;
+            msg[2] = ev->velocity & 0x7F;
+            libremidi_midi_out_send_message(midi_out, msg, 3);
+
+            /* Add to active notes */
+            active[active_count].pitch = ev->pitch;
+            active[active_count].channel = ev->channel;
+            active[active_count].off_time = ev->time_ms + ev->duration_ms;
+            active_count++;
+
+            event_idx++;
+        }
+    }
+
+    free(active);
+}
+
+/* Begin scheduling mode for a channel */
+void schedule_begin(int channel) {
+    g_scheduling_mode = true;
+    g_schedule_channel = channel;
+    g_schedule_time = 0;
+    if (!g_current_schedule) {
+        g_current_schedule = schedule_new();
+    }
+}
+
+/* End scheduling mode */
+void schedule_end(void) {
+    g_scheduling_mode = false;
+}
+
+/* Check if in scheduling mode */
+bool is_scheduling(void) {
+    return g_scheduling_mode;
+}
+
+/* Get current scheduling channel */
+int get_schedule_channel(void) {
+    return g_schedule_channel;
+}
+
+/* Get current time offset in schedule */
+int get_schedule_time(void) {
+    return g_schedule_time;
+}
+
+/* Advance time in current schedule */
+void advance_schedule_time(int ms) {
+    g_schedule_time += ms;
+}
+
+/* Get the current schedule being built */
+MidiSchedule* get_current_schedule(void) {
+    return g_current_schedule;
+}
+
+/* Clear the current schedule (for starting a new part) */
+void clear_current_schedule(void) {
+    if (g_current_schedule) {
+        schedule_free(g_current_schedule);
+    }
+    g_current_schedule = schedule_new();
+    g_schedule_time = 0;
+}
+
+/* Initialize the accumulator */
+void accumulator_init(void) {
+    if (!g_accumulator) {
+        g_accumulator = schedule_new();
+    }
+    g_accumulator_offset = 0;
+}
+
+/* Add a schedule to the accumulator (with current offset) */
+void accumulator_add_schedule(MidiSchedule* sched) {
+    if (!sched || !g_accumulator) return;
+
+    for (size_t i = 0; i < sched->count; i++) {
+        ScheduledEvent* ev = &sched->events[i];
+        schedule_add_event(g_accumulator,
+                          ev->time_ms + g_accumulator_offset,
+                          ev->channel, ev->pitch, ev->velocity, ev->duration_ms);
+    }
+}
+
+/* Flush the accumulator - play and clear */
+void accumulator_flush(void) {
+    if (g_accumulator && g_accumulator->count > 0) {
+        schedule_play(g_accumulator);
+        schedule_free(g_accumulator);
+        g_accumulator = NULL;
+    }
+    g_accumulator_offset = 0;
+}
+
+/* Get current accumulator time offset */
+int accumulator_get_offset(void) {
+    return g_accumulator_offset;
+}
+
+/* Advance accumulator offset for next sequence */
+void accumulator_advance(int ms) {
+    g_accumulator_offset += ms;
+}
+
+/* Execute a sequence definition - called from joy_runtime.c */
+void joy_execute_seq(JoyContext* ctx, SeqDefinition* seq) {
+    if (!seq || seq->part_count == 0) return;
+
+    /* Initialize accumulator if needed */
+    if (!g_accumulator) {
+        accumulator_init();
+    }
+
+    /* Create a merged schedule for all parts */
+    MidiSchedule* merged = schedule_new();
+
+    /* Execute each part in scheduling mode */
+    for (size_t i = 0; i < seq->part_count; i++) {
+        SeqPart* part = &seq->parts[i];
+
+        /* Clear current schedule and enter scheduling mode */
+        clear_current_schedule();
+        schedule_begin(part->channel);
+
+        /* Execute the part's quotation */
+        joy_execute_quotation(ctx, part->quotation);
+
+        /* If items remain on stack, play them as notes.
+         * IMPORTANT: Stack is LIFO, so we must collect all items first
+         * and then process in reverse order (bottom to top = original order).
+         */
+        MidiSchedule* sched = get_current_schedule();
+        MusicContext* mctx = (MusicContext*)ctx->user_data;
+
+        if (sched && mctx && ctx->stack->depth > 0) {
+            /* Collect all playable items from stack */
+            JoyValue* collected = malloc(ctx->stack->depth * sizeof(JoyValue));
+            size_t collected_count = 0;
+
+            while (ctx->stack->depth > 0) {
+                JoyValue top = joy_stack_peek(ctx->stack);
+                if (top.type == JOY_LIST || top.type == JOY_INTEGER) {
+                    collected[collected_count++] = joy_stack_pop(ctx->stack);
+                } else {
+                    break;  /* Unknown type - leave on stack */
+                }
+            }
+
+            /* Process in reverse order (to restore original sequence) */
+            for (size_t j = collected_count; j > 0; j--) {
+                JoyValue val = collected[j - 1];
+                if (val.type == JOY_LIST) {
+                    /* Play the list as sequential notes */
+                    for (size_t k = 0; k < val.data.list->length; k++) {
+                        if (val.data.list->items[k].type == JOY_INTEGER) {
+                            int pitch = (int)val.data.list->items[k].data.integer;
+                            int play_dur = mctx->duration_ms * mctx->quantization / 100;
+                            schedule_add_event(sched, get_schedule_time(),
+                                              get_schedule_channel(), pitch,
+                                              mctx->velocity, play_dur);
+                            advance_schedule_time(mctx->duration_ms);
+                        }
+                    }
+                    joy_value_free(&val);
+                } else if (val.type == JOY_INTEGER) {
+                    /* Single note - play it */
+                    int pitch = (int)val.data.integer;
+                    int play_dur = mctx->duration_ms * mctx->quantization / 100;
+                    schedule_add_event(sched, get_schedule_time(),
+                                      get_schedule_channel(), pitch,
+                                      mctx->velocity, play_dur);
+                    advance_schedule_time(mctx->duration_ms);
+                }
+            }
+
+            free(collected);
+        }
+
+        /* Get the schedule built by this part */
+        MidiSchedule* part_sched = get_current_schedule();
+
+        /* Merge into combined schedule (all parts start at time 0) */
+        if (part_sched) {
+            for (size_t j = 0; j < part_sched->count; j++) {
+                ScheduledEvent* ev = &part_sched->events[j];
+                schedule_add_event(merged, ev->time_ms, ev->channel,
+                                  ev->pitch, ev->velocity, ev->duration_ms);
+            }
+        }
+
+        schedule_end();
+    }
+
+    /* Add merged schedule to accumulator with current offset */
+    accumulator_add_schedule(merged);
+
+    /* Advance accumulator offset by this sequence's duration */
+    accumulator_advance(merged->total_duration_ms);
+
+    /* Clean up */
+    schedule_free(merged);
+    clear_current_schedule();
 }

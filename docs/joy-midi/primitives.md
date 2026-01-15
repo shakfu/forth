@@ -330,9 +330,13 @@ This document lists all Joy primitives and their implementation status in joy-mi
 - [x] `channel`: Set current MIDI channel (N channel)
 - [x] `chan`: Execute quotation on channel ([P] N chan)
 
-### Sequence Definition
+### Sequence Definition (Parallel Parts)
 
-- [x] `SEQ`/`seq`: Define named sequence (SEQ name body .)
+- [x] `SEQ`/`seq`: Define named sequence with parallel parts
+  - Syntax: `SEQ name N: code; N: code .`
+  - N = channel number (1-16), code executes on that channel
+  - Parts execute in parallel (Alda-like voice/parts)
+  - Sequences compose: `mysong == melody melody .`
 
 ## Summary
 

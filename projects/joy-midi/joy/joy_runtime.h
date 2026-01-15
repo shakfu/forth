@@ -152,14 +152,29 @@ void joy_stack_print(JoyStack* stack);
 typedef struct JoyContext JoyContext;
 typedef void (*JoyPrimitive)(JoyContext* ctx);
 
+/* Sequence part - a (channel, quotation) pair for parallel execution */
+typedef struct {
+    int channel;
+    JoyQuotation* quotation;
+} SeqPart;
+
+/* Sequence definition - multiple parts that execute in parallel */
+typedef struct {
+    SeqPart* parts;
+    size_t part_count;
+    size_t part_capacity;
+} SeqDefinition;
+
 /* Word definition */
 typedef struct {
     char* name;
     bool is_primitive;  /* true = body.primitive is a function ptr, false = body.quotation */
     bool is_user;       /* true = user-defined word (for 'user' primitive), false = builtin */
+    bool is_seq;        /* true = body.seq is a sequence definition */
     union {
         JoyPrimitive primitive;
         JoyQuotation* quotation;
+        SeqDefinition* seq;
     } body;
 } JoyWord;
 
@@ -181,6 +196,9 @@ typedef struct {
 typedef bool (*JoyUndefHandler)(JoyContext* ctx, const char* name);
 
 /* Execution context */
+/* Post-eval hook - called after each line of input is evaluated */
+typedef void (*JoyPostEvalHook)(void);
+
 struct JoyContext {
     JoyStack* stack;
     JoyDict* dictionary;
@@ -191,6 +209,7 @@ struct JoyContext {
     JoyUndefHandler undef_handler;  /* custom handler for undefined symbols */
     void* user_data;                /* user data (e.g., MusicContext*) */
     jmp_buf* error_jmp;             /* error recovery point (NULL = exit on error) */
+    JoyPostEvalHook post_eval_hook; /* hook called after each line evaluation */
 };
 
 /* ---------- Dictionary Operations ---------- */
@@ -201,8 +220,14 @@ void joy_dict_define_primitive(JoyDict* dict, const char* name, JoyPrimitive fn)
 void joy_dict_define_user(JoyDict* dict, const char* name, JoyPrimitive fn);
 void joy_dict_define_quotation(JoyDict* dict, const char* name, JoyQuotation* quot);
 void joy_dict_define_value(JoyDict* dict, const char* name, JoyValue value);
+void joy_dict_define_seq(JoyDict* dict, const char* name, SeqDefinition* seq);
 JoyWord* joy_dict_lookup(JoyDict* dict, const char* name);
 bool joy_dict_remove(JoyDict* dict, const char* name);
+
+/* Sequence definition helpers */
+SeqDefinition* seq_definition_new(void);
+void seq_definition_free(SeqDefinition* seq);
+void seq_definition_add_part(SeqDefinition* seq, int channel, JoyQuotation* quotation);
 
 /* ---------- Execution ---------- */
 

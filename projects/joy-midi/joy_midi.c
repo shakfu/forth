@@ -54,6 +54,9 @@ void joy_midi_register_primitives(JoyContext* ctx) {
 
     /* Initialize MIDI observer */
     midi_init();
+
+    /* Set up post-eval hook for SEQ playback */
+    ctx->post_eval_hook = accumulator_flush;
 }
 
 void joy_midi_cleanup(void) {

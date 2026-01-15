@@ -143,6 +143,24 @@ static bool parse_dynamic(MusicContext* mctx, const char* name) {
 
 /* Helper: play a single note with current settings */
 static void play_single_note(MusicContext* mctx, int pitch) {
+    /* Check if we're in scheduling mode */
+    if (is_scheduling()) {
+        /* Add event to schedule instead of playing */
+        MidiSchedule* sched = get_current_schedule();
+        if (sched) {
+            int play_dur = mctx->duration_ms * mctx->quantization / 100;
+            if (pitch != REST_MARKER) {
+                schedule_add_event(sched, get_schedule_time(),
+                                  get_schedule_channel(), pitch,
+                                  mctx->velocity, play_dur);
+            }
+            /* Advance time by note duration (including rest part) */
+            advance_schedule_time(mctx->duration_ms);
+        }
+        return;
+    }
+
+    /* Immediate playback mode */
     if (pitch == REST_MARKER) {
         /* Rest: just wait */
         usleep(mctx->duration_ms * 1000);
@@ -235,6 +253,28 @@ void music_chord_(JoyContext* ctx) {
             }
         }
 
+        /* Check if we're in scheduling mode */
+        if (is_scheduling()) {
+            MidiSchedule* sched = get_current_schedule();
+            if (sched && count > 0) {
+                int play_dur = mctx->duration_ms * mctx->quantization / 100;
+                int current_time = get_schedule_time();
+                int channel = get_schedule_channel();
+
+                /* Add all notes at the same time */
+                for (int i = 0; i < count; i++) {
+                    schedule_add_event(sched, current_time, channel,
+                                      pitches[i], mctx->velocity, play_dur);
+                }
+
+                /* Advance time by one note duration (chord = 1 beat) */
+                advance_schedule_time(mctx->duration_ms);
+            }
+            joy_value_free(&val);
+            return;
+        }
+
+        /* Immediate playback mode */
         /* Note on for all */
         for (int i = 0; i < count; i++) {
             send_note_on(pitches[i], mctx->velocity);

@@ -172,6 +172,7 @@ arp-down == reverse arp .
 \ arp-up-down: play up then down (skip last on way down)
 arp-up-down == dup reverse rest concat arp .
 
+
 \ ========================================
 \ Rhythm helpers (set quantization)
 \ ========================================

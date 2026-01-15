@@ -1,0 +1,39 @@
+\ Ode to Joy - Beethoven's 9th Symphony theme
+\ Demonstrates SEQ parallel parts and composition
+
+\ Set tempo (beats per minute)
+120 tempo
+
+\ ========================================
+\ Phrase definitions
+\ ========================================
+
+\ Melody phrases (channel 1)
+SEQ phrase1
+    1: e4 e4 f4 g4 g4 f4 e4 d4;
+    2: [c3 e3 g3] chord [c3 e3 g3] chord [c3 f3 a3] chord [c3 e3 g3] chord
+       [c3 e3 g3] chord [c3 f3 a3] chord [c3 e3 g3] chord [g2 b2 d3] chord .
+
+SEQ phrase2
+    1: c4 c4 d4 e4 e4 d4 d4;
+    2: [c3 e3 g3] chord [c3 e3 g3] chord [g2 b2 d3] chord [c3 e3 g3] chord
+       [c3 e3 g3] chord [g2 b2 d3] chord [g2 b2 d3] chord .
+
+SEQ phrase3
+    1: e4 e4 f4 g4 g4 f4 e4 d4;
+    2: [c3 e3 g3] chord [c3 e3 g3] chord [c3 f3 a3] chord [c3 e3 g3] chord
+       [c3 e3 g3] chord [c3 f3 a3] chord [c3 e3 g3] chord [g2 b2 d3] chord .
+
+SEQ phrase4
+    1: c4 c4 d4 e4 d4 c4 c4;
+    2: [c3 e3 g3] chord [c3 e3 g3] chord [g2 b2 d3] chord [c3 e3 g3] chord
+       [g2 b2 d3] chord [c3 e3 g3] chord [c3 e3 g3] chord .
+
+\ ========================================
+\ Full song composition
+\ ========================================
+
+ode_to_joy == phrase1 phrase2 phrase3 phrase4 .
+
+\ Play it!
+ode_to_joy

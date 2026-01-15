@@ -128,8 +128,6 @@ int main(int argc, char** argv) {
         }
     } else if (!isatty(STDIN_FILENO)) {
         /* Stdin is a pipe - read all input at once for multi-line support */
-        midi_virtual_(ctx);
-
         char* buffer = NULL;
         size_t size = 0;
         size_t capacity = 4096;

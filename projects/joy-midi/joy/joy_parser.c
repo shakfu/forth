@@ -521,9 +521,65 @@ static void parse_define_block(Lexer* lex) {
 }
 
 /*
- * Parse a SEQ block: SEQ name body .
- * The body can contain ; separators which are ignored (statement separators)
- * Defines a word 'name' with the body as its quotation
+ * Check if current position has a channel prefix: N: (digit followed by colon)
+ * Returns the channel number (1-16) if found, 0 otherwise.
+ * Does not consume tokens if no channel prefix found.
+ */
+static int peek_channel_prefix(Lexer* lex) {
+    if (lex->current.type != TOK_INTEGER) return 0;
+
+    int channel = (int)lex->current.value.integer;
+    if (channel < 1 || channel > 16) return 0;
+
+    /* Save position to check for colon */
+    size_t saved_pos = lex->pos;
+
+    /* Skip whitespace to find colon */
+    while (lex->pos < lex->length &&
+           (lex->source[lex->pos] == ' ' || lex->source[lex->pos] == '\t')) {
+        lex->pos++;
+    }
+
+    /* Check for colon */
+    if (lex->pos < lex->length && lex->source[lex->pos] == ':') {
+        /* Restore position - caller will consume the tokens */
+        lex->pos = saved_pos;
+        return channel;
+    }
+
+    /* No colon - restore and return 0 */
+    lex->pos = saved_pos;
+    return 0;
+}
+
+/*
+ * Consume channel prefix: N: (already verified by peek_channel_prefix)
+ */
+static void consume_channel_prefix(Lexer* lex) {
+    lexer_next(lex);  /* consume the number */
+
+    /* Skip whitespace and consume colon */
+    while (lex->pos < lex->length &&
+           (lex->source[lex->pos] == ' ' || lex->source[lex->pos] == '\t')) {
+        lex->pos++;
+    }
+    if (lex->pos < lex->length && lex->source[lex->pos] == ':') {
+        lex->pos++;  /* consume colon */
+    }
+
+    /* Re-scan next token */
+    lexer_next(lex);
+}
+
+/*
+ * Parse a SEQ block: SEQ name parts .
+ * Parts have format: N: code; (channel prefix with code until ; or .)
+ * Multiple parts execute in parallel when the sequence is played.
+ *
+ * Example:
+ *   SEQ melody
+ *       1: [c4 e4 g4] arp;
+ *       2: [c3 e3 g3] .
  */
 static void parse_seq_block(Lexer* lex) {
     /* Skip past SEQ/seq keyword */
@@ -538,9 +594,10 @@ static void parse_seq_block(Lexer* lex) {
     char* name = strdup(lex->current.value.string);
     lexer_next(lex);
 
-    /* Parse body until . terminator */
-    JoyQuotation* body = joy_quotation_new(16);
+    /* Create sequence definition */
+    SeqDefinition* seq = seq_definition_new();
 
+    /* Parse parts until . terminator */
     while (lex->current.type != TOK_EOF) {
         /* Check for . terminator */
         if (lex->current.type == TOK_SYMBOL &&
@@ -549,23 +606,55 @@ static void parse_seq_block(Lexer* lex) {
             break;
         }
 
-        /* Skip ; separators (treat as statement separator within sequence) */
+        /* Skip ; separators */
         if (lex->current.type == TOK_SYMBOL &&
             strcmp(lex->current.value.string, ";") == 0) {
             lexer_next(lex);
             continue;
         }
 
-        /* Parse value and add to body */
-        JoyValue v = parse_value(lex);
-        joy_quotation_push(body, v);
+        /* Check for channel prefix N: */
+        int channel = peek_channel_prefix(lex);
+        if (channel > 0) {
+            consume_channel_prefix(lex);
+
+            /* Parse code for this channel until ; or . */
+            JoyQuotation* part_body = joy_quotation_new(16);
+
+            while (lex->current.type != TOK_EOF) {
+                /* Check for ; or . */
+                if (lex->current.type == TOK_SYMBOL &&
+                    (strcmp(lex->current.value.string, ";") == 0 ||
+                     strcmp(lex->current.value.string, ".") == 0)) {
+                    break;
+                }
+
+                /* Parse value and add to part body */
+                JoyValue v = parse_value(lex);
+                joy_quotation_push(part_body, v);
+            }
+
+            /* Add part to sequence */
+            seq_definition_add_part(seq, channel, part_body);
+        } else {
+            /* No channel prefix - error or skip */
+            fprintf(stderr, "SEQ %s: expected channel prefix (N:), got ", name);
+            if (lex->current.type == TOK_SYMBOL) {
+                fprintf(stderr, "'%s'\n", lex->current.value.string);
+            } else if (lex->current.type == TOK_INTEGER) {
+                fprintf(stderr, "%lld\n", lex->current.value.integer);
+            } else {
+                fprintf(stderr, "token type %d\n", lex->current.type);
+            }
+            lexer_next(lex);  /* skip problematic token */
+        }
     }
 
-    /* Register the sequence as a word */
-    if (g_parser_dict) {
-        joy_dict_define_quotation(g_parser_dict, name, body);
+    /* Register the sequence */
+    if (g_parser_dict && seq->part_count > 0) {
+        joy_dict_define_seq(g_parser_dict, name, seq);
     } else {
-        joy_quotation_free(body);
+        seq_definition_free(seq);
     }
     free(name);
 }
@@ -642,6 +731,39 @@ void joy_eval_line(JoyContext* ctx, const char* line) {
     joy_quotation_free(quot);
 }
 
+/*
+ * Check if input starts a multi-line definition block.
+ * Returns true if input starts with DEFINE/def/LIBRA/CONST/SEQ/seq
+ * or contains == (bare definition).
+ */
+static bool starts_definition(const char* input) {
+    /* Skip leading whitespace */
+    while (*input && (*input == ' ' || *input == '\t')) input++;
+
+    /* Check for definition keywords */
+    if (strncmp(input, "DEFINE", 6) == 0 && (input[6] == ' ' || input[6] == '\t' || input[6] == '\0')) return true;
+    if (strncmp(input, "def", 3) == 0 && (input[3] == ' ' || input[3] == '\t' || input[3] == '\0')) return true;
+    if (strncmp(input, "LIBRA", 5) == 0 && (input[5] == ' ' || input[5] == '\t' || input[5] == '\0')) return true;
+    if (strncmp(input, "CONST", 5) == 0 && (input[5] == ' ' || input[5] == '\t' || input[5] == '\0')) return true;
+    if (strncmp(input, "SEQ", 3) == 0 && (input[3] == ' ' || input[3] == '\t' || input[3] == '\0')) return true;
+    if (strncmp(input, "seq", 3) == 0 && (input[3] == ' ' || input[3] == '\t' || input[3] == '\0')) return true;
+
+    /* Check for bare definition (contains ==) */
+    if (strstr(input, "==") != NULL) return true;
+
+    return false;
+}
+
+/*
+ * Check if input ends a definition block (ends with . not inside quotes/comments)
+ */
+static bool ends_definition(const char* input) {
+    size_t len = strlen(input);
+    /* Find last non-whitespace character */
+    while (len > 0 && (input[len-1] == ' ' || input[len-1] == '\t' || input[len-1] == '\n')) len--;
+    return (len > 0 && input[len-1] == '.');
+}
+
 void joy_repl(JoyContext* ctx) {
     jmp_buf error_recovery;
 
@@ -651,28 +773,68 @@ void joy_repl(JoyContext* ctx) {
 
 #ifdef HAVE_READLINE
     char* input;
+    char* accumulated = NULL;
+    size_t accum_len = 0;
+    bool in_definition = false;
 
     while (1) {
-        input = readline("> ");
+        input = readline(in_definition ? ".. " : "> ");
 
         if (!input) {
             printf("\n");
+            if (accumulated) free(accumulated);
             break;
         }
 
-        /* Skip empty lines */
-        if (input[0] == '\0') {
+        /* Skip empty lines (but not in definition mode) */
+        if (input[0] == '\0' && !in_definition) {
             free(input);
             continue;
         }
 
-        /* Add to history */
-        add_history(input);
-
-        /* Check for quit */
-        if (strcmp(input, "quit") == 0 || strcmp(input, "exit") == 0) {
+        /* Check for quit (only at top level) */
+        if (!in_definition && (strcmp(input, "quit") == 0 || strcmp(input, "exit") == 0)) {
             free(input);
             break;
+        }
+
+        /* Check if this starts a multi-line definition */
+        if (!in_definition && starts_definition(input) && !ends_definition(input)) {
+            in_definition = true;
+            accum_len = strlen(input);
+            accumulated = malloc(accum_len + 2);
+            strcpy(accumulated, input);
+            strcat(accumulated, " ");
+            accum_len++;
+            free(input);
+            continue;
+        }
+
+        /* If in definition mode, accumulate lines */
+        if (in_definition) {
+            size_t input_len = strlen(input);
+            accumulated = realloc(accumulated, accum_len + input_len + 2);
+            strcat(accumulated, input);
+            strcat(accumulated, " ");
+            accum_len += input_len + 1;
+
+            /* Check if definition is complete */
+            if (ends_definition(input)) {
+                in_definition = false;
+                /* Add complete definition to history */
+                add_history(accumulated);
+                /* Use accumulated input */
+                free(input);
+                input = accumulated;
+                accumulated = NULL;
+                accum_len = 0;
+            } else {
+                free(input);
+                continue;
+            }
+        } else {
+            /* Add to history */
+            add_history(input);
         }
 
         /* Set up error recovery point - errors longjmp here */
@@ -686,6 +848,11 @@ void joy_repl(JoyContext* ctx) {
             }
 
             joy_quotation_free(quot);
+
+            /* Call post-eval hook (e.g., for MIDI schedule playback) */
+            if (ctx->post_eval_hook) {
+                ctx->post_eval_hook();
+            }
 
             /* Print stack if autoput is enabled */
             if (ctx->autoput && ctx->stack->depth > 0) {
@@ -702,9 +869,12 @@ void joy_repl(JoyContext* ctx) {
     }
 #else
     char line[4096];
+    char accumulated[16384];
+    bool in_definition = false;
+    accumulated[0] = '\0';
 
     while (1) {
-        printf("> ");
+        printf(in_definition ? ".. " : "> ");
         fflush(stdout);
 
         if (!fgets(line, sizeof(line), stdin)) {
@@ -717,14 +887,37 @@ void joy_repl(JoyContext* ctx) {
             line[len-1] = '\0';
         }
 
-        /* Check for quit */
-        if (strcmp(line, "quit") == 0 || strcmp(line, "exit") == 0) {
+        /* Check for quit (only at top level) */
+        if (!in_definition && (strcmp(line, "quit") == 0 || strcmp(line, "exit") == 0)) {
             break;
         }
 
-        /* Skip empty lines */
-        if (line[0] == '\0') {
+        /* Skip empty lines (but not in definition mode) */
+        if (line[0] == '\0' && !in_definition) {
             continue;
+        }
+
+        /* Check if this starts a multi-line definition */
+        if (!in_definition && starts_definition(line) && !ends_definition(line)) {
+            in_definition = true;
+            strcpy(accumulated, line);
+            strcat(accumulated, " ");
+            continue;
+        }
+
+        /* If in definition mode, accumulate lines */
+        if (in_definition) {
+            strcat(accumulated, line);
+            strcat(accumulated, " ");
+
+            /* Check if definition is complete */
+            if (ends_definition(line)) {
+                in_definition = false;
+                strcpy(line, accumulated);
+                accumulated[0] = '\0';
+            } else {
+                continue;
+            }
         }
 
         /* Set up error recovery point - errors longjmp here */
@@ -738,6 +931,11 @@ void joy_repl(JoyContext* ctx) {
             }
 
             joy_quotation_free(quot);
+
+            /* Call post-eval hook (e.g., for MIDI schedule playback) */
+            if (ctx->post_eval_hook) {
+                ctx->post_eval_hook();
+            }
 
             /* Print stack if autoput is enabled */
             if (ctx->autoput && ctx->stack->depth > 0) {

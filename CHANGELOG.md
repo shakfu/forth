@@ -37,16 +37,23 @@ All notable changes to midi-langs are documented in this file.
   - `chan`: Execute quotation on channel, restore after: `[c4 e4 g4] arp 2 chan`
   - Lists passed to `chan` play as note sequences: `[60 64 67] 2 chan`
 
-- **joy-midi SEQ keyword**: Define named sequences
-  - Syntax: `SEQ name body .` or `seq name body .`
-  - Semicolons separate statements within the sequence
+- **joy-midi SEQ keyword**: Define named sequences with parallel parts (Alda-like)
+  - Syntax: `SEQ name N: code; N: code . ` where N is channel number (1-16)
+  - Parts on different channels execute **in parallel** (like Alda voice/parts)
+  - Sequences compose by concatenation: `mysong == melody melody melody .`
   - Example:
     ```
     SEQ melody
-      [c4 e4 g4] arp 2 chan;
-      [c3 e3 g3] 3 chan .
-    melody   \ execute the sequence
+        1: [c4 e4 g4] arp;
+        2: [c3 e3 g3] .
+    melody   \ plays both parts simultaneously
+
+    \ Composition: sequences play in sequence
+    mysong == melody melody melody .
+    mysong   \ plays melody three times back-to-back
     ```
+  - Schedule-based playback: all events collected, sorted by time, played back
+  - Duration calculated from note lengths (for sequence concatenation)
 
 - **joy-midi file operations**: `include`, `finclude`, `filetime`
   - `include`: Load and execute Joy file by name: `"lib.joy" include`

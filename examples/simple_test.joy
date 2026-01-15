@@ -1,0 +1,10 @@
+\ Simple test - C major arpeggio with bass note
+\ Should clearly demonstrate parallel playback
+
+120 tempo
+
+SEQ test
+    1: c4 e4 g4 c5 g4 e4 c4;
+    2: c3 c3 c3 c3 c3 c3 c3 .
+
+test test test

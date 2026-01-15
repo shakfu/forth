@@ -745,6 +745,7 @@ void joy_dict_define_primitive(JoyDict* dict, const char* name, JoyPrimitive fn)
     word->name = joy_strdup(name);
     word->is_primitive = true;
     word->is_user = false;  /* Built-in primitive */
+    word->is_seq = false;
     word->body.primitive = fn;
     joy_dict_set(dict, name, word);
 }
@@ -757,6 +758,7 @@ void joy_dict_define_user(JoyDict* dict, const char* name, JoyPrimitive fn) {
     word->name = joy_strdup(name);
     word->is_primitive = true;   /* Body is a function pointer */
     word->is_user = true;        /* Mark as user-defined for 'user' predicate */
+    word->is_seq = false;
     word->body.primitive = fn;
     joy_dict_set(dict, name, word);
 }
@@ -766,6 +768,7 @@ void joy_dict_define_quotation(JoyDict* dict, const char* name, JoyQuotation* qu
     word->name = joy_strdup(name);
     word->is_primitive = false;  /* Body is a quotation */
     word->is_user = true;        /* User-defined via quotation */
+    word->is_seq = false;
     word->body.quotation = quot;
     joy_dict_set(dict, name, word);
 }
@@ -791,7 +794,9 @@ bool joy_dict_remove(JoyDict* dict, const char* name) {
                 dict->buckets[bucket] = entry->next;
             }
             /* Free the word */
-            if (!entry->word->is_primitive && entry->word->body.quotation) {
+            if (entry->word->is_seq && entry->word->body.seq) {
+                seq_definition_free(entry->word->body.seq);
+            } else if (!entry->word->is_primitive && entry->word->body.quotation) {
                 joy_quotation_free(entry->word->body.quotation);
             }
             free(entry->word->name);
@@ -805,6 +810,54 @@ bool joy_dict_remove(JoyDict* dict, const char* name) {
         entry = entry->next;
     }
     return false;  /* Not found */
+}
+
+void joy_dict_define_seq(JoyDict* dict, const char* name, SeqDefinition* seq) {
+    JoyWord* word = joy_alloc(sizeof(JoyWord));
+    word->name = joy_strdup(name);
+    word->is_primitive = false;
+    word->is_user = true;
+    word->is_seq = true;
+    word->body.seq = seq;
+    joy_dict_set(dict, name, word);
+}
+
+/* ============================================================================
+ * Sequence Definition Helpers
+ * ============================================================================ */
+
+SeqDefinition* seq_definition_new(void) {
+    SeqDefinition* seq = joy_alloc(sizeof(SeqDefinition));
+    seq->parts = NULL;
+    seq->part_count = 0;
+    seq->part_capacity = 0;
+    return seq;
+}
+
+void seq_definition_free(SeqDefinition* seq) {
+    if (!seq) return;
+    for (size_t i = 0; i < seq->part_count; i++) {
+        if (seq->parts[i].quotation) {
+            joy_quotation_free(seq->parts[i].quotation);
+        }
+    }
+    free(seq->parts);
+    free(seq);
+}
+
+void seq_definition_add_part(SeqDefinition* seq, int channel, JoyQuotation* quotation) {
+    if (!seq) return;
+
+    /* Grow capacity if needed */
+    if (seq->part_count >= seq->part_capacity) {
+        size_t new_cap = seq->part_capacity == 0 ? 4 : seq->part_capacity * 2;
+        seq->parts = realloc(seq->parts, new_cap * sizeof(SeqPart));
+        seq->part_capacity = new_cap;
+    }
+
+    seq->parts[seq->part_count].channel = channel;
+    seq->parts[seq->part_count].quotation = quotation;
+    seq->part_count++;
 }
 
 JoyWord* joy_dict_lookup(JoyDict* dict, const char* name) {
@@ -832,6 +885,7 @@ JoyContext* joy_context_new(void) {
     ctx->undef_handler = NULL;
     ctx->user_data = NULL;
     ctx->error_jmp = NULL; /* NULL = exit on error, set for REPL recovery */
+    ctx->post_eval_hook = NULL; /* called after each line evaluation */
     return ctx;
 }
 
@@ -866,6 +920,9 @@ void joy_execute_quotation(JoyContext* ctx, JoyQuotation* quotation) {
     }
 }
 
+/* Forward declaration for seq execution handler (implemented in midi_primitives.c) */
+extern void joy_execute_seq(JoyContext* ctx, SeqDefinition* seq);
+
 void joy_execute_symbol(JoyContext* ctx, const char* name) {
     JoyWord* word = joy_dict_lookup(ctx->dictionary, name);
     if (!word) {
@@ -877,7 +934,10 @@ void joy_execute_symbol(JoyContext* ctx, const char* name) {
         joy_error("Undefined word");
     }
 
-    if (word->is_primitive) {
+    if (word->is_seq) {
+        /* Execute sequence definition */
+        joy_execute_seq(ctx, word->body.seq);
+    } else if (word->is_primitive) {
         word->body.primitive(ctx);
     } else {
         joy_execute_quotation(ctx, word->body.quotation);
