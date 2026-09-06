@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: checkout repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
     - name: make
       run: make
     - name: make everytestmhs
@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: checkout repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
     - name: install GMP (headers + libs)
       run: |
         sudo apt-get update
@@ -41,7 +41,7 @@ jobs:
     runs-on: macos-latest
     steps:
     - name: checkout repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
     - name: make
       run: make
     - name: make everytestmhs
@@ -51,7 +51,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: checkout repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
     - name: Cabal cache
       uses: actions/cache@v3
       env:
@@ -74,7 +74,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: checkout repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
     - name: make
       run: make CONF=micro
 
@@ -82,7 +82,7 @@ jobs:
     runs-on: windows-latest
     steps:
     - name: checkout repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
     - name: set up MSVC
       uses: ilammy/msvc-dev-cmd@v1
     - name: nmake
@@ -102,7 +102,7 @@ jobs:
           gcc
           make
     - name: checkout repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
     - name: make
       run: make
       shell: alpine.sh {0}
@@ -122,7 +122,7 @@ jobs:
           gcc
           make
     - name: checkout repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
     - name: make
       run: make
       shell: alpine.sh {0}
@@ -142,7 +142,7 @@ jobs:
           gcc
           make
     - name: checkout repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
     - name: make
       run: make
       shell: alpine.sh {0}
@@ -162,7 +162,7 @@ jobs:
           gcc
           make
     - name: checkout repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
     - name: make
       run: make
       shell: alpine.sh {0}
@@ -182,7 +182,7 @@ jobs:
           gcc
           make
     - name: checkout repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
     - name: make
       run: make
       shell: alpine.sh {0}
@@ -202,7 +202,7 @@ jobs:
           gcc
           make
     - name: checkout repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
     - name: make
       run: make
       shell: alpine.sh {0}
@@ -222,7 +222,7 @@ jobs:
 #          gcc
 #          make
 #    - name: checkout repo
-#      uses: actions/checkout@v4
+#      uses: actions/checkout@v7
 #    - name: make
 #      run: make
 #      shell: alpine.sh {0}
@@ -236,7 +236,7 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - uses: mymindstorm/setup-emsdk@v13
     - uses: actions/setup-node@v4
       with:

@@ -97,7 +97,7 @@ jobs:
             boost: 1
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
 
     - name: Get latest release version number
       id: get_version
@@ -164,7 +164,7 @@ jobs:
         boost: [0, 1]
         header_only: [0, 1]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
 
     - uses: vmactions/freebsd-vm@v1
       with:
@@ -215,7 +215,7 @@ jobs:
         apt-get update -qq
         apt-get install -qq --force-yes git
 
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
 
     - name: Install dependencies
       shell: bash
